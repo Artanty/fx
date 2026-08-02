@@ -1,0 +1,19 @@
+# Dependencies / build
+node_modules/
+dist/
+.angular/
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated / downloaded data (regenerate with `python3 build_db.py`)
+presets.db
+api_cache.json
+patchstorage/
+
+# Downloaded H90 manual
+input/
+
+# System
+.DS_Store

@@ -1,0 +1,167 @@
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">H90</span>
+    <div class="title-block">
+      <h1>Patch Explorer</h1>
+      <span class="subtitle">{{ data.total }} presets &middot; Eventide H90</span>
+    </div>
+  </div>
+  <div class="search-box">
+    <input
+      type="search"
+      placeholder="Search presets, algorithms, authors…"
+      [formControl]="search"
+      aria-label="Search"
+    />
+  </div>
+  <div class="sort-box">
+    <select [formControl]="sortControl" aria-label="Sort">
+      <option value="downloads">Most downloaded</option>
+      <option value="views">Most viewed</option>
+      <option value="likes">Most liked</option>
+      <option value="updated">Recently updated</option>
+      <option value="created">Recently added</option>
+      <option value="title">Title A–Z</option>
+    </select>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <h2>Filters</h2>
+      <button class="clear" (click)="clearFilters()" [disabled]="activeFilterCount() === 0 && !search.value">
+        Clear ({{ activeFilterCount() }})
+      </button>
+    </div>
+
+    <section class="filter-group">
+      <h3>Effect family</h3>
+      <label *ngFor="let f of filters.families" class="filter-item">
+        <input type="checkbox" [checked]="isSelected('families', f.name)" (change)="toggle('families', f.name)" />
+        <span class="name">{{ f.name }}</span>
+        <span class="count">{{ f.count }}</span>
+      </label>
+    </section>
+
+    <section class="filter-group">
+      <h3>Algorithm</h3>
+      <div class="filter-scroll">
+        <label *ngFor="let a of filters.algorithms" class="filter-item">
+          <input type="checkbox" [checked]="isSelected('algorithms', a.name)" (change)="toggle('algorithms', a.name)" />
+          <span class="name">{{ a.name }}</span>
+          <span class="count">{{ a.count }}</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="filter-group">
+      <h3>Category</h3>
+      <label *ngFor="let c of filters.categories" class="filter-item">
+        <input type="checkbox" [checked]="isSelected('categories', c.slug!)" (change)="toggle('categories', c.slug!)" />
+        <span class="name">{{ c.name }}</span>
+        <span class="count">{{ c.count }}</span>
+      </label>
+    </section>
+
+    <section class="filter-group">
+      <h3>File type</h3>
+      <label *ngFor="let e of filters.extensions" class="filter-item">
+        <input type="checkbox" [checked]="isSelected('extensions', e.name)" (change)="toggle('extensions', e.name)" />
+        <span class="name">{{ e.name }}</span>
+        <span class="count">{{ e.count }}</span>
+      </label>
+    </section>
+
+    <section class="filter-group">
+      <h3>
+        Tags
+        <button class="tag-toggle" (click)="toggleTags()">{{ showAllTags ? 'Show less' : 'Show all' }}</button>
+      </h3>
+      <div class="filter-scroll">
+        <label *ngFor="let t of filters.tags | slice: 0:visibleTags()" class="filter-item">
+          <input type="checkbox" [checked]="isSelected('tags', t.slug!)" (change)="toggle('tags', t.slug!)" />
+          <span class="name">{{ t.name }}</span>
+          <span class="count">{{ t.count }}</span>
+        </label>
+      </div>
+    </section>
+    <section class="filter-group h90-panel">
+      <h3>H90 test</h3>
+      <select [formControl]="h90Port" aria-label="H90 MIDI output">
+        <option *ngFor="let p of h90Ports" [ngValue]="p.index">{{ p.name }}</option>
+      </select>
+      <p *ngIf="!h90Ports.length" class="h90-none">
+        No MIDI outputs found. Is the H90 paired?
+      </p>
+      <div class="h90-row">
+        <label>Program
+          <input type="number" [formControl]="h90Program" min="1" max="100" aria-label="Program" />
+        </label>
+        <label>Channel
+          <input type="number" [formControl]="h90Channel" min="1" max="16" aria-label="Channel" />
+        </label>
+      </div>
+      <button class="h90-send" (click)="sendToH90()" [disabled]="h90Busy || !h90Ports.length">
+        {{ h90Busy ? 'Sending…' : 'Send to H90' }}
+      </button>
+      <span *ngIf="h90Status" class="h90-status">{{ h90Status }}</span>
+    </section>
+  </aside>
+
+  <main class="content">
+    <div class="results-bar">
+      <span *ngIf="!loading">{{ data.total }} result{{ data.total === 1 ? '' : 's' }}</span>
+      <span *ngIf="loading" class="loading">Loading…</span>
+    </div>
+
+    <div *ngIf="data.items.length === 0 && !loading" class="empty">
+      No presets match your filters.
+    </div>
+
+    <div class="grid" [class.blur]="loading">
+      <article *ngFor="let item of data.items; trackBy: trackBy" class="card">
+        <div class="card-top">
+          <a class="title" [routerLink]="['/preset', item.slug]">{{ item.title }}</a>
+          <div class="chips">
+            <span *ngIf="item.algorithm" class="chip chip-algo">{{ item.algorithm }}</span>
+            <span *ngIf="item.secondary_algorithm" class="chip chip-algo">{{ item.secondary_algorithm }}</span>
+            <span *ngIf="item.effect_family" class="chip chip-family">{{ item.effect_family }}</span>
+            <span class="chip chip-ext">{{ item.extension }}</span>
+          </div>
+        </div>
+
+        <p *ngIf="item.notes" class="notes">{{ item.notes }}</p>
+
+        <div class="card-meta">
+          <span class="author">{{ item.author || 'unknown' }}</span>
+          <span class="stats">
+            <span *ngIf="item.download_count" title="Downloads">&#11015; {{ formatNumber(item.download_count) }}</span>
+            <span *ngIf="item.view_count" title="Views">&#128065; {{ formatNumber(item.view_count) }}</span>
+            <span *ngIf="item.like_count" title="Likes">&#128077; {{ formatNumber(item.like_count) }}</span>
+          </span>
+        </div>
+
+        <div *ngIf="item.tags.length" class="tags">
+          <span *ngFor="let t of item.tags" class="tag">{{ t }}</span>
+        </div>
+      </article>
+    </div>
+
+    <nav *ngIf="data.pages > 1" class="pager">
+      <button (click)="changePage(page - 1)" [disabled]="page <= 1">&laquo;</button>
+      <ng-container *ngFor="let n of pageNumbers(); let i = index; let last = last">
+        <button
+          *ngIf="n > (pageNumbers()[i - 1] ?? 0) + 1"
+          class="gap"
+          disabled
+        >&hellip;</button>
+        <button
+          (click)="changePage(n)"
+          [class.active]="n === page"
+        >{{ n }}</button>
+      </ng-container>
+      <button (click)="changePage(page + 1)" [disabled]="page >= data.pages">&raquo;</button>
+    </nav>
+  </main>
+</div>

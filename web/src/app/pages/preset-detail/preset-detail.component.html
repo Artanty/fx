@@ -1,0 +1,76 @@
+<a class="back" routerLink="/">&larr; Back to presets</a>
+
+<div *ngIf="loading" class="state">Loading…</div>
+<div *ngIf="error" class="state error">{{ error }}</div>
+
+<ng-container *ngIf="patch && !loading">
+  <header class="page-head">
+    <h1>{{ patch.title }}</h1>
+
+    <div class="meta-line">
+      <span class="author">{{ patch.author || 'unknown' }}</span>
+      <span class="sep">&middot;</span>
+      <span>Updated {{ formatDate(patch.updated_at) }}</span>
+      <span *ngIf="patch.revision" class="sep">&middot;</span>
+      <span *ngIf="patch.revision">Rev {{ patch.revision }}</span>
+    </div>
+
+    <div class="chips">
+      <span *ngIf="patch.algorithm" class="chip chip-algo">{{ patch.algorithm }}</span>
+      <span *ngIf="patch.secondary_algorithm" class="chip chip-algo">{{ patch.secondary_algorithm }}</span>
+      <span *ngIf="patch.effect_family" class="chip chip-family">{{ patch.effect_family }}</span>
+      <span *ngFor="let c of patch.categories" class="chip chip-cat">{{ c }}</span>
+      <span class="chip chip-ext">{{ patch.extension }}</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat" title="Downloads">
+        <span class="stat-num">&#11015; {{ formatNumber(patch.download_count) }}</span>
+        <span class="stat-label">Downloads</span>
+      </div>
+      <div class="stat" title="Views">
+        <span class="stat-num">&#128065; {{ formatNumber(patch.view_count) }}</span>
+        <span class="stat-label">Views</span>
+      </div>
+      <div class="stat" title="Likes">
+        <span class="stat-num">&#128077; {{ formatNumber(patch.like_count) }}</span>
+        <span class="stat-label">Likes</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="body">
+    <section *ngIf="patch.content" class="panel">
+      <h2>Description</h2>
+      <div class="description">{{ patch.content }}</div>
+    </section>
+
+    <section *ngIf="patch.notes" class="panel">
+      <h2>Program notes</h2>
+      <div class="description notes">{{ patch.notes }}</div>
+    </section>
+
+    <section *ngIf="patch.tags.length" class="panel">
+      <h2>Tags</h2>
+      <div class="tag-list">
+        <span *ngFor="let t of patch.tags" class="tag">{{ t }}</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>File</h2>
+      <div class="file-row">
+        <div class="file-info">
+          <span class="file-name">{{ patch.filename }}</span>
+          <span class="file-size">{{ filesize() }} &middot; {{ patch.extension }}</span>
+          <span *ngIf="patch.preset_name" class="file-preset">Preset: {{ patch.preset_name }}</span>
+        </div>
+        <a class="download-btn" [href]="downloadUrl()">Download</a>
+      </div>
+      <p class="hint">
+        Also on <a [href]="patch.url" target="_blank" rel="noopener">patchstorage.com</a>
+        <span *ngIf="patch.license"> &middot; {{ patch.license }}</span>
+      </p>
+    </section>
+  </div>
+</ng-container>
