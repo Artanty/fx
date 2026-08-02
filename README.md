@@ -117,3 +117,15 @@ python3 build_db.py
 ```
 
 It re-scans `patchstorage/` and reuses the cached API metadata (`api_cache.json`) when present, so rebuilds are fast and offline. If the cache is missing it re-fetches everything from the Patchstorage API (platform ID `8271`, paginated).
+
+## Sending presets to the H90 (work in progress)
+
+- **Selecting a preset slot works today**: `server/h90-send.js --program N`
+  sends a Program Change to the H90 over WiFi MIDI.
+- **Importing a preset's content** (sending an arbitrary `.pgm90`/`.preset90`
+  to a pedal slot without the desktop app) is being reverse-engineered. The
+  wire format (MIDI SysEx, 7-bit bit-packed payload, custom encryption) is
+  documented in `DECISIONS.md`, with captured import traffic in
+  `server/h90-captures/` and the BLE MITM proxy in `server/h90_proxy.swift`.
+- Status: the 7-bit packing is solved; the payload's custom encryption is the
+  remaining blocker (see `DECISIONS.md` → "Resume here").

@@ -17,3 +17,8 @@ input/
 
 # System
 .DS_Store
+
+# Compiled helpers (build from the .swift sources)
+server/h90_proxy
+server/test-selfsource
+server/test-send-to-source
