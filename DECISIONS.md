@@ -1,7 +1,93 @@
 # Decisions — Programmatic H90 control from the web app
 
-Status: **paused (work in progress)**. Protocol is partially reverse-engineered;
-the custom encryption is the remaining blocker. See "Resume here" below.
+Status: **in progress**. The read/download path is fully decoded (plain zlib
+FlatBuffers) and the import **write** path is now decoded too — it is zlib
+**DEFLATE with a preset dictionary**, NOT encryption. The custom inflate decoder
+(`server/h90_dict_recover.py`) is built and validated byte-for-byte against
+zlib. The only remaining unknown is the exact dictionary (built at runtime from
+pedal data). See "Resume here".
+
+## 2026-08-05 (late) update — write path DECODED: DEFLATE + preset dictionary
+
+**The import write payload is NOT encrypted.** It is standard zlib DEFLATE (real
+`78 9c` header, FDICT bit unset) whose early symbols are length-distance matches
+into a **preset dictionary** standard zlib doesn't provide. Details in
+`H90-IMPORT-NOTES.md` (top section). Summary:
+
+- `h90_import2_req.bin` unpacks to `78 9c` + 438 B; standard `zlib.decompressobj(15)`
+  errors `invalid distance too far back`, but `zlib.decompressobj(-15, zdict=32K zeros)`
+  decodes it to a **793 B** message (`/tmp/write2_out.bin`). Verified the same
+  raw-deflate path decodes the known-good read payload byte-identically.
+- The 793 B = a 32-byte wrapper + an embedded preset serialization that is
+  byte-identical to `MURKY-BUCKUET-LEAD-642f25f984e72.preset90` for the first
+  196 bytes (same `Tap2DelayDivision-obj`, same two UUIDs, same preset name).
+- Dictionary footprint: 19 matches reference it; 169 output bytes depend on it;
+  144 distinct dict window offsets span the last 848 B of the 32K window
+  (31916–32764); the referenced bytes look like a preset serialization (vtable
+  offsets, u32 lengths, `LFOShape-obj` / `PitchJumpInterval-obj` strings).
+- The object-name strings are **absent from the app binary** (arm64 + x86_64) but
+  present in read responses ⇒ the dictionary is built at runtime from pedal data
+  (likely the current program's serialization; import #2's dict ≈ the then-current
+  `VECHOLONG` program). The app embeds JUCE's zlib (v1.2.3), whose
+  `GZIPCompressorOutputStream` supports a dictionary argument.
+- **Blocker status changed:** not "recover a cipher" — instead "capture the exact
+  dictionary", then the encoder is a normal `deflate` with that dictionary.
+
+## 2026-08-05 update — read path solved; write path decoded (was: confirmed encrypted)
+
+Big progress. Re-examining the clean captures with the verified LSB-first 7-bit
+unpack (`h90_decode.unpack_7bit`) overturned two earlier conclusions:
+
+- **READ path (pedal → app) is NOT encrypted.** Every large message in the clean
+  Aug-2 capture `server/h90-captures/h90_virtual_rx.log` unpacks to a valid zlib
+  stream that inflates to a **plain FlatBuffers** payload (root uoffset = 12,
+  prefix `0c 00 00 00 08 00 0c 00 07 00 08 00`). All 18 messages extracted to
+  `/tmp/h90_fb/<header>.bin` (e.g. `03050066.bin` = 149,868 B library dump with
+  real preset names `OilDrum` / `Indigo Fog` / `Resotap`, and JUCE param objects
+  like `switch6-obj`, `Sw 6: %s`). Small messages (≤ ~100 B body) are raw
+  FlatBuffers with no zlib. We can now read the pedal's full state/library.
+- **WRITE path (app → pedal) is DEFLATE + preset dictionary — NOT encryption.**
+  The import request (`03 5E 00 4F`, one message per import: 768 B for import #1,
+  512 B for import #2) unpacks to a real zlib header `78 9c` + deflate data that
+  references a missing preset dictionary. Decoded with `decompressobj(-15, zdict=…)`.
+  (Earlier "high-entropy / fake marker / not zlib" conclusions were wrong — the
+  dict was the only missing piece.)
+- Replay rejection (2026-08-04) is now coherent: reads are stateless plaintext;
+  writes are compressed against a runtime dictionary, so a replayed write (built
+  against the pedal's then-current program) is rejected when that program differs.
+
+**Correction to the 2026-08-04 note below:** "the custom encryption is the
+remaining blocker" was wrong — reads are solved and writes are dictionary-deflate.
+
+## 2026-08-04 update — replay is dead; cipher RE is required
+
+Empirically proven today (see `server/h90-relay-notes.md`):
+
+- The pedal's BLE-MIDI session can get corrupted (garbage CoreMIDI names, no MIDI
+  endpoints, app shows no connections). Fixed by power-cycling the H90 + toggling
+  macOS Bluetooth. CoreMIDI then exposes `XC-05987 Bluetooth` again.
+- **The pedal rejects ALL replay/modified/retried import requests**, on every
+  transport and configuration tested:
+  - via CoreMIDI (BLE and USB), with and without the desktop app connected;
+  - original captured bytes, message-ID byte flips, double-send retry.
+- Plaintext **type-01 poll/read requests replay fine** standalone (the pedal
+  answers with a fresh state response). So reads are stateless; the encrypted
+  type-03 **write** path is stateful/validated (per-message counter/nonce inside
+  the ciphertext, or a connection-bound write key) and is transport-independent.
+- The H90 over **USB** presents as CoreMIDI endpoint `H90 Pedal` (stable,
+  no BLE flakiness) plus a mass-storage interface (class 8) that does **not**
+  mount as a volume. USB does NOT bypass the encryption: same protocol-level
+  rejection.
+- The "live-session replay" idea (replay a captured import while the desktop app
+  holds the connection) was also tested: **rejected**.
+- Raw-BLE (CoreBluetooth) framing of SysEx also produced no responses; CoreMIDI
+  does the correct BLE-MIDI framing, so **CoreMIDI remains the transport** for
+  any future sender.
+
+Conclusion: **capture-and-replay cannot ship.** Sending preset content without
+the desktop app requires recovering the cipher (or a keystream) from the binary
+via a dynamic lldb trace. Only PC/CC (Program Change, already implemented) and
+plaintext reads work standalone today.
 
 ## Goal
 
@@ -65,85 +151,144 @@ directions. A preset import into a pedal slot was captured twice:
 
 SysEx framing, all payload bytes < 0x80 (MIDI-safe):
 
-- `F0 1C 77 00 03 <id> <00> <subid> 78 38 <yy> <payload> F7` — bulk/segmented data (type 03)
-- `F0 1C 77 00 01 <id> <00> <subid> ... F7` — control/ack messages (type 01)
-- Response message IDs differ from request IDs; ack = `F0 1C 77 01 <id> ...`
-- **The payload is 7-bit bit-packed data** (exact 8/7 size ratio; every value in
-  0x00-0x7F; only ~128 distinct values, which is why it looked "encrypted" at first).
-  Unpacking: MSB-first, take 7 bits per output byte.
+- `F0 1C 77 00 <f4> <f5> <f6> <f7> <body> F7` — all messages (type 03 = data, type 01 = control/ack)
+- Header bytes are two 14-bit fields, high/low split:
+  `msgid = (f4 << 7) | f5`, `type = (f6 << 7) | f7` (0x02 = device error, 0x34 = success).
+  Response message IDs differ from request IDs.
+- **The body is 7-bit bit-packed data** (8 packed bytes → 7 raw bytes). Verified
+  scheme is **LSB-first** (`h90_decode.unpack_7bit`; round-trip verified). The
+  earlier "MSB-first" note below was wrong.
+- **Read path** (pedal → app): unpack → zlib deflate → **plain FlatBuffers** root uoffset 12.
+- **Write path** (app → pedal): unpack → real zlib header `78 9c` → **raw DEFLATE
+  referencing a preset dictionary** (standard zlib rejects it; needs `zdict=`).
 
-So the chain is: `plaintext → encrypt → 8-bit bytes → 7-bit pack → SysEx`.
+So the chains are:
+- Read: `pedal state → zlib → 8-bit bytes → 7-bit pack → SysEx`
+- Write: `preset → (compact serialization) → raw-deflate w/ dictionary → 8-bit bytes → 7-bit pack → SysEx`
 
-- The 11-byte request header is constant across imports:
-  `F0 1C 77 00 03 5E 00 4F 78 38 16` (payload diverges immediately after).
+- The import request header is constant: `F0 1C 77 00 03 5E 00 4F 78 38 16`
+  (payload diverges immediately after; `78 38 16` unpacks to the `78 9c` header).
 - `.pgm90` files are NOT sent verbatim: a 3024 B `.pgm90` becomes a ~757 B wire
   payload, i.e. a compact serialization of the preset (trpc flatbuffer model),
   not the file.
 
-### The blocker (UNSOLVED): custom encryption
+### The blocker (WRITE path only): the exact dictionary (NOT a cipher)
 
-- After 7-bit unpacking, the data has near-max entropy (~7.9 bits/byte) — it is
-  genuinely encrypted, then packed.
-- Plaintext is a **flatbuffer** of `trpc::models::ExportedProgram` /
-  `ExportedPreset` (confirmed by exported template symbols in the app binary,
-  e.g. `flatbuffers::data<Offset<trpc::models::ExportedProgram>>`).
-- The cipher is **custom**: no AES / SHA-256 / MD5 / RC4 / ChaCha / X-TEA /
-  Blowfish constants anywhere in the binary; no zlib/lzma (decompression tests on
-  both raw and unpacked data at many offsets all failed).
+- The write payload is standard DEFLATE (real `78 9c` header, FDICT bit unset).
+  Standard `zlib` fails with `invalid distance too far back`; `zlib.decompressobj
+  (-15, zdict=…)` decodes both imports. The unknown is the **dictionary** the app
+  and pedal both build at runtime.
+- 19 length-distance matches reference the dict; 169 output bytes depend on it;
+  144 distinct dict window offsets span the last 848 B of the 32K window
+  (31916–32764). The referenced bytes look like a preset serialization (vtable
+  offsets, u32 lengths, `LFOShape-obj` / `PitchJumpInterval-obj` / `Lte-obj`).
+- The object-name strings are **absent from the app binary** (arm64 + x86_64) but
+  present in read responses ⇒ the dictionary is built from **pedal data** (likely
+  the current program's serialization; import #2's dict ≈ the then-current
+  `VECHOLONG` program, whose `.preset90` file we hold).
+- The app embeds **JUCE's zlib (v1.2.3)** ("1.2.3", "deflateEnd failed (ignored)")
+  — JUCE's `GZIPCompressorOutputStream` takes a dictionary argument, consistent
+  with a runtime-built dict string.
+- Pedal firmware is local (`~/Library/Eventide/H90 Control/Firmware/h90-1.11.4.os`,
+  34.9 MB): contains zlib refs, no plaintext object names (likely compressed).
 - Binary: `/Applications/Eventide/H90 Control.app/Contents/MacOS/H90 Control`
-  (arm64 slice: 6.2 MB; **stripped**, 742 symbols, no dSYM). Strings reveal
-  `H90Device::sendSegmentedPayload(SegmentedPayloadType, uint, uint, ...)` and
-  `{ "encryptionType": 4, ...` (the latter is exported-file JSON, not the wire).
-- Only Security.framework is linked (no CommonCrypto / OpenSSL symbol hits).
+  (arm64 slice: 6.2 MB; **stripped**, 742 symbols, no dSYM).
 
 ### Static RE progress
 
 - Disassembly dumped to `/tmp/h90_disas.txt` (arm64, ~1.16M lines).
-- Located the import/install thread function around `0x1002f131c`
+- Candidate import/install thread function around `0x1002f131c`
   (strings: "Import already in progress", "Importing algorithm...",
   "Error sending segment ", source path `.../ImportAlgorithmToCurrentProgramThread.cpp`).
   Segment size constant 2048; integer-to-ASCII progress-string builder inside.
+  Note: that exact breakpoint got 0 hits in the lldb sessions — likely the wrong
+  call-site for the captured (newer) app. No "encryptor" to find — the write path
+  is DEFLATE; the relevant call is the dict construction / deflate call.
 - `otool` section `offset` fields are **decimal** (a gotcha: `5531060` is decimal,
   not hex). __TEXT maps file offset → VA directly (`VA = 0x100000000 + file_off`).
-- **lldb cannot attach** to the running app (SIP/entitlement denies `task_for_pid`),
-  so no live inspection without restarting the app under the debugger.
+- **lldb attach works on the debug copy** (`~/h90-re/H90 Control.app`, re-signed
+  with `get-task-allow`): attached to the live PID and ran `memory find`
+  successfully. Heap `memory find` for `LFOShape-obj` over 0x10d900000–0x500000000
+  returned nothing (dict/ValueTree not resident, or in a different range).
 
 ### Resume here (next steps)
 
-1. **Extract the cipher/key (most reliable): relaunch the app under lldb.**
-   - Quit the running app; launch under `lldb -o "process launch"`, break on
-     `-[CBPeripheral writeData:forCharacteristic:type:]` (and the older
-     `writeValue:forCharacteristic:type:`), then have the user trigger one import.
-   - Dump the plaintext (flatbuffer) + ciphertext from the stack/args; the
-     packed buffer is what gets written, the pre-packing buffer is one frame up.
-   - With known plaintext+ciphertext, determine if the cipher is a fixed-position
-     keystream XOR (then `key = P ^ C` and we can encrypt arbitrary presets), or
-     a block/nonce-based cipher (much harder).
-2. **Alternative: keep static RE** of the packing/encryption loop in the
-   disassembly (hunt for the 7-bit packer, then trace its input buffer).
-3. **Fallback: capture-and-replay** — for any preset to be sendable, import it
-   once via the desktop app and store the request bytes; the web app replays them.
+Read path solved; write path = DEFLATE + dictionary (decoded), the **dictionary**
+is the only unknown. Primary route is a live capture; one attempt (2026-08-05,
+~19:15–19:20 MSK) was armed but paused before any import fired — the app sends
+NO MIDI while idle, so the import click is required to trigger the send
+breakpoints. Ready-to-reuse helper + arm command are documented in
+`H90-IMPORT-NOTES.md` under "LIVE dict-capture attempt".
 
-## Implementation (once the cipher is solved)
+1. **Capture the dictionary (primary).** The debug app (`~/h90-re/H90 Control.app`,
+   v1.9.5, re-signed with `get-task-allow`) runs live against the pedal through
+   the proxy. lldb-attach, trigger an import, and at the `MIDISendEventList` send
+   breakpoint (breakpoint 1, symbol857+704) dump the compressor's `z_stream`
+   dictionary, or `memory find` the heap for the dict blob at send time. Favoured
+   hypothesis to test offline first: dict = the current program's serialization
+   (import #2 ≈ `VECHOLONG-64027c252ee6e.preset90`).
+2. **Verify:** decompress `req1.raw`/`req2.raw` with the captured dict; full
+   plaintext must be valid and the pedal must accept a re-import.
+3. **Read-side schema recovery (feeds the encoder).** Recursively parse
+   `/tmp/h90_fb/*.bin` (the decoded read FlatBuffers) to map
+   ExportedProgram/ExportedPreset tables, vectors, strings → build the plaintext
+   encoder and align `.h90` backup JSON / `.pgm90` files against it.
+4. **Implement** once solved: `POST /api/h90/preset` builds the compact
+   serialization → raw-deflates with the dictionary → 7-bit packs → sends via
+   CoreMIDI (`H90 Pedal` USB endpoint or `XC-05987 Bluetooth`).
+
+## Implementation (once the dictionary is solved)
 
 - `server/server.js`: add `POST /api/h90/preset` accepting `{ presetFile/presetName, algorithm }`,
-  reads the `.pgm90`, builds the flatbuffer, encrypts, 7-bit packs, sends via `midi`.
+  reads the `.pgm90`, builds the flatbuffer, raw-deflates with the dictionary,
+  7-bit packs, sends via `midi`.
 - Angular detail page: "Send to H90" button → `POST /api/h90/preset`.
 - Update `README.md` and this file with the final codec.
 
 ## Open questions
 
-- Exact SysEx semantics of `78 38 <yy>` (magic marker vs. version/type byte) and
-  the `00 4F` / `00 13` sub-fields in the 03 header.
-- Whether the cipher is deterministic per message (fixed keystream) — decides
-  feasibility of generating arbitrary presets without the desktop app.
+- **The exact dictionary.** Built at runtime from pedal data (current program?),
+  same layout as the `.preset90` ValueTree serialization but a compact/wire
+  variant — the decoded request diverges from the `.preset90` format beyond byte
+  196. Not present as plaintext in the app binary or the local firmware.
+- Both imports decode with `eof=False` (0 unconsumed, no skip offset works) — the
+  deflate stream ends without a final block. Truncated capture or non-final flush?
+- The `00 4F` / `00 13` / `00 52` sub-fields in the 03 header (msgid high byte).
 - WiFi MIDI vs BLE: does the desktop app accept the identical SysEx over WiFi MIDI?
 
 ## Key files
 
+- `server/h90_dict_recover.py` — validated raw-DEFLATE inflater with LZ77 match
+  tracking + per-byte dict-source attribution (validated byte-for-byte vs zlib;
+  see `H90-IMPORT-NOTES.md` "2026-08-07" section)
+- `server/test_h90_dict_recover.py` + `server/tests/*.json` — regression suite
+  (fixed/dict corpora + seeded random crosschecks vs zlib)
 - `server/h90-captures/*.bin` — captured import requests/responses
-- `server/h90_proxy.swift` — BLE MITM proxy (source) and `server/h90_proxy` (built)
+- `server/h90-captures/h90_virtual_rx.log` — **clean** Aug-2 read capture (all
+  messages decode to plain zlib FlatBuffers); extracted to `/tmp/h90_fb/*.bin`
+- `server/h90-captures/h90_proxy_usb.log` — **corrupt** Aug-5 BLE capture: the
+  proxy logs `prefix(len)` of the 256-byte inline MIDIPacket buffer, over-reading
+  heap for packets > 256 B; do not use for payload bytes
+- `server/h90_proxy.swift` — BLE MITM proxy (source, has the over-read logging bug)
+- `server/h90_decode.py` — verified `unpack_7bit` / `pack_7bit` / FlatBuffer walker
 - `server/capture-proxy-long.js` / `server/capture-h90-long.js` — BLE capture helpers
 - `server/h90-send.js` — working WiFi-MIDI Program Change sender
 - `patchstorage/pgm90/*.pgm90`, `patchstorage/preset90/*.preset90` — preset files
   to compare against wire payloads
+- `/tmp/h90_fb/req1.raw` (664 B) / `req2.raw` (440 B) — the unpacked write payloads
+  after the `78 9c` header (sources: `h90_import_req.bin`, `h90_import2_req.bin`)
+- `/tmp/write2_out.bin` — decoded request #2 (793 B, zdict=zeros) = 32 B wrapper +
+  embedded preset serialization (first 196 B match the MURKY `.preset90` file)
+- `server/h90-captures/req1_dict_constraints.json` /
+  `req2_dict_constraints.json` — regenerated with the validated decoder: direct
+  dict window-offset→byte constraints (req2: 144, offsets 31916–32764)
+  for scoring candidate dictionaries
+- `/tmp/deflate_dec.py` — custom inflate (validated byte-identical vs zlib on the
+  35,604 B read payload; used for the dict-footprint analysis)
+- `server/h90-captures/h90_dict_capture.py` — lldb Python helper for the live dict
+  capture (MIDI-send breakpoint commands, heap scan, 64 KB dict save); arm command
+  and results in `H90-IMPORT-NOTES.md` ("LIVE dict-capture attempt")
+- `~/h90-re/H90 Control.app` — debug copy (v1.9.5, re-signed with `get-task-allow`;
+  lldb-attachable, running live against the pedal through `server/h90_proxy`)
+- `~/Library/Eventide/H90 Control/Firmware/h90-1.11.4.os` — local pedal firmware
+  (34.9 MB; has zlib, no plaintext object names)

@@ -1,0 +1,124 @@
+#!/usr/bin/expect -f
+#
+# H90 Control lldb capture harness (rebuild of /tmp/h90_expect.exp, gate fixed)
+#
+# Breakpoints (resolved post-launch, ASLR-safe):
+#   SEND      = symbol857 + 704   app's universal MIDI dispatcher -> bl MIDISendEventList
+#   CALLBACK  = symbol866         CoreMIDI input callback block invoke; x1 = incoming evtlist
+#
+# On SEND: capture bt/regs + evtlist ($x2). Gate on evtlist word[4] ($x2 + 16):
+#   if 0x3e/0x2e (import payload) -> IMPORT-SEND heavy dump (regs + $sp stack + $x0 source buffer)
+#
+set APP {/Users/artyomantoshkin/h90-re/H90 Control.app/Contents/MacOS/H90 Control}
+set LOG {/Users/artyomantoshkin/server/fx/server/h90-captures/h90_trace.log}
+set n 0
+
+log_file -a $LOG
+send "script print(\"==== SESSION START ====\")\r"
+expect -re {SESSION START}
+
+spawn lldb -f $APP
+expect {
+    -re {\(lldb\)} {}
+    timeout { puts "FATAL: no lldb prompt"; exit 1 }
+}
+
+send "process launch --stop-at-entry\r"
+expect {
+    -re {Process [0-9]+ launched} {}
+    -re {error:} { puts "FATAL: launch failed"; exit 1 }
+    timeout { puts "FATAL: launch timeout"; exit 1 }
+}
+
+# --- resolve symbol bases post-launch (ASLR) ---
+send "image lookup -n ___lldb_unnamed_symbol857\r"
+expect {
+    -re {Address: H90 Control\[(0x[0-9a-fA-F]+)\]} {
+        set s857 [string range $expect_out(1,string) 2 end]
+        set sendbase [expr 0x$s857 + 704]
+        set sendbp [format "0x%x" $sendbase]
+        puts "SEND bp = symbol857+704 = $sendbp"
+    }
+    timeout { puts "FATAL: symbol857 unresolved"; exit 1 }
+}
+
+send "image lookup -n ___lldb_unnamed_symbol866\r"
+expect {
+    -re {Address: H90 Control\[(0x[0-9a-fA-F]+)\]} {
+        set s866 [string range $expect_out(1,string) 2 end]
+        set cbbp "0x$s866"
+        puts "CALLBACK bp = symbol866 = $cbbp"
+    }
+    timeout { puts "FATAL: symbol866 unresolved"; exit 1 }
+}
+
+send "breakpoint set -a $sendbp\r"
+expect {
+    -re {Breakpoint [0-9]+:} {}
+    -re {error:} { puts "FATAL: SEND bp rejected"; exit 1 }
+}
+send "breakpoint set -a $cbbp\r"
+expect {
+    -re {Breakpoint [0-9]+:} {}
+    -re {error:} { puts "FATAL: CALLBACK bp rejected"; exit 1 }
+}
+
+puts "\n=== ARMED. Cancel firmware modal, connect, import. Ctrl-C to stop. ==="
+
+proc wait_prompt {} {
+    expect -re {\(lldb\)}
+}
+
+proc import_heavy {} {
+    send "script print(\"IMPORT-SEND\")\r"
+    expect -re {IMPORT-SEND}
+    send "thread backtrace -c 30\r"
+    wait_prompt
+    send "register read x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 fp lr sp pc cpsr\r"
+    wait_prompt
+    send "memory read -f x -c 300 -s 4 --force \$x2\r"
+    wait_prompt
+    send "memory read -f x -c 900 -s 4 --force \$sp\r"
+    wait_prompt
+    send "memory read -f x -c 300 -s 4 --force \$x0\r"
+    wait_prompt
+}
+
+proc bp_capture {which} {
+    global n
+    incr n
+    send "script print(\"==BP=$which n=$n==\")\r"
+    expect -re "==BP=$which n=$n=="
+    if {$which == 1} {
+        send "script print(\"SEND\")\r"
+        expect -re {SEND}
+        # gate: evtlist word[4] = count; imports are 0x3e (62) / 0x2e (46)
+        # polls: skip heavy capture (fast path, avoids MIDI desync)
+        send "expr -- (*(unsigned int*)(\$x2 + 16)) & 0xffff\r"
+        expect {
+            -re {= (46|62)} { import_heavy }
+            -re {\(lldb\)} {}
+        }
+    } else {
+        send "script print(\"CALLBACK\")\r"
+        expect -re {CALLBACK}
+        send "thread backtrace -c 12\r"
+        wait_prompt
+        send "register read x0 x1 x2 x3 x4\r"
+        wait_prompt
+        send "memory read -f x -c 300 -s 4 --force \$x1\r"
+        wait_prompt
+    }
+}
+
+trap { puts "\nSIGINT: killing app + quitting lldb"; send "process kill\r"; expect -re {\(lldb\)}; send "quit\r"; expect eof; exit 0 } SIGINT
+
+while {1} {
+    send "continue\r"
+    expect {
+        -re {stop reason = breakpoint 1\.} { bp_capture 1 }
+        -re {stop reason = breakpoint 3\.} { bp_capture 3 }
+        -re {Process [0-9]+ exited} { puts "APP EXITED"; send "quit\r"; exit 0 }
+        -re {stop reason =} {}
+    }
+}

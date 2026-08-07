@@ -22,3 +22,9 @@ input/
 server/h90_proxy
 server/test-selfsource
 server/test-send-to-source
+server/ble-connect
+server/ble-scan
+server/h90_relay
+server/midi-list
+server/midi-probe
+server/midi-step
