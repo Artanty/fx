@@ -32,6 +32,14 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    console.log(`[req] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`);
+  });
+  next();
+});
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 function sha256(buffer) {
@@ -106,8 +114,10 @@ app.get("/api/artists/:id/songs", (req, res) => {
        GROUP BY s.id
        ORDER BY s.title COLLATE NOCASE`
     ).all(req.params.id);
+    console.log(`[artist-songs] id=${req.params.id} artist=${JSON.stringify(artist)} -> ${songs.length} songs`);
     res.json({ artist, items: songs });
   } catch (err) {
+    console.error(`[artist-songs] ERROR id=${req.params.id}: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
