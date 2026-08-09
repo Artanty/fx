@@ -1,0 +1,35 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #a8aab2;
+}
+
+.toolbar select {
+  background: #17181c;
+  border: 1px solid #3a3d46;
+  color: #e6e6e6;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+button.active {
+  background: #3a5bd0;
+  border-color: #3a5bd0;
+}
+
+.tab-host {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 400px;
+}

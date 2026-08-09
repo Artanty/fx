@@ -1,0 +1,15 @@
+{
+  "name": "tabs-server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "scan": "node scripts/scan.js"
+  },
+  "dependencies": {
+    "@coderline/alphatab": "^1.8.4",
+    "express": "^4.21.2",
+    "multer": "^2.0.2"
+  }
+}

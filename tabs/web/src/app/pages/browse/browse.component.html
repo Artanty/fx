@@ -1,0 +1,30 @@
+<div>
+  <h1>Bass Tabs Library</h1>
+
+  <div class="search-row">
+    <input type="text" placeholder="Search songs, artists, albums…" [formControl]="searchControl" />
+    <button *ngIf="searching" (click)="onClear()">Clear</button>
+  </div>
+
+  <ng-container *ngIf="!searching">
+    <p class="muted">{{ artists.length }} artists</p>
+    <div class="grid">
+      <div class="card" *ngFor="let artist of artists">
+        <a [routerLink]="['/artist', artist.id]">
+          <div class="card-title">{{ artist.name }}</div>
+          <div class="muted">{{ artist.song_count }} song{{ artist.song_count === 1 ? '' : 's' }}</div>
+        </a>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-container *ngIf="searching">
+    <p class="muted">{{ results.length }} result{{ results.length === 1 ? '' : 's' }}</p>
+    <div class="card" *ngFor="let hit of results">
+      <a [routerLink]="['/song', hit.song_id]">
+        <div class="card-title">{{ hit.title }}</div>
+        <div class="muted">{{ hit.artist }}<span *ngIf="hit.album"> · {{ hit.album }}</span></div>
+      </a>
+    </div>
+  </ng-container>
+</div>

@@ -1,0 +1,58 @@
+<div>
+  <h1>Import tabs</h1>
+
+  <div class="status">
+    <span class="pill">pending: {{ status?.pending ?? 0 }}</span>
+    <span class="pill">indexed: {{ status?.indexed ?? 0 }}</span>
+    <span class="pill">errors: {{ status?.error ?? 0 }}</span>
+    <span class="pill">artists: {{ status?.artists ?? 0 }}</span>
+    <span class="pill">songs: {{ status?.songs ?? 0 }}</span>
+  </div>
+
+  <section>
+    <h2>Upload files</h2>
+    <div
+      class="dropzone"
+      [class.over]="dragOver"
+      (dragover)="$event.preventDefault(); dragOver = true"
+      (dragleave)="dragOver = false"
+      (drop)="onDrop($event)"
+    >
+      <p>Drop .gp / .gp3 / .gp4 / .gp5 / .gpx / .musicxml files here</p>
+      <label class="file-btn">
+        <input type="file" multiple (change)="onFileChange($event)" hidden />
+        <button class="primary">Choose files</button>
+      </label>
+    </div>
+    <p class="muted" *ngIf="uploading">Uploading…</p>
+    <p class="muted" *ngIf="uploadResult">{{ uploadResult }}</p>
+  </section>
+
+  <section>
+    <h2>Scan a folder</h2>
+    <div class="row">
+      <input type="text" placeholder="C:\path\to\tab\folder" [(ngModel)]="scanDir" />
+      <button (click)="onScan()" [disabled]="scanning || !scanDir.trim()">
+        {{ scanning ? 'Scanning…' : 'Scan folder' }}
+      </button>
+    </div>
+    <p class="muted" *ngIf="scanResult">
+      Scanned {{ scanResult.scanned }} files: {{ scanResult.added }} new, {{ scanResult.duplicates }} duplicates.
+    </p>
+  </section>
+
+  <section>
+    <h2>Index</h2>
+    <button (click)="onIndex()" [disabled]="indexing || (status?.pending ?? 0) === 0">
+      {{ indexing ? 'Indexing…' : 'Index pending files' }}
+    </button>
+    <p class="muted" *ngIf="indexMessage">{{ indexMessage }}</p>
+    <div *ngIf="errors.length">
+      <p class="muted">Failed files:</p>
+      <div class="card" *ngFor="let e of errors">
+        <div class="card-title">{{ e.filename }}</div>
+        <div class="muted">{{ e.error }}</div>
+      </div>
+    </div>
+  </section>
+</div>

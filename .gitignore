@@ -3,6 +3,13 @@ node_modules/
 dist/
 .angular/
 
+# Tabs app
+tabs/*.db
+tabs/data/
+tabs/server/*.log*
+tabs/web/ng.*.log
+tabs/web/*.log*
+
 # Python
 __pycache__/
 *.pyc
