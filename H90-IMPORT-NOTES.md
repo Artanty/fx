@@ -412,3 +412,93 @@ the captured MIDI marker `0x30161c77`, i.e. every TRPC message is framed into
 the (marker, data-word) pairs already decoded in this doc. Next candidate step:
 map each opcode to a vtable method name and decode a captured import segment
 against this 8-byte header to confirm the "Request ID" byte and payload layout.
+
+## 2026-08-09 — req1 embedded JSON identified (TWO-WAY preset), reconstruction in progress
+
+Work directory: `/tmp/h90_fb/` (regenerated this session). All req1/req2 artifacts
+were cleared from /tmp, so the pipeline was re-run and the results below are from
+fresh extraction.
+
+### Phase 0 — artifacts + read-response verification (DONE)
+
+- `req1_defl.raw` (659 B) / `req2_defl.raw` (435 B) re-extracted from
+  `h90_import_req.bin` / `h90_import2_req.bin` (7-bit unpack → drop zlib hdr/footer).
+- Read responses decode as **complete** zlib streams (eof=True) with the plain
+  `unpack_7bit` path — no big-frame segment-offset headers involved:
+  - `h90_import_resp_big.bin` (4999 B) → `h90_import_resp_big_dec.bin` **12,964 B**
+    (TWO-WAY state; contains `TWO WAY` at 12912, UUID `7ea818ee…` at 12824).
+  - `h90_import2_resp.bin` (5535 B) → `h90_import2_resp_dec.bin` **13,816 B**
+    (MURKY state; `MURKY` at 13752).
+  - (The earlier session's "10,873 B" figure for resp_big was wrong; 12,964 B is
+    correct and self-consistent — see `server/h90_decode.py`).
+
+### Phase 1 — req1's write JSON (MAJOR progress)
+
+`req1` decodes with `zdict=0x00*32768` to **976 B**. Structure:
+
+- `out[0:191]` binary wrapper (vtable offsets; matches the `.preset90` head,
+  including the `08 00 0c 00 07 00 08 00 08 00 00 00 00 00 00 01` pattern).
+- `out[192:204]` = `tjknobs-knob4` (object name — same string exists in the
+  `.preset90` file right before its base64 JSON blob).
+- `out[205:207]` = `00 00 00` (NUL terminator, matches `.preset90`).
+- `out[208:210]` = `xdl` (3 literal bytes, role unknown; followed by the JSON b64).
+- **`out[211:976]` = base64-encoded JSON**, group phase ≡ 3 (mod 4).
+
+The JSON is the **TWO-WAY preset's parameter dictionary** — decoded values match
+`patchstorage/preset90/TWO-WAY-640284089dce6.preset90`'s embedded JSON byte-for-byte
+for the readable stretches:
+
+```
+…verse","bypa_normal":0.0,"bypt_normal":0,"dlya":987.4534912109375,
+"dlya_denormalized_pretaper":350.0,"dlya_end_exp":0.9823130369186401,
+"dlya_start_exp":0.6586937904357910,"dlyb":1597.311401367188,
+"dlyb_denormalized_pretaper":343.8124694824219,"dmix":…}
+```
+
+i.e. the write JSON starts at the **`verse` tail of `"Reverse"`**; the head
+`{"algorithm_name":"Re` (≈ out[19x:211], incl. positions 208-210 `xdl`) is
+**dict-dependent** (already in the pedal). Readable tail fragments also show the
+preset's last keys/values: `"TWO WAY"`, `com.eventide.h9.tfreverse`,
+`routing_type`, `"version":"3"`, plus **reversed-looking fragments**
+(`versmal`, `noxypwitchyb`, `noxfad`, `_denotsyn`) — the tail encoding is NOT yet
+resolved.
+
+### Dict-dependence details (important reframe)
+
+- Every position where `deflate_track` returns `src[i]==('copy', dist)` is a
+  dict reference; with the zero placeholder dict its output byte shows as `0x00`.
+  These ARE part of the base64 string — their real values are base64 chars taken
+  from the pedal's runtime dict (previous program state).
+- `dict_refs()`'s `depend` set is a **subset** of copy positions (96 vs ~113 copy
+  positions in the region) — use `src` markers (`('copy',…)`) for the true set.
+- The NUL-looking bytes inside `out[211:976]` (at 230-231, 254-255, 273-274,
+  549-550, 560-565, 578-579, 587-591, 594-596, 618-628, 650-652, …) are all
+  dict-copy placeholders, i.e. unknown base64 chars.
+
+### Where the write JSON DIVERGES from the `.preset90` blob
+
+Greedy alignment of region literals against `b64(TWO-WAY.json)` (start at fwd
+index 28) matches **out[211:544]** almost perfectly (the `bypa_normal…dmix`
+stretch), then **diverges at the `dmix` VALUE (~out[545], preset `38.8183593750`)**
+— 141 mismatches across the rest of the region. So the write serialization is a
+**compact / wire variant**, NOT the file JSON verbatim (consistent with the 2026
+note "embedded serialization diverges beyond byte 196"; the region is ~573
+decoded bytes vs the file's 1173-byte JSON).
+
+Also: some 4-char groups inside the region cannot decode to printable bytes under
+*any* base64 assignment of the copy positions (e.g. group `out[231:235]` with
+known `t1h`), so the region is **not one contiguous clean base64 stream** — the
+structure (segment gaps / variant encoding) is still to be mapped.
+
+### Known unknowns / next steps
+
+1. Map the region's exact segment structure (why groups with known literals break
+   clean base64) and the reversed tail fragments.
+2. Reconstruct req1's full output (fill ~113 dict-copy bytes) under the write
+   variant; verify every literal char matches when re-encoded.
+3. Use reconstructed req1 output as the dictionary to decode req2 (MURKY): req2's
+   copy refs should point into TWO-WAY's serialization (post-import#1 state) →
+   clean MURKY decode = correctness proof. Validate against
+   `MURKY-BUCKUET-LEAD-642f25f984e72.preset90`.
+4. Then persist a reusable `server/h90_reconstruct.py` (workflow above was
+   exploratory stdin scripts; the analysis code lives in this doc's commands).
