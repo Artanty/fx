@@ -1,0 +1,97 @@
+<div>
+  <h1>Import from Ultimate Guitar</h1>
+  <p class="muted">
+    Search ultimate-guitar.com for user-submitted guitar, bass and chords tabs, then import them into your library.
+    Imported tabs are stored as text.
+  </p>
+
+  <div class="search-bar">
+    <input
+      type="text"
+      placeholder="Artist or song…"
+      [(ngModel)]="query"
+      (keydown)="onKey($event)"
+      (ngModelChange)="importedUrl = ''"
+    />
+    <button class="primary" (click)="onSearch()" [disabled]="searching || !query.trim()">
+      {{ searching ? 'Searching…' : 'Search' }}
+    </button>
+  </div>
+
+  <p class="error" *ngIf="error">{{ error }}</p>
+
+  <p class="muted" *ngIf="searched">{{ results.length }} result{{ results.length === 1 ? '' : 's' }}</p>
+
+  <div *ngIf="searched && !results.length" class="muted">No public tabs found.</div>
+
+  <div class="filters" *ngIf="searched && results.length">
+    <input
+      type="text"
+      placeholder="Filter by song or artist…"
+      [(ngModel)]="songFilter"
+    />
+    <input
+      type="number"
+      min="0"
+      max="5"
+      step="0.1"
+      placeholder="Min stars ★"
+      [ngModel]="minRating"
+      (ngModelChange)="minRating = $event"
+    />
+    <input
+      type="number"
+      min="0"
+      step="1"
+      placeholder="Min votes"
+      [ngModel]="minVotes"
+      (ngModelChange)="minVotes = $event"
+    />
+    <span class="muted">{{ filteredResults.length }} / {{ results.length }} shown</span>
+  </div>
+
+  <table class="ug-table" *ngIf="searched && results.length">
+    <thead>
+      <tr>
+        <th>Song</th>
+        <th>Artist</th>
+        <th>Type</th>
+        <th>★ Rating</th>
+        <th>Votes</th>
+        <th>Ver</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of filteredResults">
+        <td>{{ item.song }}</td>
+        <td>{{ item.artist }}</td>
+        <td><span class="pill">{{ item.type }}</span></td>
+        <td>{{ item.rating ? item.rating.toFixed(2) : '—' }}</td>
+        <td>{{ item.votes }}</td>
+        <td>{{ item.version > 1 ? 'v' + item.version : '' }}</td>
+        <td class="actions">
+          <button
+            *ngIf="busyUrl !== item.url"
+            (click)="onImport(item)"
+            class="primary"
+            [disabled]="!!busyUrl"
+          >
+            Import
+          </button>
+          <span *ngIf="busyUrl === item.url" class="muted">Importing…</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="importedUrl">
+    <a [routerLink]="[importedUrl]" class="muted">✔ Imported — open in library</a>
+  </p>
+
+  <div class="load-more" *ngIf="searched && results.length && page < totalPages">
+    <button (click)="onLoadMore()" [disabled]="loadingMore">
+      {{ loadingMore ? 'Loading…' : 'Load more (page ' + (page + 1) + ' of ' + totalPages + ')' }}
+    </button>
+  </div>
+</div>

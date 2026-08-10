@@ -13,6 +13,7 @@ export interface ArtistSong {
 }
 
 export interface TrackInfo {
+  id: number;
   name: string;
   shortName: string;
   program: number | undefined;
@@ -23,6 +24,7 @@ export interface TrackInfo {
 
 export interface TabItem {
   id: number;
+  kind: string;
   title: string | null;
   album: string | null;
   tempo: number | null;
@@ -35,6 +37,10 @@ export interface TabItem {
   filename: string;
   ext: string;
   size: number;
+  ug_type?: string;
+  rating?: number;
+  votes?: number;
+  url?: string;
 }
 
 export interface TabDetail extends TabItem {
@@ -44,6 +50,37 @@ export interface TabDetail extends TabItem {
   song_title: string;
   created_at: string;
   path: string;
+}
+
+export interface UgTabDetail {
+  id: number;
+  kind: string;
+  title: string | null;
+  ug_type: string;
+  rating: number;
+  votes: number;
+  version: number;
+  difficulty: string | null;
+  url: string;
+  content: string;
+  created_at: string;
+  artist_id: number;
+  artist: string;
+  song_id: number;
+  song_title: string;
+}
+
+export interface UgSearchResult {
+  id: number;
+  url: string;
+  artist: string;
+  song: string;
+  type: string;
+  version: number;
+  votes: number;
+  rating: number;
+  difficulty: string | null;
+  date: number | null;
 }
 
 export interface SongDetail {

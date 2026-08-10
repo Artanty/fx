@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiService } from '../../services/api.service';
-import { TabDetail, TrackInfo } from '../../models';
+import { TabDetail, TrackInfo, UgTabDetail } from '../../models';
 
 declare var alphaTab: any;
 
@@ -18,11 +18,14 @@ export class TabViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
 
+  mode: 'gp' | 'ug' = 'gp';
   tab: TabDetail | null = null;
+  ugTab: UgTabDetail | null = null;
   tabId = 0;
 
   private at: any = null;
   tracks: TrackInfo[] = [];
+  scoreReady = false;
   currentTrack = 0;
   playing = false;
   speed = 1;
@@ -30,14 +33,18 @@ export class TabViewerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit() {
     this.tabId = Number(this.route.snapshot.paramMap.get('id'));
+    this.mode = this.route.snapshot.queryParamMap.get('kind') === 'ug' ? 'ug' : 'gp';
+    if (this.mode === 'ug') {
+      this.api.getUgTab(this.tabId).subscribe((t) => (this.ugTab = t));
+      return;
+    }
     this.api.getTab(this.tabId).subscribe((t) => {
       this.tab = t;
-      this.tracks = t.tracks;
     });
   }
 
   ngAfterViewInit() {
-    this.initAlphaTab();
+    if (this.mode === 'gp') this.initAlphaTab();
   }
 
   ngOnDestroy() {
@@ -47,7 +54,7 @@ export class TabViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   private initAlphaTab() {
     if (!alphaTab) return;
     const settings = new alphaTab.Settings();
-    settings.core.scriptFile = 'assets/alphatab/alphaTab.min.js';
+    settings.core.scriptFile = new URL('assets/alphatab/alphaTab.min.js', document.baseURI).href;
     settings.core.fontDirectory = 'assets/alphatab/font/';
     settings.player.soundFont = 'assets/alphatab/soundfont/sonivox.sf2';
     settings.player.enablePlayer = true;
@@ -57,6 +64,13 @@ export class TabViewerComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.at = new alphaTab.AlphaTabApi(document.getElementById('tab-host'), settings);
     this.at.soundFontLoad.on((args: any) => {});
+    this.at.scoreLoaded.on((score: any) => {
+      this.tracks = (score.tracks || []).map((t: any) => ({
+        id: t.index,
+        name: t.name,
+      }));
+      this.scoreReady = true;
+    });
     this.at.playerStateChanged.on((args: any) => {
       this.playing = args.state === 1;
     });
@@ -82,8 +96,12 @@ export class TabViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   selectTrack(index: number) {
-    this.currentTrack = index;
-    this.at.renderTracks([index]);
+    if (!this.at || !this.scoreReady) return;
+    const target = Number(index);
+    const track = (this.at.score.tracks || []).find((t: any) => t.index === target);
+    if (!track) return;
+    this.currentTrack = target;
+    this.at.renderTracks([track]);
   }
 
   formatSize(bytes: number): string {

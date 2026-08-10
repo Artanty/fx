@@ -4,8 +4,9 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { indexFile } = require("./indexer");
+const { indexFile, upsertArtist, upsertSong } = require("./indexer");
 const { renderTextTab } = require("./textTab");
+const { searchUg, fetchUgTab } = require("./ug");
 
 const PORT = process.env.PORT || 3001;
 const ROOT_DIR = path.join(__dirname, "..");
@@ -135,7 +136,7 @@ app.get("/api/songs/:id", (req, res) => {
     const tabs = db.prepare(
       `SELECT t.id, t.title, t.album, t.tempo, t.gp_version, t.measures,
               t.capo, t.tunings, t.tracks, f.id AS file_id, f.filename,
-              f.ext, f.size
+              f.ext, f.size, 'gp' AS kind
        FROM tabs t
        JOIN files f ON f.id = t.file_id
        WHERE t.song_id = ?
@@ -145,7 +146,26 @@ app.get("/api/songs/:id", (req, res) => {
       tunings: r.tunings ? JSON.parse(r.tunings) : [],
       tracks: r.tracks ? JSON.parse(r.tracks) : [],
     }));
-    res.json({ song, items: tabs });
+    const ugTabs = db.prepare(
+      `SELECT u.id, u.title, u.ug_type, u.rating, u.votes, u.version,
+              u.difficulty, u.url, 'ug' AS kind
+       FROM ug_tabs u
+       WHERE u.song_id = ?
+       ORDER BY u.rating DESC`
+    ).all(req.params.id).map((r) => ({
+      ...r,
+      filename: null,
+      ext: null,
+      size: null,
+      album: null,
+      tempo: null,
+      gp_version: null,
+      measures: null,
+      capo: 0,
+      tunings: [],
+      tracks: [],
+    }));
+    res.json({ song, items: [...ugTabs, ...tabs] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -206,6 +226,66 @@ app.get("/api/tabs/:id/text", (req, res) => {
   }
 });
 
+app.get("/api/ug/search", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const result = await searchUg(req.query.q || "", page);
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+app.post("/api/ug/import", async (req, res) => {
+  try {
+    const url = (req.body && req.body.url || "").trim();
+    if (!url) return res.status(400).json({ error: "url is required" });
+    const ug = await fetchUgTab(url);
+    const artistId = upsertArtist(db, ug.artist);
+    const songId = upsertSong(db, artistId, ug.song);
+    const existing = db.prepare("SELECT id FROM ug_tabs WHERE ug_id = ?").get(ug.id);
+    if (existing) {
+      return res.json({ id: existing.id, kind: "ug", duplicate: true, song_id: songId });
+    }
+    const result = db.prepare(
+      `INSERT INTO ug_tabs (ug_id, song_id, title, ug_type, rating, votes, version, difficulty, url, content)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(ug.id, songId, ug.title, ug.type, ug.rating, ug.votes, ug.version, ug.difficulty, ug.url, ug.content);
+    res.json({ id: result.lastInsertRowid, kind: "ug", duplicate: false, song_id: songId });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+app.get("/api/ug/tabs/:id", (req, res) => {
+  try {
+    const row = db.prepare(
+      `SELECT u.id, u.title, u.ug_type, u.rating, u.votes, u.version,
+              u.difficulty, u.url, u.content, u.created_at,
+              a.id AS artist_id, a.name AS artist,
+              s.id AS song_id, s.title AS song_title
+       FROM ug_tabs u
+       JOIN songs s ON s.id = u.song_id
+       JOIN artists a ON a.id = s.artist_id
+       WHERE u.id = ?`
+    ).get(req.params.id);
+    if (!row) return res.status(404).json({ error: "tab not found" });
+    res.json({ ...row, kind: "ug" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/ug/tabs/:id/text", (req, res) => {
+  try {
+    const row = db.prepare("SELECT content FROM ug_tabs WHERE id = ?").get(req.params.id);
+    if (!row) return res.status(404).json({ error: "tab not found" });
+    res.type("text/plain").send(row.content);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/search", (req, res) => {
   try {
     const q = (req.query.q || "").trim();
@@ -224,7 +304,28 @@ app.get("/api/search", (req, res) => {
       ...r,
       artist: r.artist,
     }));
-    res.json({ items: rows });
+    const ugRows = db.prepare(
+      `SELECT u.id, u.title, u.ug_type, u.rating, u.votes,
+              a.name AS artist, a.id AS artist_id, s.id AS song_id
+       FROM ug_tabs u
+       JOIN songs s ON s.id = u.song_id
+       JOIN artists a ON a.id = s.artist_id
+       WHERE s.title LIKE ? OR a.name LIKE ?
+       LIMIT 20`
+    ).all(`%${q}%`, `%${q}%`).map((r) => ({
+      id: r.id,
+      title: r.title,
+      artist: r.artist,
+      album: r.ug_type,
+      rank: 0,
+      artist_id: r.artist_id,
+      artist_slug: "",
+      song_id: r.song_id,
+      kind: "ug",
+      ug_rating: r.rating,
+      ug_votes: r.votes,
+    }));
+    res.json({ items: [...ugRows, ...rows] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -4,16 +4,21 @@
   <p class="muted">{{ tabs.length }} tab version{{ tabs.length === 1 ? '' : 's' }}</p>
 
   <div class="card" *ngFor="let tab of tabs">
-    <a [routerLink]="['/tab', tab.id]">
+    <a [routerLink]="['/tab', tab.id]" [queryParams]="tab.kind === 'ug' ? { kind: 'ug' } : undefined">
       <div class="card-title">{{ tab.title || tab.filename }}</div>
       <div class="muted">
-        <span *ngIf="tab.album">{{ tab.album }} · </span>
-        <span *ngIf="tab.tempo">{{ tab.tempo }} bpm · </span>
-        <span *ngIf="tab.gp_version">{{ tab.gp_version }} · </span>
-        <span *ngIf="tab.measures">{{ tab.measures }} bars · </span>
-        {{ formatSize(tab.size) }}
+        <span class="pill">{{ tab.kind === 'ug' ? tab.ug_type : 'Guitar Pro' }}</span>
+        <span *ngIf="tab.kind === 'ug' && tab.rating">★ {{ tab.rating.toFixed(2) }}</span>
+        <span *ngIf="tab.kind === 'ug' && tab.votes"> ({{ tab.votes }} votes)</span>
+        <ng-container *ngIf="tab.kind !== 'ug'">
+          <span *ngIf="tab.album">{{ tab.album }} · </span>
+          <span *ngIf="tab.tempo">{{ tab.tempo }} bpm · </span>
+          <span *ngIf="tab.gp_version">{{ tab.gp_version }} · </span>
+          <span *ngIf="tab.measures">{{ tab.measures }} bars · </span>
+          {{ formatSize(tab.size) }}
+        </ng-container>
       </div>
-      <div *ngIf="tab.tracks && tab.tracks.length">
+      <div *ngIf="tab.kind !== 'ug' && tab.tracks && tab.tracks.length">
         <span class="pill" *ngFor="let t of tab.tracks">{{ t.name }}</span>
       </div>
     </a>

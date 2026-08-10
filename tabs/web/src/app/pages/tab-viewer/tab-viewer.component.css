@@ -33,3 +33,15 @@ button.active {
   overflow: hidden;
   min-height: 400px;
 }
+
+.ug-content {
+  background: #0d0e12;
+  border: 1px solid #3a3d46;
+  border-radius: 8px;
+  padding: 14px;
+  overflow-x: auto;
+  font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre;
+}

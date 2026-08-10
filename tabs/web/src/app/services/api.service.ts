@@ -10,6 +10,8 @@ import {
   TabItem,
   SearchHit,
   ImportStatus,
+  UgSearchResult,
+  UgTabDetail,
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -78,5 +80,26 @@ export class ApiService {
 
   importStatus(): Observable<ImportStatus> {
     return this.http.get<ImportStatus>('/api/import/status');
+  }
+
+  ugSearch(q: string, page = 1): Observable<{ items: UgSearchResult[]; page: number; totalPages: number }> {
+    return this.http.get<{ items: UgSearchResult[]; page: number; totalPages: number }>('/api/ug/search', {
+      params: { q, page: String(page) },
+    });
+  }
+
+  ugImport(url: string): Observable<{ id: number; kind: string; duplicate: boolean; song_id: number }> {
+    return this.http.post<{ id: number; kind: string; duplicate: boolean; song_id: number }>(
+      '/api/ug/import',
+      { url }
+    );
+  }
+
+  getUgTab(tabId: number): Observable<UgTabDetail> {
+    return this.http.get<UgTabDetail>(`/api/ug/tabs/${tabId}`);
+  }
+
+  getUgTabTextUrl(tabId: number): string {
+    return `/api/ug/tabs/${tabId}/text`;
   }
 }

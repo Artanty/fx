@@ -8,21 +8,36 @@
     <span *ngIf="tab.measures"> · {{ tab.measures }} bars</span>
     · {{ formatSize(tab.size) }}
   </p>
-
-  <div class="toolbar">
-    <button (click)="togglePlay()" class="primary">{{ playing ? 'Pause' : 'Play' }}</button>
-    <button (click)="stop()">Stop</button>
-    <button (click)="setLoop()" [class.active]="loop">Loop</button>
-    <label>Speed
-      <input type="range" min="0.5" max="1.5" step="0.1" [value]="speed" (input)="setSpeed($any($event.target).value)" />
-      <span class="muted">{{ speed }}x</span>
-    </label>
-    <label>Track
-      <select (change)="selectTrack($any($event.target).value)">
-        <option *ngFor="let t of tracks; let i = index" [value]="i" [selected]="i === currentTrack">{{ t.name }}</option>
-      </select>
-    </label>
-  </div>
-
-  <div id="tab-host" class="tab-host"></div>
 </div>
+
+<div *ngIf="ugTab">
+  <a [routerLink]="['/song', ugTab.song_id]" class="muted">← {{ ugTab.artist }} · {{ ugTab.song_title }}</a>
+  <h1>{{ ugTab.title || ugTab.song_title }}</h1>
+  <p class="muted">
+    {{ ugTab.artist }}
+    <span class="pill">{{ ugTab.ug_type }}</span>
+    <span *ngIf="ugTab.rating">★ {{ ugTab.rating.toFixed(2) }}</span>
+    <span *ngIf="ugTab.votes"> ({{ ugTab.votes }} votes)</span>
+    <span *ngIf="ugTab.difficulty"> · {{ ugTab.difficulty }}</span>
+    · <a [href]="ugTab.url" target="_blank" rel="noopener">ultimate-guitar.com</a>
+  </p>
+</div>
+
+<div *ngIf="!ugTab && tab" class="toolbar">
+  <button (click)="togglePlay()" class="primary">{{ playing ? 'Pause' : 'Play' }}</button>
+  <button (click)="stop()">Stop</button>
+  <button (click)="setLoop()" [class.active]="loop">Loop</button>
+  <label>Speed
+    <input type="range" min="0.5" max="1.5" step="0.1" [value]="speed" (input)="setSpeed($any($event.target).value)" />
+    <span class="muted">{{ speed }}x</span>
+  </label>
+  <label>Track
+    <select (change)="selectTrack($any($event.target).value)">
+      <option *ngFor="let t of tracks" [value]="t.id" [selected]="t.id === currentTrack">{{ t.name }}</option>
+    </select>
+  </label>
+</div>
+
+<div id="tab-host" class="tab-host" *ngIf="!ugTab"></div>
+
+<pre class="ug-content" *ngIf="ugTab">{{ ugTab.content }}</pre>

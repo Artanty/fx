@@ -44,6 +44,23 @@ CREATE TABLE IF NOT EXISTS tabs (
 CREATE INDEX IF NOT EXISTS idx_tabs_song ON tabs(song_id);
 CREATE INDEX IF NOT EXISTS idx_files_status ON files(status);
 
+CREATE TABLE IF NOT EXISTS ug_tabs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ug_id INTEGER NOT NULL UNIQUE,
+  song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+  title TEXT,
+  ug_type TEXT NOT NULL,
+  rating REAL,
+  votes INTEGER,
+  version INTEGER,
+  difficulty TEXT,
+  url TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ug_tabs_song ON ug_tabs(song_id);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS tabs_fts USING fts5(
   title, artist, album,
   content = ''
