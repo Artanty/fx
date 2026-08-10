@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { indexFile } = require("./indexer");
+const { renderTextTab } = require("./textTab");
 
 const PORT = process.env.PORT || 3001;
 const ROOT_DIR = path.join(__dirname, "..");
@@ -184,6 +185,22 @@ app.get("/api/tabs/:id/file", (req, res) => {
     const full = path.join(ROOT_DIR, row.path);
     if (!fs.existsSync(full)) return res.status(404).json({ error: "file missing on disk" });
     res.download(full, row.filename);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/tabs/:id/text", (req, res) => {
+  try {
+    const row = db.prepare(
+      "SELECT f.path FROM tabs t JOIN files f ON f.id = t.file_id WHERE t.id = ?"
+    ).get(req.params.id);
+    if (!row || !row.path) return res.status(404).json({ error: "tab not found" });
+    const full = path.join(ROOT_DIR, row.path);
+    if (!fs.existsSync(full)) return res.status(404).json({ error: "file missing on disk" });
+    const { parseScore } = require("./indexer");
+    const score = parseScore(fs.readFileSync(full));
+    res.type("text/plain").send(renderTextTab(score));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

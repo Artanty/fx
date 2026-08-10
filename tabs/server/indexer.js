@@ -13,8 +13,12 @@ function detectGpVersion(bytes) {
   return null;
 }
 
+function parseScore(bytes) {
+  return ScoreLoader.loadScoreFromBytes(new Uint8Array(bytes), new Settings());
+}
+
 function extractMetadata(bytes) {
-  const score = ScoreLoader.loadScoreFromBytes(new Uint8Array(bytes), new Settings());
+  const score = parseScore(bytes);
   const tracks = score.tracks.map((t) => {
     const staves = t.staves || [];
     const tunings = staves
@@ -107,4 +111,4 @@ function indexFile(db, fileRow, bytes) {
   return { tabId: db.prepare("SELECT id FROM tabs WHERE file_id = ?").get(fileRow.id).id, meta };
 }
 
-module.exports = { extractMetadata, detectGpVersion, indexFile, upsertArtist, upsertSong, slugify };
+module.exports = { extractMetadata, detectGpVersion, indexFile, upsertArtist, upsertSong, slugify, parseScore };
