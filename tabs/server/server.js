@@ -108,7 +108,9 @@ app.get("/api/artists/:id/songs", (req, res) => {
     const artist = db.prepare("SELECT id, name FROM artists WHERE id = ?").get(req.params.id);
     if (!artist) return res.status(404).json({ error: "artist not found" });
     const songs = db.prepare(
-      `SELECT s.id, s.title, COUNT(t.id) AS tab_count,
+      `SELECT s.id, s.title,
+              (SELECT COUNT(*) FROM tabs t WHERE t.song_id = s.id) +
+              (SELECT COUNT(*) FROM ug_tabs u WHERE u.song_id = s.id) AS tab_count,
               MIN(t.tempo) AS tempo
        FROM songs s
        LEFT JOIN tabs t ON t.song_id = s.id
