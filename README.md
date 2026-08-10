@@ -124,8 +124,31 @@ It re-scans `patchstorage/` and reuses the cached API metadata (`api_cache.json`
   sends a Program Change to the H90 over WiFi MIDI.
 - **Importing a preset's content** (sending an arbitrary `.pgm90`/`.preset90`
   to a pedal slot without the desktop app) is being reverse-engineered. The
-  wire format (MIDI SysEx, 7-bit bit-packed payload, custom encryption) is
-  documented in `DECISIONS.md`, with captured import traffic in
-  `server/h90-captures/` and the BLE MITM proxy in `server/h90_proxy.swift`.
-- Status: the 7-bit packing is solved; the payload's custom encryption is the
-  remaining blocker (see `DECISIONS.md` → "Resume here").
+  write path is **not encrypted**: it is zlib DEFLATE over a 7-bit packed SysEx
+  body, compressed against a **preset dictionary** built at runtime from pedal
+  state. Full protocol history is in `DECISIONS.md`; working notes are in
+  `H90-IMPORT-NOTES.md`.
+- Status: read path solved (plain zlib FlatBuffers); write path decoded, and
+  the req1 write payload (`server/h90-recon/`, from `server/h90-captures/`)
+  is identified as the TWO-WAY preset's parameter dictionary in a compact
+  base64 wire variant. The exact runtime dictionary and the tail encoding are
+  the remaining unknowns.
+
+### H90 import next steps
+
+1. **Map the req1 region's segment structure** — why 4-char groups break clean
+   base64, and the reversed-looking tail fragments. Tooling: `python3
+   server/h90_reconstruct.py analyze server/h90-captures/h90_import_req.bin`.
+2. **Reconstruct req1's full output** — fill the ~113 dict-copy bytes in
+   `out[211:976]` so every literal b64 char re-encodes cleanly.
+3. **Prove correctness**: use the reconstructed req1 output as the dictionary
+   to decode req2 (MURKY); a clean decode validates both the dict and the
+   encoder (check against `MURKY-BUCKUET-LEAD-642f25f984e72.preset90`).
+4. **Live-capture the dictionary** (primary, once and for all): lldb-attach to
+   `~/h90-re/H90 Control.app`, trigger an import, dump the compressor's
+   `z_stream` dict / `memory find` the heap (helper: `server/h90-captures/
+   h90_dict_capture.py`; arm command in `H90-IMPORT-NOTES.md`).
+5. **Implement the encoder + server wiring**: serialize preset → raw-deflate
+   with the dict → 7-bit pack → frame → send via CoreMIDI; add
+   `POST /api/h90/preset` in `server/server.js` and a "Send to H90" button in
+   the Angular detail page.
