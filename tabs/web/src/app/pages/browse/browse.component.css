@@ -1,0 +1,9 @@
+.search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.search-row input {
+  max-width: 480px;
+}

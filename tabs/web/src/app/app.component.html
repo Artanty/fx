@@ -1,0 +1,10 @@
+<header>
+  <a routerLink="/" class="brand">Bass<span>Tabs</span></a>
+  <nav>
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Library</a>
+    <a routerLink="/import" routerLinkActive="active">Import</a>
+  </nav>
+</header>
+<main>
+  <router-outlet />
+</main>

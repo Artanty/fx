@@ -1,0 +1,21 @@
+<div *ngIf="song">
+  <a [routerLink]="['/artist', song.artist_id]" class="muted">← {{ song.artist }}</a>
+  <h1>{{ song.title }}</h1>
+  <p class="muted">{{ tabs.length }} tab version{{ tabs.length === 1 ? '' : 's' }}</p>
+
+  <div class="card" *ngFor="let tab of tabs">
+    <a [routerLink]="['/tab', tab.id]">
+      <div class="card-title">{{ tab.title || tab.filename }}</div>
+      <div class="muted">
+        <span *ngIf="tab.album">{{ tab.album }} · </span>
+        <span *ngIf="tab.tempo">{{ tab.tempo }} bpm · </span>
+        <span *ngIf="tab.gp_version">{{ tab.gp_version }} · </span>
+        <span *ngIf="tab.measures">{{ tab.measures }} bars · </span>
+        {{ formatSize(tab.size) }}
+      </div>
+      <div *ngIf="tab.tracks && tab.tracks.length">
+        <span class="pill" *ngFor="let t of tab.tracks">{{ t.name }}</span>
+      </div>
+    </a>
+  </div>
+</div>

@@ -1,0 +1,15 @@
+<div>
+  <a routerLink="/" class="muted">← Library</a>
+  <h1>{{ artist?.name }}</h1>
+  <p class="muted">{{ songs.length }} song{{ songs.length === 1 ? '' : 's' }}</p>
+
+  <div class="card" *ngFor="let song of songs">
+    <a [routerLink]="['/song', song.id]">
+      <div class="card-title">{{ song.title }}</div>
+      <div class="muted">
+        {{ song.tab_count }} tab{{ song.tab_count === 1 ? '' : 's' }}
+        <span *ngIf="song.tempo"> · {{ song.tempo }} bpm</span>
+      </div>
+    </a>
+  </div>
+</div>
