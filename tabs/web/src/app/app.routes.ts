@@ -5,6 +5,7 @@ import { SongComponent } from './pages/song/song.component';
 import { TabViewerComponent } from './pages/tab-viewer/tab-viewer.component';
 import { ImportComponent } from './pages/import/import.component';
 import { UgImportComponent } from './pages/ug-import/ug-import.component';
+import { ChordsComponent } from './pages/chords/chords.component';
 
 export const routes: Routes = [
   { path: '', component: BrowseComponent },
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'tab/:id', component: TabViewerComponent },
   { path: 'import', component: ImportComponent },
   { path: 'import-ug', component: UgImportComponent },
+  { path: 'chords', component: ChordsComponent },
   { path: '**', redirectTo: '' },
 ];

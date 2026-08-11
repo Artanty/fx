@@ -1,30 +1,160 @@
 <div>
   <h1>Bass Tabs Library</h1>
 
-  <div class="search-row">
-    <input type="text" placeholder="Search songs, artists, albums…" [formControl]="searchControl" />
-    <button *ngIf="searching" (click)="onClear()">Clear</button>
+  <div class="ui-tabs">
+    <button
+      class="ui-tab"
+      [class.active]="active === 'all'"
+      (click)="select('all')"
+    >
+      All
+    </button>
+    <button
+      class="ui-tab"
+      [class.active]="active === 'favorites'"
+      (click)="select('favorites')"
+    >
+      ★ Favorites
+    </button>
+    <button
+      class="ui-tab"
+      *ngFor="let folder of folders"
+      [class.active]="active === 'f-' + folder.id"
+      (click)="select('f-' + folder.id)"
+    >
+      {{ folder.name }}
+      <span class="tab-count">{{ folder.tab_count }}</span>
+      <span class="folder-tools">
+        <span (click)="$event.stopPropagation(); startRename(folder)" title="Rename">✎</span>
+        <span (click)="$event.stopPropagation(); removeFolder(folder)" title="Delete">✕</span>
+      </span>
+    </button>
+    <button class="ui-tab new-folder" (click)="startCreate()">+ New</button>
   </div>
 
-  <ng-container *ngIf="!searching">
-    <p class="muted">{{ artists.length }} artists</p>
-    <div class="grid">
-      <div class="card" *ngFor="let artist of artists">
-        <a [routerLink]="['/artist', artist.id]">
-          <div class="card-title">{{ artist.name }}</div>
-          <div class="muted">{{ artist.song_count }} song{{ artist.song_count === 1 ? '' : 's' }}</div>
+  <div class="folder-form" *ngIf="creating">
+    <input
+      type="text"
+      placeholder="Folder name"
+      [(ngModel)]="newFolderName"
+      (keydown.enter)="createFolder()"
+    />
+    <button (click)="createFolder()" [disabled]="!newFolderName.trim()">Create</button>
+    <button (click)="creating = false">Cancel</button>
+  </div>
+
+  <div class="folder-form" *ngIf="renamingFolderId != null">
+    <input
+      type="text"
+      [(ngModel)]="renameName"
+      (keydown.enter)="renameFolder()"
+    />
+    <button (click)="renameFolder()" [disabled]="!renameName.trim()">Rename</button>
+    <button (click)="renamingFolderId = null">Cancel</button>
+  </div>
+
+  <ng-container *ngIf="active === 'all'">
+    <div class="search-row">
+      <input type="text" placeholder="Search songs, artists, albums…" [formControl]="searchControl" />
+      <button *ngIf="searching" (click)="onClear()">Clear</button>
+    </div>
+
+    <ng-container *ngIf="!searching">
+      <p class="muted">{{ artists.length }} artists</p>
+      <div class="grid">
+        <div class="card" *ngFor="let artist of artists">
+          <a [routerLink]="['/artist', artist.id]">
+            <div class="card-title">{{ artist.name }}</div>
+            <div class="muted">{{ artist.song_count }} song{{ artist.song_count === 1 ? '' : 's' }}</div>
+          </a>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="searching">
+      <p class="muted">{{ results.length }} result{{ results.length === 1 ? '' : 's' }}</p>
+      <div class="card" *ngFor="let hit of results">
+        <a [routerLink]="['/song', hit.song_id]">
+          <div class="card-title">{{ hit.title }}</div>
+          <div class="muted">{{ hit.artist }}<span *ngIf="hit.album"> · {{ hit.album }}</span></div>
         </a>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <ng-container *ngIf="active === 'favorites'">
+    <h2>Artists</h2>
+    <div class="card" *ngFor="let artist of favorites.artists">
+      <a [routerLink]="['/artist', artist.id]">
+        <div class="card-title">★ {{ artist.name }}</div>
+        <div class="muted">{{ artist.song_count }} song{{ artist.song_count === 1 ? '' : 's' }}</div>
+      </a>
+    </div>
+
+    <h2>Songs</h2>
+    <div class="card" *ngFor="let song of favorites.songs">
+      <a [routerLink]="['/song', song.id]">
+        <div class="card-title">★ {{ song.title }}</div>
+        <div class="muted">{{ song.artist }}</div>
+      </a>
+      <div class="row-actions" *ngIf="song.folders?.length">
+        <span class="folder-badge" *ngFor="let f of song.folders">{{ f }}</span>
+      </div>
+    </div>
+
+    <h2>Tabs</h2>
+    <div class="card tab-row" *ngFor="let tab of favorites.tabs">
+      <a [routerLink]="['/tab', tab.id]" [queryParams]="tab.kind === 'ug' ? { kind: 'ug' } : undefined">
+        <div class="card-title">
+          <span class="star on">★</span>
+          {{ tab.title || tab.song_title }}
+        </div>
+        <div class="muted">{{ tab.artist }} · {{ tab.song_title }}</div>
+      </a>
+      <div class="row-actions">
+        <span class="folder-badge" *ngFor="let f of tab.folders">{{ f.name }}</span>
+        <button (click)="toggleTabFavorite(tab)">Unfavorite</button>
       </div>
     </div>
   </ng-container>
 
-  <ng-container *ngIf="searching">
-    <p class="muted">{{ results.length }} result{{ results.length === 1 ? '' : 's' }}</p>
-    <div class="card" *ngFor="let hit of results">
-      <a [routerLink]="['/song', hit.song_id]">
-        <div class="card-title">{{ hit.title }}</div>
-        <div class="muted">{{ hit.artist }}<span *ngIf="hit.album"> · {{ hit.album }}</span></div>
-      </a>
+  <ng-container *ngIf="isFolderView()">
+    <div class="add-box">
+      <input
+        type="text"
+        placeholder="Add tab to folder — type a song or artist…"
+        [(ngModel)]="addTerm"
+        (ngModelChange)="onAddTermChange()"
+      />
+      <div class="add-matches" *ngIf="addTerm.trim()">
+        <div class="card match-row" *ngFor="let tab of addMatches">
+          <div>
+            <div class="card-title">{{ tab.title || tab.song_title }}</div>
+            <div class="muted">{{ tab.artist }} · {{ tab.song_title }}</div>
+          </div>
+          <button (click)="addToFolder(tab)">Add</button>
+        </div>
+        <p class="muted" *ngIf="!addMatches.length">No tabs match (already in this folder?).</p>
+      </div>
     </div>
+
+    <p class="muted">{{ folderItems.length }} tab{{ folderItems.length === 1 ? '' : 's' }} in folder</p>
+    <div class="card tab-row" *ngFor="let tab of folderItems">
+      <a [routerLink]="['/tab', tab.id]" [queryParams]="tab.kind === 'ug' ? { kind: 'ug' } : undefined">
+        <div class="card-title">
+          <span class="star" [class.on]="tab.favorited">★</span>
+          {{ tab.title || tab.song_title }}
+        </div>
+        <div class="muted">{{ tab.artist }} · {{ tab.song_title }}</div>
+      </a>
+      <div class="row-actions">
+        <span class="pill" *ngFor="let f of tab.folders">{{ f.name }}</span>
+        <button (click)="toggleTabFavorite(tab)" [class.fav-on]="tab.favorited">
+          {{ tab.favorited ? '★' : '☆' }}
+        </button>
+        <button class="danger" (click)="removeFromFolder(tab)">Remove from folder</button>
+      </div>
+    </div>
+    <p class="muted" *ngIf="!folderItems.length">Folder is empty — add tabs with the search above.</p>
   </ng-container>
 </div>

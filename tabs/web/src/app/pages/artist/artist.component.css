@@ -1,0 +1,29 @@
+.star-btn {
+  background: transparent;
+  border: none;
+  color: #8a8d95;
+  font-size: 18px;
+  padding: 0 4px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.star-btn:hover {
+  color: #f5c518;
+}
+
+.star-btn.on {
+  color: #f5c518;
+}
+
+.song-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.song-row > a {
+  flex: 1;
+  min-width: 0;
+}

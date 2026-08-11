@@ -24,46 +24,20 @@
 
   <div *ngIf="searched && !results.length" class="muted">No public tabs found.</div>
 
-  <div class="filters" *ngIf="searched && results.length">
-    <input
-      type="text"
-      placeholder="Filter by song or artist…"
-      [(ngModel)]="songFilter"
-    />
-    <input
-      type="number"
-      min="0"
-      max="5"
-      step="0.1"
-      placeholder="Min stars ★"
-      [ngModel]="minRating"
-      (ngModelChange)="minRating = $event"
-    />
-    <input
-      type="number"
-      min="0"
-      step="1"
-      placeholder="Min votes"
-      [ngModel]="minVotes"
-      (ngModelChange)="minVotes = $event"
-    />
-    <span class="muted">{{ filteredResults.length }} / {{ results.length }} shown</span>
-  </div>
-
   <table class="ug-table" *ngIf="searched && results.length">
     <thead>
       <tr>
-        <th>Song</th>
-        <th>Artist</th>
-        <th>Type</th>
-        <th>★ Rating</th>
-        <th>Votes</th>
+        <th class="sortable" (click)="onSort('song')">{{ sortArrow('song') }} Song</th>
+        <th class="sortable" (click)="onSort('artist')">{{ sortArrow('artist') }} Artist</th>
+        <th class="sortable" (click)="onSort('type')">{{ sortArrow('type') }} Type</th>
+        <th class="sortable" (click)="onSort('rating')">{{ sortArrow('rating') }} ★ Rating</th>
+        <th class="sortable" (click)="onSort('votes')">{{ sortArrow('votes') }} Votes</th>
         <th>Ver</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let item of filteredResults">
+      <tr *ngFor="let item of sortedResults">
         <td>{{ item.song }}</td>
         <td>{{ item.artist }}</td>
         <td><span class="pill">{{ item.type }}</span></td>
@@ -84,6 +58,27 @@
       </tr>
     </tbody>
   </table>
+
+  <div class="import-folder" *ngIf="searched && results.length">
+    <label>
+      Import into folder:
+      <select [(ngModel)]="targetFolderId">
+        <option value="">— Library only —</option>
+        <option *ngFor="let f of folders" [ngValue]="f.id">{{ f.name }}</option>
+        <option [ngValue]="'new'">+ New folder…</option>
+      </select>
+    </label>
+    <div class="folder-extra" *ngIf="isNewFolder">
+      <input
+        type="text"
+        placeholder="Folder name"
+        [(ngModel)]="newFolderName"
+        (ngModelChange)="onNewFolderMode()"
+      />
+      <p class="muted">Default: imported {{ today }} — the folder is created on import.</p>
+    </div>
+    <p class="error" *ngIf="importFolderError">{{ importFolderError }}</p>
+  </div>
 
   <p *ngIf="importedUrl">
     <a [routerLink]="[importedUrl]" class="muted">✔ Imported — open in library</a>

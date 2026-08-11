@@ -1,9 +1,19 @@
 <div>
   <a routerLink="/" class="muted">← Library</a>
-  <h1>{{ artist?.name }}</h1>
+  <h1>
+    <button
+      class="star-btn"
+      [class.on]="artist?.favorited"
+      (click)="toggleArtistFavorite()"
+      title="Toggle favorite"
+    >
+      {{ artist?.favorited ? '★' : '☆' }}
+    </button>
+    {{ artist?.name }}
+  </h1>
   <p class="muted">{{ songs.length }} song{{ songs.length === 1 ? '' : 's' }}</p>
 
-  <div class="card" *ngFor="let song of songs">
+  <div class="card song-row" *ngFor="let song of songs">
     <a [routerLink]="['/song', song.id]">
       <div class="card-title">{{ song.title }}</div>
       <div class="muted">
@@ -11,5 +21,13 @@
         <span *ngIf="song.tempo"> · {{ song.tempo }} bpm</span>
       </div>
     </a>
+    <button
+      class="star-btn"
+      [class.on]="song.favorited"
+      (click)="toggleSongFavorite(song)"
+      title="Toggle favorite"
+    >
+      {{ song.favorited ? '★' : '☆' }}
+    </button>
   </div>
 </div>

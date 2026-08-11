@@ -1,0 +1,139 @@
+h1 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.controls input[type="text"] {
+  max-width: 260px;
+}
+
+.slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #a8aab2;
+  font-size: 13px;
+}
+
+.slider span {
+  min-width: 18px;
+  text-align: right;
+  color: #e6e6e6;
+}
+
+.hint,
+.loading {
+  color: #8a8d95;
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.hint strong {
+  color: #e6e6e6;
+}
+
+.acc {
+  margin-bottom: 6px;
+}
+
+.acc-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #17181c;
+  border: 1px solid #3a3d46;
+  color: #e6e6e6;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.acc-head:hover {
+  background: #1f2229;
+}
+
+.acc-head.empty {
+  color: #8a8d95;
+}
+
+.acc-head .root {
+  font-weight: 700;
+  width: 26px;
+}
+
+.acc-head .count {
+  background: #26282f;
+  color: #a8aab2;
+  border-radius: 10px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.acc-head .arrow {
+  margin-left: auto;
+  color: #8a8d95;
+}
+
+.acc-body {
+  border: 1px solid #2a2c33;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 6px 10px;
+}
+
+.chord {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #26282f;
+}
+
+.chord:last-child {
+  border-bottom: none;
+}
+
+.chord-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chord-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.chord-name .orig {
+  color: #8a8d95;
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.muted {
+  color: #8a8d95;
+  font-size: 12px;
+}
+
+.sounding {
+  color: #9db4ff;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.diagram {
+  display: inline-block;
+  flex-shrink: 0;
+}
+

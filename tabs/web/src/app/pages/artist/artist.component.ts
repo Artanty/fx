@@ -16,14 +16,32 @@ export class ArtistComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
 
+  artistId = 0;
   artist: Artist | null = null;
   songs: ArtistSong[] = [];
 
   ngOnInit() {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
-    this.api.getArtistSongs(id).subscribe((r) => {
+    this.artistId = Number(this.route.snapshot.paramMap.get('id'));
+    this.load();
+  }
+
+  load() {
+    this.api.getArtistSongs(this.artistId).subscribe((r) => {
       this.artist = r.artist;
       this.songs = r.items;
+    });
+  }
+
+  toggleArtistFavorite() {
+    if (!this.artist) return;
+    this.api.toggleFavorite('artist', this.artist.id).subscribe((r) => {
+      if (this.artist) this.artist.favorited = r.active;
+    });
+  }
+
+  toggleSongFavorite(song: ArtistSong) {
+    this.api.toggleFavorite('song', song.id).subscribe((r) => {
+      song.favorited = r.active;
     });
   }
 }

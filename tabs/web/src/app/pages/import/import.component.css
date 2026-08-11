@@ -28,9 +28,26 @@ h2 {
 .row {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .row input {
   flex: 1;
   max-width: 520px;
+}
+
+.row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.row select {
+  background: #17181c;
+  border: 1px solid #3a3d46;
+  color: #e6e6e6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
 }

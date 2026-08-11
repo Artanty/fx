@@ -1,10 +1,12 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { ApiService } from '../../services/api.service';
-import { UgSearchResult } from '../../models';
+import { Folder, UgSearchResult } from '../../models';
+
+type SortKey = 'votes' | 'rating' | 'artist' | 'song' | 'type';
 
 @Component({
   selector: 'app-ug-import',
@@ -13,7 +15,7 @@ import { UgSearchResult } from '../../models';
   templateUrl: './ug-import.component.html',
   styleUrl: './ug-import.component.css',
 })
-export class UgImportComponent {
+export class UgImportComponent implements OnInit {
   private api = inject(ApiService);
 
   query = '';
@@ -27,18 +29,102 @@ export class UgImportComponent {
   totalPages = 1;
   loadingMore = false;
 
-  songFilter = '';
-  minRating: number | null = null;
-  minVotes: number | null = null;
+  folders: Folder[] = [];
+  targetFolderId: number | 'new' | '' = '';
+  newFolderName = '';
+  importFolderError = '';
 
-  get filteredResults(): UgSearchResult[] {
-    const name = this.songFilter.trim().toLowerCase();
-    return this.results.filter((r) => {
-      if (name && !`${r.song} ${r.artist}`.toLowerCase().includes(name)) return false;
-      if (this.minRating != null && this.minRating > 0 && r.rating < this.minRating) return false;
-      if (this.minVotes != null && this.minVotes > 0 && r.votes < this.minVotes) return false;
-      return true;
+  sortKey: SortKey | null = null;
+  sortDir: 'asc' | 'desc' = 'asc';
+
+  ngOnInit() {
+    this.loadFolders();
+  }
+
+  get today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  get isNewFolder(): boolean {
+    return this.targetFolderId === 'new';
+  }
+
+  onNewFolderMode() {
+    if (!this.newFolderName.trim()) {
+      this.newFolderName = `imported ${this.today}`;
+    }
+  }
+
+  loadFolders() {
+    this.api.getFolders().subscribe((r) => (this.folders = r.items));
+  }
+
+  get sortedResults(): UgSearchResult[] {
+    if (!this.sortKey) return this.results;
+    const key = this.sortKey;
+    const dir = this.sortDir === 'asc' ? 1 : -1;
+    return [...this.results].sort((a, b) => {
+      const av = (a as any)[key];
+      const bv = (b as any)[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1 * dir;
+      if (bv == null) return -1 * dir;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
     });
+  }
+
+  onSort(key: SortKey) {
+    if (this.sortKey === key) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortKey = key;
+      this.sortDir = 'asc';
+    }
+  }
+
+  sortArrow(key: SortKey): string {
+    if (this.sortKey !== key) return '↕';
+    return this.sortDir === 'asc' ? '↑' : '↓';
+  }
+
+  async onImport(item: UgSearchResult) {
+    this.busyUrl = item.url;
+    this.error = '';
+    this.importedUrl = '';
+    this.importFolderError = '';
+    try {
+      let folderId: number | null = null;
+      if (this.targetFolderId === 'new') {
+        const name = this.newFolderName.trim();
+        if (!name) throw new Error('folder name is required');
+        const existing = this.folders.find((f) => f.name === name);
+        if (existing) {
+          folderId = existing.id;
+        } else {
+          const created = await this.api.createFolder(name).toPromise();
+          if (!created) return;
+          folderId = created.id;
+          this.loadFolders();
+        }
+      } else if (this.targetFolderId !== '') {
+        folderId = Number(this.targetFolderId);
+      }
+
+      const r = await this.api.ugImport(item.url).toPromise();
+      if (r && folderId != null) {
+        await this.api
+          .addTabToFolder(folderId, r.kind, r.id)
+          .toPromise();
+      }
+      this.importedUrl = r ? `/song/${r.song_id}` : '';
+    } catch (err: any) {
+      this.importFolderError =
+        (err?.error?.error || err?.message || '').toString() || 'Import failed';
+      this.error = this.importFolderError;
+    } finally {
+      this.busyUrl = '';
+    }
   }
 
   async onSearch() {
@@ -81,20 +167,6 @@ export class UgImportComponent {
       this.error = err?.error?.error || err?.message || 'Load more failed';
     } finally {
       this.loadingMore = false;
-    }
-  }
-
-  async onImport(item: UgSearchResult) {
-    this.busyUrl = item.url;
-    this.error = '';
-    this.importedUrl = '';
-    try {
-      const r = await this.api.ugImport(item.url).toPromise();
-      this.importedUrl = r ? `/song/${r.song_id}` : '';
-    } catch (err: any) {
-      this.error = err?.error?.error || err?.message || 'Import failed';
-    } finally {
-      this.busyUrl = '';
     }
   }
 

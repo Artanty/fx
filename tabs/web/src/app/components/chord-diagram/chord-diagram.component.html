@@ -1,0 +1,21 @@
+<div class="diagram" [class.compact]="compact">
+  <div class="marker-row">
+    <span
+      *ngFor="let s of strings; let si = index"
+      class="marker"
+      [class.mute]="s === -1"
+      [class.open]="s === 0"
+    >
+      {{ s === -1 ? 'X' : s === 0 ? 'O' : '' }}
+    </span>
+  </div>
+  <div class="fretboard" [class.no-nut]="baseFret > 1">
+    <span class="fret-num" *ngIf="baseFret > 1">{{ baseFret }}</span>
+    <div class="capo-bar" *ngIf="capoRow !== null" [style.top.px]="capoTop"></div>
+    <div class="fret-row" *ngFor="let r of rows">
+      <div class="cell" *ngFor="let s of strings">
+        <span class="dot" *ngIf="s === r"></span>
+      </div>
+    </div>
+  </div>
+</div>

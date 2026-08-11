@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const { indexFile, upsertArtist, upsertSong } = require("./indexer");
 const { renderTextTab } = require("./textTab");
 const { searchUg, fetchUgTab } = require("./ug");
+const { seedChords } = require("./chord-data");
 
 const PORT = process.env.PORT || 3001;
 const ROOT_DIR = path.join(__dirname, "..");
@@ -23,6 +24,7 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 const schema = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
 db.exec(schema);
+seedChords(db);
 
 const app = express();
 app.use(express.json());
@@ -46,6 +48,63 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+function attachTabFlags(items) {
+  if (!items || !items.length) return items || [];
+  const folderMap = db
+    .prepare(
+      `SELECT fi.kind, fi.tab_id, f.id, f.name
+       FROM folder_items fi
+       JOIN folders f ON f.id = fi.folder_id`
+    )
+    .all();
+  const favs = db
+    .prepare(`SELECT ref_id AS tab_id, tab_kind AS kind FROM favorites WHERE kind = 'tab'`)
+    .all();
+  return items.map((it) => ({
+    ...it,
+    folders: folderMap
+      .filter((f) => f.kind === it.kind && f.tab_id === it.id)
+      .map((f) => ({ id: f.id, name: f.name })),
+    favorited: favs.some((f) => f.kind === it.kind && f.tab_id === it.id),
+  }));
+}
+
+const TAB_ITEM_SQL = (gpWhere, ugWhere) => `
+  SELECT t.id, 'gp' AS kind, t.title, a.name AS artist, a.id AS artist_id,
+         s.id AS song_id, s.title AS song_title, t.album, t.tempo,
+         t.gp_version, t.measures, NULL AS ug_type, NULL AS rating, NULL AS votes
+  FROM tabs t
+  JOIN songs s ON s.id = t.song_id
+  JOIN artists a ON a.id = s.artist_id
+  ${gpWhere || ""}
+  UNION ALL
+  SELECT u.id, 'ug' AS kind, u.title, a.name AS artist, a.id AS artist_id,
+         s.id AS song_id, s.title AS song_title, NULL AS album, NULL AS tempo,
+         NULL AS gp_version, NULL AS measures, u.ug_type, u.rating, u.votes
+  FROM ug_tabs u
+  JOIN songs s ON s.id = u.song_id
+  JOIN artists a ON a.id = s.artist_id
+  ${ugWhere || ""}`;
+
+function fetchAllTabItems() {
+  const rows = db.prepare(TAB_ITEM_SQL("", "")).all();
+  return attachTabFlags(rows);
+}
+
+function fetchFolderTabItems(folderId) {
+  const gpWhere = "WHERE EXISTS (SELECT 1 FROM folder_items fi WHERE fi.folder_id = ? AND fi.kind = 'gp' AND fi.tab_id = t.id)";
+  const ugWhere = "WHERE EXISTS (SELECT 1 FROM folder_items fi WHERE fi.folder_id = ? AND fi.kind = 'ug' AND fi.tab_id = u.id)";
+  const rows = db.prepare(TAB_ITEM_SQL(gpWhere, ugWhere)).all(folderId, folderId);
+  return attachTabFlags(rows);
+}
+
+function fetchFavoriteTabItems() {
+  const gpWhere = "WHERE EXISTS (SELECT 1 FROM favorites f WHERE f.kind = 'tab' AND f.tab_kind = 'gp' AND f.ref_id = t.id)";
+  const ugWhere = "WHERE EXISTS (SELECT 1 FROM favorites f WHERE f.kind = 'tab' AND f.tab_kind = 'ug' AND f.ref_id = u.id)";
+  const rows = db.prepare(TAB_ITEM_SQL(gpWhere, ugWhere)).all();
+  return attachTabFlags(rows);
 }
 
 function isTabExt(name) {
@@ -119,7 +178,16 @@ app.get("/api/artists/:id/songs", (req, res) => {
        ORDER BY s.title COLLATE NOCASE`
     ).all(req.params.id);
     console.log(`[artist-songs] id=${req.params.id} artist=${JSON.stringify(artist)} -> ${songs.length} songs`);
-    res.json({ artist, items: songs });
+    const artistFavorited = !!db
+      .prepare("SELECT id FROM favorites WHERE kind = 'artist' AND ref_id = ? AND tab_kind = ''")
+      .get(artist.id);
+    const favSongs = new Set(
+      db.prepare("SELECT ref_id FROM favorites WHERE kind = 'song'").all().map((r) => r.ref_id)
+    );
+    res.json({
+      artist: { ...artist, favorited: artistFavorited },
+      items: songs.map((s) => ({ ...s, favorited: favSongs.has(s.id) })),
+    });
   } catch (err) {
     console.error(`[artist-songs] ERROR id=${req.params.id}: ${err.message}`);
     res.status(500).json({ error: err.message });
@@ -167,7 +235,18 @@ app.get("/api/songs/:id", (req, res) => {
       tunings: [],
       tracks: [],
     }));
-    res.json({ song, items: [...ugTabs, ...tabs] });
+    const favorited = !!db
+      .prepare("SELECT id FROM favorites WHERE kind = 'song' AND ref_id = ? AND tab_kind = ''")
+      .get(song.id);
+    res.json({ song: { ...song, favorited }, items: attachTabFlags([...ugTabs, ...tabs]) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/tabs/all", (req, res) => {
+  try {
+    res.json({ items: fetchAllTabItems() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -188,11 +267,15 @@ app.get("/api/tabs/:id", (req, res) => {
        WHERE t.id = ?`
     ).get(req.params.id);
     if (!row) return res.status(404).json({ error: "tab not found" });
-    res.json({
-      ...row,
-      tunings: row.tunings ? JSON.parse(row.tunings) : [],
-      tracks: row.tracks ? JSON.parse(row.tracks) : [],
-    });
+    const flagged = attachTabFlags([
+      {
+        ...row,
+        kind: "gp",
+        tunings: row.tunings ? JSON.parse(row.tunings) : [],
+        tracks: row.tracks ? JSON.parse(row.tracks) : [],
+      },
+    ])[0];
+    res.json(flagged);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -272,7 +355,7 @@ app.get("/api/ug/tabs/:id", (req, res) => {
        WHERE u.id = ?`
     ).get(req.params.id);
     if (!row) return res.status(404).json({ error: "tab not found" });
-    res.json({ ...row, kind: "ug" });
+    res.json(attachTabFlags([{ ...row, kind: "ug" }])[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -283,6 +366,179 @@ app.get("/api/ug/tabs/:id/text", (req, res) => {
     const row = db.prepare("SELECT content FROM ug_tabs WHERE id = ?").get(req.params.id);
     if (!row) return res.status(404).json({ error: "tab not found" });
     res.type("text/plain").send(row.content);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/folders", (req, res) => {
+  try {
+    const items = db.prepare(
+      `SELECT f.id, f.name,
+              (SELECT COUNT(*) FROM folder_items fi WHERE fi.folder_id = f.id) AS tab_count
+       FROM folders f
+       ORDER BY f.name COLLATE NOCASE`
+    ).all();
+    res.json({ items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/folders", (req, res) => {
+  try {
+    const name = String((req.body && req.body.name) || "").trim();
+    if (!name) return res.status(400).json({ error: "name is required" });
+    const existing = db.prepare("SELECT id FROM folders WHERE name = ?").get(name);
+    if (existing) return res.status(409).json({ error: "folder already exists" });
+    const result = db.prepare("INSERT INTO folders (name) VALUES (?)").run(name);
+    res.json({ id: result.lastInsertRowid, name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/folders/:id", (req, res) => {
+  try {
+    const name = String((req.body && req.body.name) || "").trim();
+    if (!name) return res.status(400).json({ error: "name is required" });
+    const folder = db.prepare("SELECT id FROM folders WHERE id = ?").get(req.params.id);
+    if (!folder) return res.status(404).json({ error: "folder not found" });
+    const clash = db.prepare("SELECT id FROM folders WHERE name = ? AND id != ?").get(name, folder.id);
+    if (clash) return res.status(409).json({ error: "folder already exists" });
+    db.prepare("UPDATE folders SET name = ? WHERE id = ?").run(name, folder.id);
+    res.json({ id: Number(folder.id), name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/folders/:id", (req, res) => {
+  try {
+    const result = db.prepare("DELETE FROM folders WHERE id = ?").run(req.params.id);
+    if (!result.changes) return res.status(404).json({ error: "folder not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/folders/:id", (req, res) => {
+  try {
+    const folder = db.prepare(
+      `SELECT f.id, f.name,
+              (SELECT COUNT(*) FROM folder_items fi WHERE fi.folder_id = f.id) AS tab_count
+       FROM folders f WHERE f.id = ?`
+    ).get(req.params.id);
+    if (!folder) return res.status(404).json({ error: "folder not found" });
+    res.json({ folder, items: fetchFolderTabItems(folder.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/folders/:id/items", (req, res) => {
+  try {
+    const folder = db.prepare("SELECT id FROM folders WHERE id = ?").get(req.params.id);
+    if (!folder) return res.status(404).json({ error: "folder not found" });
+    const kind = req.body && req.body.kind === "ug" ? "ug" : "gp";
+    const tabId = Number(req.body && req.body.tab_id);
+    if (!tabId) return res.status(400).json({ error: "tab_id is required" });
+    db.prepare("INSERT OR IGNORE INTO folder_items (folder_id, kind, tab_id) VALUES (?, ?, ?)").run(
+      folder.id, kind, tabId
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/folders/:id/items/:kind/:tabId", (req, res) => {
+  try {
+    const kind = req.params.kind === "ug" ? "ug" : "gp";
+    db.prepare("DELETE FROM folder_items WHERE folder_id = ? AND kind = ? AND tab_id = ?").run(
+      req.params.id, kind, Number(req.params.tabId)
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/favorites", (req, res) => {
+  try {
+    const artists = db.prepare(
+      `SELECT a.id, a.name
+       FROM favorites f JOIN artists a ON a.id = f.ref_id
+       WHERE f.kind = 'artist'
+       ORDER BY a.name COLLATE NOCASE`
+    ).all();
+    const songs = db.prepare(
+      `SELECT s.id, s.title, a.id AS artist_id, a.name AS artist,
+              (SELECT GROUP_CONCAT(f.name, '||') FROM (
+                 SELECT DISTINCT f2.name AS name FROM folders f2
+                 WHERE EXISTS (
+                   SELECT 1 FROM folder_items fi
+                   WHERE fi.folder_id = f2.id AND fi.kind = 'gp'
+                     AND fi.tab_id IN (SELECT t.id FROM tabs t WHERE t.song_id = s.id)
+                 )
+                 OR EXISTS (
+                   SELECT 1 FROM folder_items fi
+                   WHERE fi.folder_id = f2.id AND fi.kind = 'ug'
+                     AND fi.tab_id IN (SELECT u.id FROM ug_tabs u WHERE u.song_id = s.id)
+                 )
+               ) f) AS folders
+       FROM favorites fv
+       JOIN songs s ON s.id = fv.ref_id
+       JOIN artists a ON a.id = s.artist_id
+       WHERE fv.kind = 'song'
+       ORDER BY a.name COLLATE NOCASE, s.title COLLATE NOCASE`
+    ).all().map((r) => ({
+      ...r,
+      folders: r.folders ? r.folders.split("||") : [],
+    }));
+    res.json({ artists, songs, tabs: fetchFavoriteTabItems() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/favorites", (req, res) => {
+  try {
+    const kind = req.body && req.body.kind;
+    if (!["artist", "song", "tab"].includes(kind)) {
+      return res.status(400).json({ error: "kind must be artist, song or tab" });
+    }
+    const refId = Number(req.body && req.body.ref_id);
+    if (!refId) return res.status(400).json({ error: "ref_id is required" });
+    const tabKind = kind === "tab" ? (req.body.tab_kind === "ug" ? "ug" : "gp") : "";
+    const existing = db
+      .prepare("SELECT id FROM favorites WHERE kind = ? AND ref_id = ? AND tab_kind = ?")
+      .get(kind, refId, tabKind);
+    if (existing) {
+      db.prepare("DELETE FROM favorites WHERE id = ?").run(existing.id);
+      return res.json({ active: false });
+    }
+    db.prepare("INSERT INTO favorites (kind, ref_id, tab_kind) VALUES (?, ?, ?)").run(
+      kind, refId, tabKind
+    );
+    res.json({ active: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/favorites/ids", (req, res) => {
+  try {
+    const rows = db.prepare(
+      "SELECT kind, ref_id, tab_kind FROM favorites"
+    ).all();
+    const artists = rows.filter((r) => r.kind === "artist").map((r) => r.ref_id);
+    const songs = rows.filter((r) => r.kind === "song").map((r) => r.ref_id);
+    const tabs = rows
+      .filter((r) => r.kind === "tab")
+      .map((r) => ({ id: r.ref_id, kind: r.tab_kind }));
+    res.json({ artists, songs, tabs });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -395,15 +651,23 @@ app.post("/api/import/upload", upload.array("files"), (req, res) => {
 app.post("/api/import/index", (req, res) => {
   try {
     const batch = req.body && req.body.limit ? Math.min(parseInt(req.body.limit, 10), 5000) : BATCH_SIZE;
+    const folderId = req.body && req.body.folder_id ? Number(req.body.folder_id) : 0;
+    if (folderId && !db.prepare("SELECT id FROM folders WHERE id = ?").get(folderId)) {
+      return res.status(404).json({ error: "folder not found" });
+    }
     const pending = db.prepare("SELECT * FROM files WHERE status = 'pending' LIMIT ?").all(batch);
     let ok = 0;
     let failed = 0;
     const errors = [];
+    const addToFolder = folderId
+      ? db.prepare("INSERT OR IGNORE INTO folder_items (folder_id, kind, tab_id) VALUES (?, 'gp', ?)")
+      : null;
     for (const fileRow of pending) {
       try {
         const full = path.join(ROOT_DIR, fileRow.path);
         if (!fs.existsSync(full)) throw new Error("file missing on disk");
-        indexFile(db, fileRow, fs.readFileSync(full));
+        const indexed = indexFile(db, fileRow, fs.readFileSync(full));
+        if (addToFolder) addToFolder.run(folderId, indexed.tabId);
         ok++;
       } catch (err) {
         failed++;
@@ -438,6 +702,26 @@ app.get("/api/import/status", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+app.get("/api/chords/qualities", (_req, res) => {
+  res.json(db.prepare(`SELECT DISTINCT quality FROM chords ORDER BY id`).all().map((r) => r.quality));
+});
+
+app.get("/api/chords", (req, res) => {
+  const { q, quality } = req.query;
+  let sql = `SELECT id, root, quality, name, notes, base_fret, frets FROM chords WHERE 1=1`;
+  const params = [];
+  if (quality) {
+    sql += ` AND quality = ?`;
+    params.push(String(quality));
+  }
+  if (q) {
+    sql += ` AND (name LIKE ? OR notes LIKE ?)`;
+    params.push(`%${q}%`, `%${q}%`);
+  }
+  sql += ` ORDER BY id`;
+  res.json(db.prepare(sql).all(...params));
+});
 
 app.listen(PORT, () => {
   console.log(`Tabs API listening on http://localhost:${PORT}`);

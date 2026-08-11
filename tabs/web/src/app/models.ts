@@ -3,6 +3,7 @@ export interface Artist {
   name: string;
   slug: string;
   song_count: number;
+  favorited?: boolean;
 }
 
 export interface ArtistSong {
@@ -10,6 +11,7 @@ export interface ArtistSong {
   title: string;
   tab_count: number;
   tempo: number | null;
+  favorited?: boolean;
 }
 
 export interface TrackInfo {
@@ -41,6 +43,8 @@ export interface TabItem {
   rating?: number;
   votes?: number;
   url?: string;
+  favorited?: boolean;
+  folders?: { id: number; name: string }[];
 }
 
 export interface TabDetail extends TabItem {
@@ -50,6 +54,8 @@ export interface TabDetail extends TabItem {
   song_title: string;
   created_at: string;
   path: string;
+  favorited?: boolean;
+  folders?: { id: number; name: string }[];
 }
 
 export interface UgTabDetail {
@@ -68,6 +74,8 @@ export interface UgTabDetail {
   artist: string;
   song_id: number;
   song_title: string;
+  favorited?: boolean;
+  folders?: { id: number; name: string }[];
 }
 
 export interface UgSearchResult {
@@ -88,6 +96,7 @@ export interface SongDetail {
   title: string;
   artist_id: number;
   artist: string;
+  favorited?: boolean;
 }
 
 export interface SearchHit {
@@ -108,4 +117,50 @@ export interface ImportStatus {
   artists: number;
   songs: number;
   tabs: number;
+}
+
+export interface Folder {
+  id: number;
+  name: string;
+  tab_count: number;
+}
+
+export interface LibraryTabItem {
+  id: number;
+  kind: string;
+  title: string | null;
+  artist: string;
+  artist_id: number;
+  song_id: number;
+  song_title: string;
+  album: string | null;
+  tempo: number | null;
+  gp_version: string | null;
+  measures: number | null;
+  ug_type: string | null;
+  rating: number | null;
+  votes: number | null;
+  favorited: boolean;
+  folders: { id: number; name: string }[];
+}
+
+export interface FavoriteStatus {
+  artists: number[];
+  songs: number[];
+  tabs: { id: number; kind: string }[];
+}
+
+export interface FavoriteTabRef {
+  id: number;
+  kind: string;
+}
+
+export interface Chord {
+  id: number;
+  root: string;
+  quality: string;
+  name: string;
+  notes: string;
+  base_fret: number;
+  frets: string;
 }

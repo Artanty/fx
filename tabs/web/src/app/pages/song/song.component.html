@@ -1,11 +1,24 @@
-<div *ngIf="song">
+﻿<div *ngIf="song">
   <a [routerLink]="['/artist', song.artist_id]" class="muted">← {{ song.artist }}</a>
-  <h1>{{ song.title }}</h1>
+  <h1>
+    <button
+      class="star-btn"
+      [class.on]="song.favorited"
+      (click)="toggleSongFavorite()"
+      title="Toggle favorite"
+    >
+      {{ song.favorited ? '★' : '☆' }}
+    </button>
+    {{ song.title }}
+  </h1>
   <p class="muted">{{ tabs.length }} tab version{{ tabs.length === 1 ? '' : 's' }}</p>
 
-  <div class="card" *ngFor="let tab of tabs">
+  <div class="card tab-row" *ngFor="let tab of tabs">
     <a [routerLink]="['/tab', tab.id]" [queryParams]="tab.kind === 'ug' ? { kind: 'ug' } : undefined">
-      <div class="card-title">{{ tab.title || tab.filename }}</div>
+      <div class="card-title">
+        <span class="star" [class.on]="tab.favorited">★</span>
+        {{ tab.title || tab.filename }}
+      </div>
       <div class="muted">
         <span class="pill">{{ tab.kind === 'ug' ? tab.ug_type : 'Guitar Pro' }}</span>
         <span *ngIf="tab.kind === 'ug' && tab.rating">★ {{ tab.rating.toFixed(2) }}</span>
@@ -22,5 +35,40 @@
         <span class="pill" *ngFor="let t of tab.tracks">{{ t.name }}</span>
       </div>
     </a>
+    <div class="row-actions">
+      <span class="pill folder-badge" *ngFor="let f of tab.folders" [title]="'Folder: ' + f.name">
+        {{ f.name }}
+      </span>
+      <button
+        class="star-btn"
+        [class.on]="tab.favorited"
+        (click)="toggleTabFavorite(tab)"
+        title="Toggle favorite"
+      >
+        {{ tab.favorited ? '★' : '☆' }}
+      </button>
+      <span class="folder-pick">
+        <select [(ngModel)]="folderPick[tab.id]" (ngModelChange)="onPick(tab)">
+          <option value="">+ Folder…</option>
+          <option *ngFor="let f of folders" [ngValue]="f.id">{{ f.name }}</option>
+          <option [ngValue]="'new'">+ New folder…</option>
+        </select>
+        <ng-container *ngIf="folderPick[tab.id] === 'new'">
+          <input
+            class="new-folder-name"
+            type="text"
+            placeholder="Folder name"
+            [(ngModel)]="newFolderName[tab.id]"
+          />
+        </ng-container>
+        <button
+          class="primary small"
+          (click)="addToFolder(tab)"
+          [disabled]="!folderPick[tab.id] || busy"
+        >
+          Add
+        </button>
+      </span>
+    </div>
   </div>
 </div>

@@ -7,3 +7,148 @@
 .search-row input {
   max-width: 480px;
 }
+
+.ui-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #2a2c33;
+}
+
+.ui-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #17181c;
+  border: 1px solid #3a3d46;
+  color: #a8aab2;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ui-tab:hover {
+  color: #e6e6e6;
+  background: #1f2229;
+}
+
+.ui-tab.active {
+  color: #fff;
+  background: #2b3a6e;
+  border-color: #3a5bd0;
+}
+
+.ui-tab .tab-count {
+  background: #26282f;
+  color: #a8aab2;
+  border-radius: 10px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.ui-tab .folder-tools {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 2px;
+  color: #8a8d95;
+}
+
+.ui-tab .folder-tools span {
+  cursor: pointer;
+  padding: 0 3px;
+  border-radius: 4px;
+}
+
+.ui-tab .folder-tools span:hover {
+  color: #fff;
+  background: #3a3d46;
+}
+
+.new-folder {
+  border-style: dashed;
+  color: #5b8cff;
+}
+
+.folder-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.folder-form input {
+  max-width: 320px;
+}
+
+.tab-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tab-row > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.star {
+  color: #8a8d95;
+}
+
+.star.on {
+  color: #f5c518;
+}
+
+button.fav-on {
+  color: #f5c518;
+}
+
+button.danger {
+  border-color: #b0413e;
+  color: #ff6b6b;
+}
+
+.add-box {
+  margin-bottom: 16px;
+}
+
+.add-box input {
+  max-width: 480px;
+}
+
+.add-matches {
+  margin-top: 8px;
+  max-width: 720px;
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 20px 0 10px;
+  color: #a8aab2;
+}
+
+.folder-badge {
+  border-color: #3a5bd0;
+  color: #9db4ff;
+}

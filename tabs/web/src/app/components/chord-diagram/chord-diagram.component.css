@@ -1,0 +1,113 @@
+.diagram {
+  display: inline-block;
+}
+
+.marker-row {
+  display: grid;
+  grid-template-columns: repeat(6, 16px);
+  justify-items: center;
+  height: 14px;
+  font-size: 10px;
+  color: #8a8d95;
+  line-height: 14px;
+}
+
+.marker.mute {
+  color: #ff6b6b;
+}
+
+.marker.open {
+  color: #6ee7a0;
+}
+
+.marker.mute,
+.marker.open {
+  font-weight: 700;
+}
+
+.fretboard {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, 16px);
+}
+
+.fretboard .fret-row:first-child {
+  border-top: 3px solid #c8cad0;
+}
+
+.fretboard.no-nut .fret-row:first-child {
+  border-top: 1px solid #3a3d46;
+}
+
+.cell {
+  width: 16px;
+  height: 18px;
+  border-right: 1px solid #3a3d46;
+  border-bottom: 1px solid #3a3d46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell:last-child {
+  border-right: none;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e6e6e6;
+}
+
+.fret-num {
+  position: absolute;
+  left: -14px;
+  top: 10px;
+  font-size: 10px;
+  color: #8a8d95;
+}
+
+.capo-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  margin-top: -2px;
+  background: #5b8cff;
+  border-radius: 2px;
+  z-index: 2;
+  opacity: 0.9;
+}
+
+.compact .marker-row {
+  grid-template-columns: repeat(6, 11px);
+  height: 10px;
+  font-size: 8px;
+  line-height: 10px;
+}
+
+.compact .fretboard {
+  grid-template-columns: repeat(6, 11px);
+}
+
+.compact .cell {
+  width: 11px;
+  height: 12px;
+}
+
+.compact .dot {
+  width: 7px;
+  height: 7px;
+}
+
+.compact .capo-bar {
+  height: 3px;
+  margin-top: -1.5px;
+}
+
+.compact .fret-num {
+  left: -10px;
+  top: 7px;
+  font-size: 8px;
+}
