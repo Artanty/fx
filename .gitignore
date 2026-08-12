@@ -19,8 +19,9 @@ presets.db
 api_cache.json
 patchstorage/
 
-# Downloaded H90 manual
 
+# Capstone disassembler source checkout (pip `capstone` wheel replaces it)
+input/capstone-next/
 
 # System
 .DS_Store

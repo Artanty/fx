@@ -502,3 +502,68 @@ structure (segment gaps / variant encoding) is still to be mapped.
    `MURKY-BUCKUET-LEAD-642f25f984e72.preset90`.
 4. Then persist a reusable `server/h90_reconstruct.py` (workflow above was
    exploratory stdin scripts; the analysis code lives in this doc's commands).
+
+## 2026-08-12 — capstone static-analysis tool (`server/h90_capstone.py`)
+
+New tool for the static RE of the app binary. Finds **ADRP/ADD and ADR xrefs**
+to target VAs (string literals or hex offsets) across `__text` and disassembles
+the referencing functions — to locate the write-payload JSON builder, base64
+encoder and deflate-dictionary construction in the arm64 slice.
+
+### Setup on another device
+
+```bash
+pip install capstone        # works with 6.0.0 stable; also verified with 6.0.0a10 (next)
+```
+
+The `input/capstone-next/` source checkout is **git-ignored** and NOT needed —
+the PyPI wheel ships the native core. On macOS the arm64-capable build resolves
+via `/usr/bin/python3` (system Python 3.9) or a pip-managed interpreter; use a
+Python whose `import capstone` succeeds. If the API errors on a newer stable,
+pin `pip install capstone==6.0.0a10`.
+
+### Usage
+
+```bash
+APP="/Applications/Eventide/H90 Control.app/Contents/MacOS/H90 Control"
+
+# xref a string literal; --show also prints the referencing function's disasm
+python3 server/h90_capstone.py "$APP" --find "Import already in progress" --show
+
+# xref multiple strings / a literal VA (0x- prefix = VA, else looked up as a string)
+python3 server/h90_capstone.py "$APP" --find "imported" "0x1002f131c" --show
+
+# just disassemble forward from a VA (80 insns default)
+python3 server/h90_capstone.py "$APP" --disasm 0x1002f131c
+
+# widen the ADRP→ADD pairing window (default 32 insns)
+python3 server/h90_capstone.py "$APP" --find "Import already in progress" --window 64
+```
+
+### Gotchas
+
+- Binary is **stripped** (742 symbols, no dSYM). __TEXT maps file offset → VA
+  directly (`VA = 0x100000000 + file_off`; `--vm` default matches). `otool`
+  section offsets are **decimal**.
+- The app binary is **fat**; string lookups search only the arm64 slice, so the
+  VA is computed relative to the slice (slice file offset ≠ absolute offset).
+  The x86_64 slice contains the same strings at different offsets — don't mix
+  them up.
+- The capstone "next" preview (6.0.0a10) reports ADRP immediates as absolute
+  page addresses; the script handles both forms.
+- Note from earlier work: the `0x1002f131c` import-thread candidate got 0 lldb
+  hits on the captured (newer) app — re-verify call sites before trusting them.
+
+### Status / tie-in
+
+- Verified (2026-08-12): `--find "Import already in progress"` → xrefs at
+  `0x1002f1368` and `0x1002f13b4` (the documented import-thread function region,
+  DECISIONS.md "Static RE progress"), each loading a message string then calling
+  `0x100018b48` — looks like a `juce::String` / message formatting helper.
+- This is a **secondary/offline route** to the dict problem (DECISIONS.md
+  "Resume here"). The primary route stays the live lldb capture
+  (`server/h90-captures/h90_dict_capture.py` + "LIVE dict-capture attempt").
+- Next: xref `zlib`/`deflate*` and `GZIPCompressorOutputStream` call sites, find
+  the `zdict` argument's construction, then score the resulting candidate dict
+  offline with `server/h90_dict_recover.py` against
+  `server/h90-captures/req2_dict_constraints.json` before any live attempt.

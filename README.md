@@ -133,6 +133,11 @@ It re-scans `patchstorage/` and reuses the cached API metadata (`api_cache.json`
   is identified as the TWO-WAY preset's parameter dictionary in a compact
   base64 wire variant. The exact runtime dictionary and the tail encoding are
   the remaining unknowns.
+- **Static RE** of the desktop app binary uses `server/h90_capstone.py`
+  (capstone-based xref finder / disassembler for the arm64 slice, to locate
+  the JSON builder, base64 encoder and deflate-dictionary construction). Needs
+  `pip install capstone` — the `input/capstone-next/` source checkout is
+  git-ignored and NOT needed on another device (the PyPI wheel is enough).
 
 ### H90 import next steps
 
@@ -144,11 +149,14 @@ It re-scans `patchstorage/` and reuses the cached API metadata (`api_cache.json`
 3. **Prove correctness**: use the reconstructed req1 output as the dictionary
    to decode req2 (MURKY); a clean decode validates both the dict and the
    encoder (check against `MURKY-BUCKUET-LEAD-642f25f984e72.preset90`).
-4. **Live-capture the dictionary** (primary, once and for all): lldb-attach to
+4. **Static-analyze the write path** (capstone): run `server/h90_capstone.py`
+   xrefs to locate the write-JSON builder / deflate-dict construction in the
+   app binary (setup + usage in `H90-IMPORT-NOTES.md`).
+5. **Live-capture the dictionary** (primary, once and for all): lldb-attach to
    `~/h90-re/H90 Control.app`, trigger an import, dump the compressor's
    `z_stream` dict / `memory find` the heap (helper: `server/h90-captures/
    h90_dict_capture.py`; arm command in `H90-IMPORT-NOTES.md`).
-5. **Implement the encoder + server wiring**: serialize preset → raw-deflate
+6. **Implement the encoder + server wiring**: serialize preset → raw-deflate
    with the dict → 7-bit pack → frame → send via CoreMIDI; add
    `POST /api/h90/preset` in `server/server.js` and a "Send to H90" button in
    the Angular detail page.
