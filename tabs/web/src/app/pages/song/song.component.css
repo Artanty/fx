@@ -1,0 +1,69 @@
+.star-btn {
+  background: transparent;
+  border: none;
+  color: #8a8d95;
+  font-size: 18px;
+  padding: 0 4px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.star-btn:hover {
+  color: #f5c518;
+}
+
+.star-btn.on {
+  color: #f5c518;
+}
+
+.tab-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tab-row > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.folder-badge {
+  border-color: #3a5bd0;
+  color: #9db4ff;
+}
+
+.folder-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.folder-pick select,
+.folder-pick input {
+  background: #17181c;
+  border: 1px solid #3a3d46;
+  color: #e6e6e6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.new-folder-name {
+  width: 180px;
+}
+
+button.small {
+  padding: 6px 12px;
+  font-size: 13px;
+}

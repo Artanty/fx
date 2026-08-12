@@ -1,0 +1,63 @@
+<div>
+  <h1>Chords</h1>
+
+  <div class="controls">
+    <input
+      type="text"
+      placeholder="Filter by name or notes…"
+      [(ngModel)]="q"
+    />
+    <select [(ngModel)]="quality">
+      <option value="">All qualities</option>
+      <option *ngFor="let qq of qualities" [value]="qq">{{ qualityLabels[qq] }}</option>
+    </select>
+
+    <label class="slider">
+      Transpose
+      <input type="range" min="-12" max="12" step="1" [(ngModel)]="transpose" />
+      <span>{{ transpose >= 0 ? '+' : '' }}{{ transpose }}</span>
+    </label>
+    <label class="slider">
+      Capo
+      <input type="range" min="0" max="12" step="1" [(ngModel)]="capo" />
+      <span>{{ capo }}</span>
+    </label>
+  </div>
+
+  <p class="hint" *ngIf="transpose !== 0 || capo > 0">
+    Showing <strong>{{ transpose >= 0 ? '+' : '' }}{{ transpose }}</strong> transpose,
+    capo at fret <strong>{{ capo }}</strong>. Displayed name = transposed chord, sounding name =
+    transposed + capo.
+  </p>
+
+  <div *ngIf="!loaded" class="loading">Loading chords…</div>
+
+  <div class="acc" *ngFor="let root of roots">
+    <button class="acc-head" (click)="toggle(root)" [class.empty]="countFor(root) === 0">
+      <span class="root">{{ root }}</span>
+      <span class="count">{{ countFor(root) }}</span>
+      <span class="arrow">{{ isExpanded(root) ? '▾' : '▸' }}</span>
+    </button>
+    <div class="acc-body" *ngIf="isExpanded(root)">
+      <div class="chord" *ngFor="let c of visibleFor(root)">
+        <div class="chord-info">
+          <div class="chord-name">
+            {{ transposed(c)?.name }}
+            <span class="orig" *ngIf="transpose !== 0">{{ c.name }}</span>
+          </div>
+          <div class="muted">{{ transposed(c)?.notes }}</div>
+          <div class="sounding" *ngIf="capo > 0">
+            capo {{ capo }} → <strong>{{ soundingName(c) }}</strong>
+          </div>
+          <div class="sounding" *ngIf="transpose !== 0 && capo === 0">
+            sounds as <strong>{{ soundingName(c) }}</strong>
+          </div>
+        </div>
+
+        <div class="diagram">
+          <app-chord-diagram [chord]="diagramChord(c)" [capo]="capo"></app-chord-diagram>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -43,6 +43,25 @@
 
   <section>
     <h2>Index</h2>
+    <div class="row">
+      <label>
+        Index into folder:
+        <select [(ngModel)]="targetFolderId">
+          <option value="">— Library only —</option>
+          <option *ngFor="let f of folders" [ngValue]="f.id">{{ f.name }}</option>
+          <option [ngValue]="'new'">+ New folder…</option>
+        </select>
+      </label>
+      <div *ngIf="isNewFolder" class="row">
+        <input
+          type="text"
+          placeholder="Folder name"
+          [(ngModel)]="newFolderName"
+          (ngModelChange)="onNewFolderMode()"
+        />
+        <p class="muted">Default: imported {{ today }}</p>
+      </div>
+    </div>
     <button (click)="onIndex()" [disabled]="indexing || (status?.pending ?? 0) === 0">
       {{ indexing ? 'Indexing…' : 'Index pending files' }}
     </button>

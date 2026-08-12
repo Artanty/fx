@@ -5,7 +5,10 @@ dist/
 
 # Tabs app
 tabs/*.db
+tabs/*.db-shm
+tabs/*.db-wal
 tabs/data/
+tabs/server/.server.pid
 tabs/server/*.log*
 tabs/web/ng.*.log
 tabs/web/*.log*

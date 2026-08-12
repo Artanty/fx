@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from '../../services/api.service';
-import { ImportStatus } from '../../models';
+import { Folder, ImportStatus } from '../../models';
 
 @Component({
   selector: 'app-import',
@@ -27,8 +27,27 @@ export class ImportComponent implements OnInit {
   uploadResult = '';
   errors: { filename: string; error: string }[] = [];
 
+  folders: Folder[] = [];
+  targetFolderId: number | 'new' | '' = '';
+  newFolderName = '';
+
   ngOnInit() {
     this.refreshStatus();
+    this.api.getFolders().subscribe((r) => (this.folders = r.items));
+  }
+
+  get today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  get isNewFolder(): boolean {
+    return this.targetFolderId === 'new';
+  }
+
+  onNewFolderMode() {
+    if (!this.newFolderName.trim()) {
+      this.newFolderName = `imported ${this.today}`;
+    }
   }
 
   refreshStatus() {
@@ -51,22 +70,45 @@ export class ImportComponent implements OnInit {
     });
   }
 
-  onIndex() {
+  async onIndex() {
     this.indexing = true;
     this.indexMessage = '';
     this.errors = [];
-    this.api.indexBatch().subscribe({
-      next: (r) => {
-        this.indexing = false;
-        this.indexMessage = `Indexed ${r.ok}/${r.processed} files (${r.remaining} remaining)`;
-        this.errors = r.errors;
-        this.refreshStatus();
-      },
-      error: (e) => {
-        this.indexing = false;
-        this.indexMessage = 'Index failed: ' + (e.error?.error || e.message);
-      },
-    });
+    try {
+      let folderId: number | undefined;
+      if (this.targetFolderId === 'new') {
+        const name = this.newFolderName.trim();
+        if (!name) throw new Error('folder name is required');
+        const existing = this.folders.find((f) => f.name === name);
+        if (existing) {
+          folderId = existing.id;
+        } else {
+          const created = await this.api.createFolder(name).toPromise();
+          if (!created) return;
+          folderId = created.id;
+        }
+        this.api.getFolders().subscribe((r) => (this.folders = r.items));
+      } else if (this.targetFolderId !== '') {
+        folderId = Number(this.targetFolderId);
+      }
+      this.api.indexBatch(folderId).subscribe({
+        next: (r) => {
+          this.indexing = false;
+          this.indexMessage = `Indexed ${r.ok}/${r.processed} files (${r.remaining} remaining)${
+            folderId ? ' into folder' : ''
+          }`;
+          this.errors = r.errors;
+          this.refreshStatus();
+        },
+        error: (e) => {
+          this.indexing = false;
+          this.indexMessage = 'Index failed: ' + (e.error?.error || e.message);
+        },
+      });
+    } catch (err: any) {
+      this.indexing = false;
+      this.indexMessage = 'Index failed: ' + (err?.message || err);
+    }
   }
 
   onDrop(event: DragEvent) {

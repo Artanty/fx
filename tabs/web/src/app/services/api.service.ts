@@ -10,6 +10,12 @@ import {
   TabItem,
   SearchHit,
   ImportStatus,
+  UgSearchResult,
+  UgTabDetail,
+  Folder,
+  LibraryTabItem,
+  FavoriteStatus,
+  Chord,
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -51,7 +57,7 @@ export class ApiService {
     );
   }
 
-  indexBatch(): Observable<{
+  indexBatch(folderId?: number): Observable<{
     processed: number;
     ok: number;
     failed: number;
@@ -64,7 +70,7 @@ export class ApiService {
       failed: number;
       remaining: number;
       errors: { filename: string; error: string }[];
-    }>('/api/import/index', {});
+    }>('/api/import/index', { folder_id: folderId });
   }
 
   uploadFiles(files: File[]): Observable<{ uploaded: number; results: unknown[] }> {
@@ -78,5 +84,94 @@ export class ApiService {
 
   importStatus(): Observable<ImportStatus> {
     return this.http.get<ImportStatus>('/api/import/status');
+  }
+
+  ugSearch(q: string, page = 1): Observable<{ items: UgSearchResult[]; page: number; totalPages: number }> {
+    return this.http.get<{ items: UgSearchResult[]; page: number; totalPages: number }>('/api/ug/search', {
+      params: { q, page: String(page) },
+    });
+  }
+
+  ugImport(url: string): Observable<{ id: number; kind: string; duplicate: boolean; song_id: number }> {
+    return this.http.post<{ id: number; kind: string; duplicate: boolean; song_id: number }>(
+      '/api/ug/import',
+      { url }
+    );
+  }
+
+  getUgTab(tabId: number): Observable<UgTabDetail> {
+    return this.http.get<UgTabDetail>(`/api/ug/tabs/${tabId}`);
+  }
+
+  getUgTabTextUrl(tabId: number): string {
+    return `/api/ug/tabs/${tabId}/text`;
+  }
+
+  getAllTabs(): Observable<{ items: LibraryTabItem[] }> {
+    return this.http.get<{ items: LibraryTabItem[] }>('/api/tabs/all');
+  }
+
+  getFolders(): Observable<{ items: Folder[] }> {
+    return this.http.get<{ items: Folder[] }>('/api/folders');
+  }
+
+  createFolder(name: string): Observable<Folder> {
+    return this.http.post<Folder>('/api/folders', { name });
+  }
+
+  renameFolder(id: number, name: string): Observable<Folder> {
+    return this.http.patch<Folder>(`/api/folders/${id}`, { name });
+  }
+
+  deleteFolder(id: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/folders/${id}`);
+  }
+
+  getFolder(id: number): Observable<{ folder: Folder; items: LibraryTabItem[] }> {
+    return this.http.get<{ folder: Folder; items: LibraryTabItem[] }>(`/api/folders/${id}`);
+  }
+
+  addTabToFolder(folderId: number, kind: string, tabId: number): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`/api/folders/${folderId}/items`, { kind, tab_id: tabId });
+  }
+
+  removeTabFromFolder(folderId: number, kind: string, tabId: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/folders/${folderId}/items/${kind}/${tabId}`);
+  }
+
+  getFavorites(): Observable<{
+    artists: Artist[];
+    songs: (ArtistSong & { artist: string; artist_id: number })[];
+    tabs: LibraryTabItem[];
+  }> {
+    return this.http.get<{
+      artists: Artist[];
+      songs: (ArtistSong & { artist: string; artist_id: number })[];
+      tabs: LibraryTabItem[];
+    }>('/api/favorites');
+  }
+
+  getFavoriteIds(): Observable<FavoriteStatus> {
+    return this.http.get<FavoriteStatus>('/api/favorites/ids');
+  }
+
+  toggleFavorite(
+    kind: 'artist' | 'song' | 'tab',
+    refId: number,
+    tabKind?: string
+  ): Observable<{ active: boolean }> {
+    return this.http.post<{ active: boolean }>('/api/favorites', {
+      kind,
+      ref_id: refId,
+      tab_kind: tabKind,
+    });
+  }
+
+  getChords(): Observable<Chord[]> {
+    return this.http.get<Chord[]>('/api/chords');
+  }
+
+  getChordQualities(): Observable<string[]> {
+    return this.http.get<string[]>('/api/chords/qualities');
   }
 }
