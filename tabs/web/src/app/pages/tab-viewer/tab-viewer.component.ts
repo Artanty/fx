@@ -43,6 +43,7 @@ export class TabViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   chordQuality = '';
   pickedChords: Chord[] = [];
   sidebarOpen = true;
+  pickedOpen = true;
 
   ngOnInit() {
     this.tabId = Number(this.route.snapshot.paramMap.get('id'));

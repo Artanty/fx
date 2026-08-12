@@ -128,14 +128,30 @@ button.small {
   margin-bottom: 10px;
 }
 
-.panel-label {
-  font-size: 12px;
-  color: #a8aab2;
-  margin-bottom: 6px;
-}
-
 .picked {
   margin-bottom: 12px;
+}
+
+.picked-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #a8aab2;
+  font-size: 12px;
+  margin-bottom: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.picked-head:hover {
+  color: #dcdde1;
+}
+
+.picked-head .caret {
+  font-size: 10px;
 }
 
 .picked-grid {

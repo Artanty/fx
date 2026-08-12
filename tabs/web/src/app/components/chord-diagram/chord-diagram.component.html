@@ -3,10 +3,14 @@
     <span
       *ngFor="let s of strings; let si = index"
       class="marker"
-      [class.mute]="s === -1"
-      [class.open]="s === 0"
     >
-      {{ s === -1 ? 'X' : s === 0 ? 'O' : '' }}
+      <svg *ngIf="s === -1" width="8" height="8" viewBox="0 0 8 8" class="mute-x" aria-hidden="true">
+        <line x1="1" y1="1" x2="7" y2="7" />
+        <line x1="7" y1="1" x2="1" y2="7" />
+      </svg>
+      <svg *ngIf="s === 0" width="8" height="8" viewBox="0 0 8 8" class="open-o" aria-hidden="true">
+        <circle cx="4" cy="4" r="2.6" fill="none" />
+      </svg>
     </span>
   </div>
   <div class="fretboard" [class.no-nut]="baseFret > 1">

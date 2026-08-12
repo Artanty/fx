@@ -84,8 +84,11 @@
     </div>
 
     <div class="picked" *ngIf="pickedChords.length">
-      <div class="panel-label">Picked ({{ pickedChords.length }})</div>
-      <div class="picked-grid">
+      <button class="picked-head" (click)="pickedOpen = !pickedOpen" title="Toggle picked list">
+        <span>Picked ({{ pickedChords.length }})</span>
+        <span class="caret">{{ pickedOpen ? '▾' : '▸' }}</span>
+      </button>
+      <div class="picked-grid" *ngIf="pickedOpen">
         <div class="picked-item" *ngFor="let c of pickedChords">
           <app-chord-diagram [chord]="c" [compact]="true"></app-chord-diagram>
           <span class="picked-name">{{ c.name }}</span>

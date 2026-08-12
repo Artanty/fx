@@ -5,30 +5,33 @@
 .marker-row {
   display: grid;
   grid-template-columns: repeat(6, 16px);
-  justify-items: center;
   height: 14px;
-  font-size: 10px;
-  color: #8a8d95;
-  line-height: 14px;
 }
 
-.marker.mute {
-  color: #ff6b6b;
+.marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.marker.open {
-  color: #6ee7a0;
+.marker .mute-x line {
+  stroke: #ff6b6b;
+  stroke-width: 1.4;
 }
 
-.marker.mute,
-.marker.open {
-  font-weight: 700;
+.marker .open-o circle {
+  stroke: #6ee7a0;
+  stroke-width: 1.4;
 }
 
 .fretboard {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(6, 16px);
+  display: flex;
+  flex-direction: column;
+}
+
+.fret-row {
+  display: flex;
 }
 
 .fretboard .fret-row:first-child {
@@ -40,17 +43,23 @@
 }
 
 .cell {
+  position: relative;
   width: 16px;
   height: 18px;
-  border-right: 1px solid #3a3d46;
   border-bottom: 1px solid #3a3d46;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.cell:last-child {
-  border-right: none;
+.cell::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #3a3d46;
 }
 
 .dot {
@@ -83,12 +92,11 @@
 .compact .marker-row {
   grid-template-columns: repeat(6, 11px);
   height: 10px;
-  font-size: 8px;
-  line-height: 10px;
 }
 
 .compact .fretboard {
-  grid-template-columns: repeat(6, 11px);
+  display: flex;
+  flex-direction: column;
 }
 
 .compact .cell {
