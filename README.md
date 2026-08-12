@@ -2,6 +2,10 @@
 
 Local database + web UI for browsing the **491 Eventide H90 presets** downloaded from [patchstorage.com](https://patchstorage.com/platform/eventide-h90/).
 
+> This README covers the **H90/FX** project. Other projects in this repo:
+>
+> - **Tabs** — bass tab library app (Node/Express + Angular): [`tabs/README.md`](tabs/README.md), [`tabs/DECISIONS.md`](tabs/DECISIONS.md)
+
 ## What it does
 
 1. **Downloads** all H90 presets from Patchstorage into `patchstorage/`.
