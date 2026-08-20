@@ -1,0 +1,193 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from angr.ailment import Block
+from angr.ailment.expression import BinaryOp, Expression, UnaryOp
+from angr.ailment.manager import Manager
+from angr.ailment.statement import Assignment, Statement
+from angr.knowledge_plugins.key_definitions import atoms
+
+if TYPE_CHECKING:
+    from angr.knowledge_base import KnowledgeBase
+    from angr.project import Project
+
+
+class PeepholeOptimizationStmtBase:
+    """
+    The base class for all peephole optimizations that are applied on AIL statements.
+
+    ``fixpoint_reached`` is an output parameter; it tells the caller whether this optimizer should run on this
+    statement again (e.g., when statements prior to the current statement are optimized and changed). The caller sets
+    ``fixpoint_reached`` to True before every :meth:`optimize` call; the optimizer optionally sets it to False if it
+    wants to be invoked again on the same statement.
+
+    So, ``fixpoint_reached`` should be set to (or kept) True if (a) the optimizer has optimized the statement and does
+    not expect to optimize it ever again, or (b) the optimizer cannot ever optimize the statement.
+    """
+
+    __slots__ = (
+        "fixpoint_reached",
+        "func_addr",
+        "kb",
+        "manager",
+        "preserve_vvar_ids",
+        "project",
+        "type_hints",
+    )
+    project: Project | None
+    kb: KnowledgeBase | None
+    func_addr: int | None
+    preserve_vvar_ids: set[int]
+    type_hints: list[tuple[atoms.VirtualVariable | atoms.MemoryLocation, str]]
+    fixpoint_reached: bool
+
+    NAME = "Peephole Optimization - Statement"
+    DESCRIPTION = "Peephole Optimization - Statement"
+    stmt_classes = None
+
+    def __init__(
+        self,
+        project: Project | None,
+        kb: KnowledgeBase | None,
+        ail_manager: Manager,
+        func_addr: int | None = None,
+        preserve_vvar_ids: set[int] | None = None,
+        type_hints: list[tuple[atoms.VirtualVariable | atoms.MemoryLocation, str]] | None = None,
+    ):
+        self.project = project
+        self.kb = kb
+        self.manager = ail_manager
+        self.func_addr = func_addr
+        self.preserve_vvar_ids = set() if preserve_vvar_ids is None else preserve_vvar_ids
+        self.type_hints = [] if type_hints is None else type_hints
+        self.fixpoint_reached = False
+
+    def optimize(self, stmt, stmt_idx: int | None = None, block=None, **kwargs):
+        raise NotImplementedError("_optimize() is not implemented.")
+
+
+class PeepholeOptimizationMultiStmtBase:
+    """
+    The base class for all peephole optimizations that are applied on multiple AIL statements at once.
+
+    ``fixpoint_reached`` exists for uniformity but is unused. Multi-statement optimizers always run regardless of
+    whether the statements have reached fixed points or not.
+    """
+
+    __slots__ = (
+        "fixpoint_reached",
+        "func_addr",
+        "kb",
+        "manager",
+        "preserve_vvar_ids",
+        "project",
+        "type_hints",
+    )
+    project: Project | None
+    kb: KnowledgeBase | None
+    func_addr: int | None
+    preserve_vvar_ids: set[int]
+    type_hints: list[tuple[atoms.VirtualVariable | atoms.MemoryLocation, str]]
+    fixpoint_reached: bool
+
+    NAME = "Peephole Optimization - Multi-statement"
+    DESCRIPTION = "Peephole Optimization - Multi-statement"
+    stmt_classes = None
+
+    def __init__(
+        self,
+        project: Project | None,
+        kb: KnowledgeBase | None,
+        ail_manager: Manager,
+        func_addr: int | None = None,
+        preserve_vvar_ids: set[int] | None = None,
+        type_hints: list[tuple[atoms.VirtualVariable | atoms.MemoryLocation, str]] | None = None,
+    ):
+        self.project = project
+        self.kb = kb
+        self.manager = ail_manager
+        self.func_addr = func_addr
+        self.preserve_vvar_ids = set() if preserve_vvar_ids is None else preserve_vvar_ids
+        self.type_hints = [] if type_hints is None else type_hints
+        self.fixpoint_reached = False
+
+    def optimize(self, stmts: list[Statement], stmt_idx: int | None = None, block=None, **kwargs):
+        raise NotImplementedError("_optimize() is not implemented.")
+
+
+class PeepholeOptimizationExprBase:
+    """
+    The base class for all peephole optimizations that are applied on AIL expressions. Please refer to
+    :class:`PeepholeOptimizationStmtBase` for the ``fixpoint_reached`` contract.
+    """
+
+    __slots__ = (
+        "fixpoint_reached",
+        "func_addr",
+        "kb",
+        "manager",
+        "preserve_vvar_ids",
+        "project",
+        "type_hints",
+    )
+    project: Project | None
+    kb: KnowledgeBase | None
+    func_addr: int | None
+    preserve_vvar_ids: set[int]
+    type_hints: list[tuple[atoms.VirtualVariable | atoms.MemoryLocation, str]]
+    fixpoint_reached: bool
+
+    NAME = "Peephole Optimization - Expression"
+    DESCRIPTION = "Peephole Optimization - Expression"
+    expr_classes = None
+
+    def __init__(
+        self,
+        project: Project | None,
+        kb: KnowledgeBase | None,
+        ail_manager: Manager,
+        func_addr: int | None = None,
+        preserve_vvar_ids: set[int] | None = None,
+        type_hints: list[tuple[atoms.VirtualVariable | atoms.MemoryLocation, str]] | None = None,
+    ):
+        self.project = project
+        self.kb = kb
+        self.manager = ail_manager
+        self.func_addr = func_addr
+        self.preserve_vvar_ids = set() if preserve_vvar_ids is None else preserve_vvar_ids
+        self.type_hints = [] if type_hints is None else type_hints
+        self.fixpoint_reached = False
+
+    def optimize(self, expr, *, stmt_idx: int | None = None, block=None, **kwargs) -> Expression | None:
+        raise NotImplementedError("_optimize() is not implemented.")
+
+    #
+    # Util methods
+    #
+
+    @staticmethod
+    def find_definition(ail_expr: Expression, stmt_idx: int, block: Block) -> None:
+        idx = stmt_idx - 1
+        if idx >= 0:
+            stmt = block.statements[idx]
+            if isinstance(stmt, Assignment) and stmt.dst.likes(ail_expr):
+                return stmt.src
+        return None
+
+    @staticmethod
+    def is_bool_expr(ail_expr):
+        if isinstance(ail_expr, BinaryOp) and ail_expr.op in {
+            "CmpEQ",
+            "CmpNE",
+            "CmpLT",
+            "CmpLE",
+            "CmpGT",
+            "CmpGE",
+            "CmpLTs",
+            "CmpLEs",
+            "CmpGTs",
+            "CmpGEs",
+        }:
+            return True
+        return bool(isinstance(ail_expr, UnaryOp) and ail_expr.op == "Not")

@@ -1,0 +1,183 @@
+from __future__ import annotations
+
+from angr.ailment.expression import ITE, BinaryOp, Const, Convert, Extract, Insert
+from angr.ailment.utils import is_lsb_extract
+
+from .base import PeepholeOptimizationExprBase
+
+_MASKS = {
+    1: 1,
+    8: 0xFF,
+    16: 0xFFFF,
+    32: 0xFFFFFFFF,
+    64: 0xFFFFFFFF_FFFFFFFF,
+}
+
+
+class RemoveRedundantBitmasks(PeepholeOptimizationExprBase):
+    """
+    Remove redundant bitmasking operations.
+    """
+
+    __slots__ = ()
+
+    NAME = "Remove redundant bitmasks"
+    expr_classes = (BinaryOp, Convert, Extract, Insert)
+
+    def optimize(self, expr: BinaryOp | Convert | Extract | Insert, **kwargs):
+        if isinstance(expr, BinaryOp):
+            return self._optimize_BinaryOp(expr)
+        if isinstance(expr, Convert):
+            return self._optimize_Convert(expr)
+        if isinstance(expr, Extract):
+            return self._optimize_Extract(expr)
+        if isinstance(expr, Insert):
+            return self._optimize_Insert(expr)
+        return None
+
+    def _optimize_Insert(self, expr: Insert):
+        if (
+            self.project is not None
+            and isinstance(expr.base, BinaryOp)
+            and expr.base.op == "And"
+            and isinstance((mask := expr.base.operands[1]), Const)
+            and isinstance(mask.value, int)
+            and isinstance(expr.offset, Const)
+            and isinstance(expr.offset.value, int)
+            # is this correct for big-endian??
+            and _MASKS.get(expr.value.bits, 0) << (expr.offset.value * self.project.arch.byte_width) == mask
+        ):
+            # Insert(v0 & mask, offset, v1) where mask/offset guarantee
+            # that the only bits we get from v0 will just be replaced with v1
+            return Insert(
+                expr.idx,
+                Const(self.manager.next_atom(), 0, expr.bits),
+                expr.offset,
+                expr.value,
+                expr.endness,
+                **expr.tags,
+            )
+        return None
+
+    def _optimize_Extract(self, expr: Extract):
+        if (
+            self.project is not None
+            and isinstance(expr.base, BinaryOp)
+            and expr.base.op == "And"
+            and isinstance((mask := expr.base.operands[1]), Const)
+            and isinstance(mask.value, int)
+            and _MASKS.get(expr.bits) == mask.value
+            and is_lsb_extract(expr)
+        ):
+            return Convert(expr.idx, expr.base.bits, expr.bits, False, expr.base, **expr.tags)
+        return None
+
+    def _optimize_BinaryOp(self, expr: BinaryOp):
+        # And(expr, full_N_bitmask) ==> expr
+        # And(SHR(expr, N), bitmask)) ==> SHR(expr, N)
+        # And(Div(Conv(M->N, expr), P), 2 ** M - 1) ==> Div(Conv(M->N, expr), P)  where M < N
+        # And(Conv(1->N, expr), bitmask) ==> Conv(1->N, expr)
+        # And(Conv(1->N, bool_expr), bitmask) ==> Conv(1->N, bool_expr)
+        # And(ITE(?, const_expr, const_expr), bitmask) ==> ITE(?, const_expr, const_expr)
+        if expr.op == "And" and isinstance(expr.operands[1], Const):
+            inner_expr = expr.operands[0]
+            if expr.operands[1].value == _MASKS.get(inner_expr.bits):
+                return inner_expr
+
+            if isinstance(inner_expr, BinaryOp):
+                if inner_expr.op == "Shr":
+                    mask = expr.operands[1]
+                    shift_val = inner_expr.operands[1]
+                    if (
+                        isinstance(shift_val, Const)
+                        and shift_val.value in _MASKS
+                        and mask.value == _MASKS.get(int(64 - shift_val.value))
+                    ):
+                        return inner_expr
+                if inner_expr.op == "Div" and isinstance(inner_expr.operands[0], Convert):
+                    from_bits = inner_expr.operands[0].from_bits
+                    to_bits = inner_expr.operands[0].to_bits
+                    if from_bits < to_bits:
+                        mask = expr.operands[1]
+                        if mask.value == _MASKS.get(from_bits):
+                            return inner_expr
+
+            if isinstance(inner_expr, Convert) and self.is_bool_expr(inner_expr.operand):
+                # useless masking
+                return inner_expr
+            if (
+                isinstance(expr.operands[0], ITE)
+                and isinstance(expr.operands[0].iftrue, Const)
+                and isinstance(expr.operands[0].iffalse, Const)
+            ):
+                # is the masking unnecessary?
+                mask = expr.operands[1].value
+                ite = expr.operands[0]
+                if mask == 0xFF and ite.iftrue.value <= 0xFF and ite.iffalse.value <= 0xFF:
+                    # yes!
+                    return ite
+
+        return None
+
+    def _optimize_Convert(self, expr: Convert):
+        # Conv(64->32, (expr & bitmask) + expr)
+        # => Conv(64->32, (expr + expr))
+        if (
+            expr.op == "Convert"
+            and expr.from_bits > expr.to_bits
+            and isinstance(expr.operand, BinaryOp)
+            and expr.operand.op == "Add"
+        ):
+            operand_expr = expr.operand
+            op0, op1 = operand_expr.operands
+            if (
+                isinstance(op0, BinaryOp)
+                and op0.op == "And"
+                and isinstance(op0.operands[1], Const)
+                and op0.operands[1].value == _MASKS.get(expr.to_bits)
+            ):
+                new_op0 = op0.operands[0]
+                replaced, new_operand_expr = operand_expr.replace(op0, new_op0)
+                if replaced:
+                    return Convert(
+                        self.manager.next_atom(),
+                        expr.from_bits,
+                        expr.to_bits,
+                        expr.is_signed,
+                        new_operand_expr,
+                        from_type=expr.from_type,
+                        to_type=expr.to_type,
+                        rounding_mode=expr.rounding_mode,
+                        **expr.tags,
+                    )
+        # Conv(64->32, (expr) - (expr) & 0xffffffff<64>)))
+        # => Conv(64->32, (expr - expr))
+        elif (
+            expr.op == "Convert"
+            and expr.from_bits > expr.to_bits
+            and isinstance(expr.operand, BinaryOp)
+            and expr.operand.op == "Sub"
+        ):
+            operand_expr = expr.operand
+            op0, op1 = operand_expr.operands
+            if (
+                isinstance(op1, BinaryOp)
+                and op1.op == "And"
+                and isinstance(op1.operands[1], Const)
+                and op1.operands[1].value == _MASKS.get(expr.to_bits)
+            ):
+                new_op1 = op1.operands[0]
+                replaced, new_operand_expr = operand_expr.replace(op1, new_op1)
+                if replaced:
+                    return Convert(
+                        self.manager.next_atom(),
+                        expr.from_bits,
+                        expr.to_bits,
+                        expr.is_signed,
+                        new_operand_expr,
+                        from_type=expr.from_type,
+                        to_type=expr.to_type,
+                        rounding_mode=expr.rounding_mode,
+                        **expr.tags,
+                    )
+        return None

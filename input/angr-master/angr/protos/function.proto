@@ -1,0 +1,45 @@
+
+syntax = "proto3";
+
+import "angr/protos/primitives.proto";
+
+package angr.protos;
+
+message CallSite {
+    uint64          ea = 1; // Address of the basic block that ends in a call
+    optional uint64 target_ea = 2; // Address of the call target; unset if the target is unknown
+    optional uint64 return_ea = 3; // Address the call returns to; unset if the call does not return
+}
+
+message Function {
+    enum SignatureSource {
+        UNMATCHED = 0;
+        FLIRT = 1;
+    }
+
+    uint64          ea = 1; // Effective address
+    bool            is_entrypoint = 3; // Is this function the entry point of the binary
+    repeated Block  blocks = 2; // Blocks in this function
+    string          name = 4; // Function name
+    bool            is_plt = 7; // If this function is a PLT entry
+    bool            is_syscall = 8; // Is this function a syscall function
+    bool            is_simprocedure = 9;  // Is this function a SimProcedure
+    optional bool   returning = 10; // If this function returns
+    string          binary_name = 11; // Name of the binary where this function belongs to
+    BlockGraph      graph = 12; // Graph of this function
+    repeated uint64 external_functions = 13; // Address of referenced functions
+    bool            alignment = 14; // Whether this function is used as an alignment filling or not
+    bool            normalized = 15; // Whether this function has been normalized or not
+    SignatureSource matched_from = 16; // If this function is matched to a known library function. If so, which
+    bytes           prototype = 17;  // The recovered function prototype (pickle serialized, can be None)
+    bytes           calling_convention = 18;  // the recovered calling convention (pickle serialized, can be None)
+    string          prototype_libname = 19; // if we found this prototype in a library, which library?
+    bytes           info = 21; // a JSON-serialized dictionary
+    repeated Endpoint endpoints = 22; // Endpoints within this function
+    repeated Block  external_blocks = 24; // Referenced blocks outside this function
+    bool            is_default_name = 25; // Whether the function name is a default name (e.g., sub_123456) or not
+    bool            ran_cca = 26;  // Whether calling convention analysis has been performed on this function
+    repeated string previous_names = 27; // Previous names of this function
+    uint32          prototype_source = 28; // did we guess this prototype?
+    repeated CallSite call_sites = 29; // Call sites within this function
+}

@@ -1,0 +1,163 @@
+from __future__ import annotations
+
+import json
+import logging
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
+from angr.ailment.block import Block as AILBlock
+from angr.ailment.expression import BinaryOp, Expression
+from angr.ailment.statement import Statement
+from angr.analyses.decompiler.ail_simplifier import AILBlockRewriter
+from angr.analyses.decompiler.sequence_walker import SequenceWalker
+
+from .optimization_pass import OptimizationPassStage, SequenceOptimizationPass
+
+if TYPE_CHECKING:
+    from angr.analyses.decompiler.structurer_nodes import ConditionalBreakNode, ConditionNode, LoopNode
+
+
+_l = logging.getLogger(__name__)
+
+
+class OuterWalker(SequenceWalker):
+    """
+    A sequence walker that finds nodes and invokes expression replacer to replace expressions.
+    """
+
+    def __init__(self, desc):
+        super().__init__()
+        self.desc: dict[OpDescriptor, str] = desc
+
+    def _handle_Condition(self, node: ConditionNode, **kwargs):
+        for desc, new_op in self.desc.items():
+            if (
+                node.condition is not None
+                and "ins_addr" in node.condition.tags
+                and node.condition.tags["ins_addr"] == desc.ins_addr
+                and node.condition.op == desc.op
+            ):
+                node.condition = self._swap_expr_op(new_op, node.condition)
+        return super()._handle_Condition(node, **kwargs)
+
+    def _handle_Loop(self, node: LoopNode, **kwargs):
+        for desc, new_op in self.desc.items():
+            if (
+                node.condition is not None
+                and "ins_addr" in node.condition.tags
+                and node.condition.tags["ins_addr"] == desc.ins_addr
+                and node.condition.op == desc.op
+            ):
+                node.condition = self._swap_expr_op(new_op, node.condition)
+        return super()._handle_Loop(node, **kwargs)
+
+    def _handle_ConditionalBreak(self, node: ConditionalBreakNode, **kwargs):
+        for desc, new_op in self.desc.items():
+            if (
+                node.condition is not None
+                and "ins_addr" in node.condition.tags
+                and node.condition.tags["ins_addr"] == desc.ins_addr
+                and node.condition.op == desc.op
+            ):
+                node.condition = self._swap_expr_op(new_op, node.condition)
+        return super()._handle_ConditionalBreak(node, **kwargs)
+
+    @staticmethod
+    def _swap_expr_op(new_op: str, atom: Expression) -> Expression | None:
+        # swap
+        return BinaryOp(
+            atom.idx, new_op, (atom.operands[1], atom.operands[0]), atom.signed, bits=atom.bits, **atom.tags
+        )
+
+
+class ExpressionReplacer(AILBlockRewriter):
+    """
+    Replace expressions.
+    """
+
+    def __init__(self, block_addr, target_expr_predicate, callback):
+        super().__init__()
+        self._block_addr = block_addr
+        self._target_expr_predicate: Callable = target_expr_predicate
+        self._callback = callback
+
+    def _handle_expr(
+        self, expr_idx: int, expr: Expression, stmt_idx: int, stmt: Statement | None, block: AILBlock | None
+    ) -> Any:
+        if self._target_expr_predicate(expr):
+            return self._callback(self._block_addr, expr)
+        return super()._handle_expr(expr_idx, expr, stmt_idx, stmt, block)
+
+
+class OpDescriptor:
+    """
+    Describes a specific operator. Serializes to JSON.
+    """
+
+    def __init__(self, block_addr: int, stmt_idx: int, ins_addr: int, op: str):
+        self.block_addr = block_addr
+        self.stmt_idx = stmt_idx
+        self.ins_addr = ins_addr
+        self.op = op
+
+    def __hash__(self):
+        return hash((OpDescriptor, self.block_addr, self.stmt_idx, self.ins_addr, self.op))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, OpDescriptor)
+            and self.block_addr == other.block_addr
+            and self.stmt_idx == other.stmt_idx
+            and self.ins_addr == other.ins_addr
+            and self.op == other.op
+        )
+
+    #
+    # JSON serialization
+    #
+
+    def to_jsonable(self) -> dict[str, Any]:
+        return {
+            "block_addr": self.block_addr,
+            "stmt_idx": self.stmt_idx,
+            "ins_addr": self.ins_addr,
+            "op": self.op,
+        }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_jsonable())
+
+    @classmethod
+    def from_jsonable(cls, d: dict[str, Any]) -> OpDescriptor:
+        return cls(d["block_addr"], d["stmt_idx"], d["ins_addr"], d["op"])
+
+    @classmethod
+    def from_json(cls, s: str) -> OpDescriptor:
+        return cls.from_jsonable(json.loads(s))
+
+
+class ExprOpSwapper(SequenceOptimizationPass):
+    """
+    Swap operands (and the operator accordingly) in a BinOp expression.
+    """
+
+    ARCHES = ["X86", "AMD64", "ARMEL", "ARMHF", "ARMCortexM", "MIPS32", "MIPS64"]
+    PLATFORMS = ["windows", "linux", "cgc"]
+    STAGE = OptimizationPassStage.AFTER_STRUCTURING
+    NAME = "Swap operands of expressions as requested"
+    DESCRIPTION = __doc__.strip()
+
+    def __init__(self, *args, binop_operators: dict[OpDescriptor, str] | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._expr_operators = {} if binop_operators is None else binop_operators
+
+        if self._expr_operators:
+            self.analyze()
+
+    def _check(self):
+        return True, None
+
+    def _analyze(self, cache=None):  # pylint:disable=unused-argument
+        walker = OuterWalker(self._expr_operators)
+        walker.walk(self.seq)
+        self.out_seq = self.seq

@@ -1,0 +1,324 @@
+//! Rust port of `angr.ailment` data classes.
+//!
+//! Exposed Python-side as `angr.rustylib.ailment`.
+//!
+//! There are two Python-facing pyclasses,
+//! ``Expression`` and ``Statement``, each wrapping an inline fat-enum
+//! (``ExprInner`` / ``StmtInner``) carrying per-variant data. Per-class
+//! marker types (``Const``, ``BinaryOp``, ``Assignment``, ...) live on
+//! the Python side and dispatch via metaclass ``__instancecheck__`` on
+//! the variant tag.
+
+pub mod ail_expr;
+pub mod ail_stmt;
+pub mod block;
+pub mod const_value;
+pub mod convert_vex;
+pub mod enums;
+pub mod manager;
+pub mod tags;
+pub mod vex_ffi;
+pub mod vexop;
+pub mod vexop_names;
+
+use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyModule};
+use pyo3::wrap_pyfunction;
+use rustc_hash::FxHasher;
+
+/// Debug helper for the `test_vexop_parity` cross-check: classify a VEX op
+/// integer via the Rust port. Returns `None` for unsupported ops (the
+/// converter would emit a `DirtyExpression`), else a dict of the attributes
+/// the converter relies on. Not part of the public API.
+#[pyfunction]
+fn _vexop_debug(py: Python<'_>, op_int: u32) -> PyResult<Option<Py<PyDict>>> {
+    vex_ffi::init_symbols(py);
+    match vexop::vexop_to_simop(op_int) {
+        Err(()) => Ok(None),
+        Ok(info) => {
+            let is_signed = info.is_signed();
+            let is_conversion = info.is_conversion();
+            let d = PyDict::new(py);
+            d.set_item("generic_name", info.generic_name)?;
+            d.set_item("output_size_bits", info.output_size_bits)?;
+            d.set_item("is_signed", is_signed)?;
+            d.set_item("is_conversion", is_conversion)?;
+            d.set_item("float", info.float)?;
+            d.set_item("from_size", info.from_size)?;
+            d.set_item("to_size", info.to_size)?;
+            d.set_item("vector_count", info.vector_count)?;
+            d.set_item("vector_size", info.vector_size)?;
+            Ok(Some(d.unbind()))
+        }
+    }
+}
+
+pub fn ailment(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Tags
+    m.add_class::<tags::TagsView>()?;
+    m.add_class::<tags::TagsKeyIter>()?;
+
+    // Enums
+    m.add_class::<enums::VirtualVariableCategory>()?;
+    m.add_class::<enums::ConvertType>()?;
+    m.add_class::<enums::RoundingMode>()?;
+    m.add_class::<enums::ExpressionKind>()?;
+    m.add_class::<enums::StatementKind>()?;
+
+    // Fat-enum pyclasses. ``Expression`` wraps the ``AilExpression``
+    // sum, ``Statement`` wraps the ``AilStatement`` sum. Per-variant
+    // marker classes live on the Python side; see
+    // ``angr/ailment/expression.py`` and ``angr/ailment/statement.py``.
+    m.add_class::<ail_expr::Expression>()?;
+    m.add_class::<ail_stmt::Statement>()?;
+
+    // Block.
+    m.add_class::<block::Block>()?;
+
+    // Manager.
+    m.add_class::<manager::Manager>()?;
+
+    // VEX -> AIL converter.
+    m.add_class::<convert_vex::VEXIRSBConverter>()?;
+
+    // Debug helper (vexop classifier parity testing).
+    m.add_function(wrap_pyfunction!(_vexop_debug, m)?)?;
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Comparison modes
+// ---------------------------------------------------------------------------
+
+/// The three AIL comparison relations, threaded through
+/// ``AilExpression::cmp_ail`` / ``AilStatement::cmp_ail`` so each is
+/// monomorphized into its own specialized function -- one source of
+/// truth, zero per-node branching in the hot path.
+///
+/// They form a strict hierarchy, from most to least discriminating:
+///
+/// * [`CmpMode::Eq`] -- ``likes`` plus ``idx`` equality at **every**
+///   node. Backs Python ``__eq__``. Must stay consistent with the
+///   ``Hash`` impls, which fold ``idx`` in at every node: two values
+///   that compare equal have to hash equal.
+/// * [`CmpMode::Likes`] -- structural-with-identity. ``idx`` is ignored;
+///   SSA identifying info (``VirtualVariable::varid``) is significant.
+/// * [`CmpMode::Matches`] -- structural-only. Also drops the SSA
+///   identifying info, so the same source expression compiled into two
+///   different SSA numberings compares equal.
+///
+/// Only two arms actually branch on the mode (``VirtualVariable`` and
+/// ``Phi``); every other variant is mode-independent and simply passes
+/// the mode down to its children, which is what makes the relaxation
+/// propagate uniformly.
+///
+/// # Why the const generic is a ``u8`` and not this enum
+///
+/// Const-generic parameters may only be integers, ``bool`` or ``char``
+/// on stable Rust -- using an enum needs the unstable
+/// ``adt_const_params`` feature, and this crate is pinned to a stable
+/// toolchain. So ``cmp_ail`` is generic over ``const MODE: u8`` and
+/// recovers the enum with [`CmpMode::from_u8`]. Because ``MODE`` is a
+/// compile-time constant in every instantiation, that conversion and
+/// the comparisons against it fold away entirely.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(u8)]
+pub enum CmpMode {
+    /// ``__eq__``: [`CmpMode::Likes`] plus ``idx`` equality at every node.
+    Eq = 0,
+    /// Structural-with-identity comparison.
+    Likes = 1,
+    /// Structural-only comparison.
+    Matches = 2,
+}
+
+impl CmpMode {
+    /// Recover the mode from a ``cmp_ail`` ``MODE`` const parameter.
+    ///
+    /// Total over the three valid discriminants; anything else is a bug
+    /// at the call site, and since callers pass ``CmpMode::X as u8`` the
+    /// panic arm is unreachable and optimized out.
+    pub const fn from_u8(v: u8) -> Self {
+        match v {
+            0 => Self::Eq,
+            1 => Self::Likes,
+            2 => Self::Matches,
+            _ => panic!("invalid CmpMode discriminant"),
+        }
+    }
+
+    /// The ``MODE`` const-parameter value for this mode. Lets call sites
+    /// read ``cmp_ail::<{ CmpMode::Likes.as_u8() }>(..)``.
+    pub const fn as_u8(self) -> u8 {
+        self as u8
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cross-module hashing utilities: the ``CachedHash`` slot used by the
+// ``ExprHeader`` / ``StmtHeader`` structs in ``ail_expr`` / ``ail_stmt``,
+// and the ``hash_of`` entry point that turns a ``Hash`` impl into the
+// ``i64`` Python's hash slot expects.
+// ---------------------------------------------------------------------------
+
+/// Hash a value through its [`Hash`] impl and return the ``i64`` Python
+/// expects in its signed-int hash slot. One-shot entry point for the
+/// ``cached_hash_or_compute`` memoizers and ``__hash__`` methods.
+///
+/// The value must be:
+///
+/// - **Process-independent** -- for a given build, the same AIL node
+///   hashes to the same value in every process, so hashes can be
+///   compared across e.g. multiprocessing workers. (Cached hashes --
+///   see [`CachedHash`] -- must in particular stay valid until the
+///   instance is mutated.) It is **not** required to be stable across
+///   builds: the value is never serialized, so a rebuild is free to
+///   change it.
+/// - **Well-distributed** -- Python uses the result as a dict / set
+///   key on every visit.
+/// - **Cheap to compute** -- decompiles hash millions of AIL nodes.
+///
+/// ``FxHasher`` (the hash rustc uses for its own symbol tables) is the
+/// backing [`Hasher`]: it has no per-process random state (unlike
+/// ``RandomState``, which would break cross-process comparison), and it
+/// is the cheapest option for the small-integer / short-string inputs
+/// that dominate AIL hashing (each write is one mul + rotate + xor, no
+/// streaming-state setup).
+#[inline]
+pub fn hash_of<T: Hash + ?Sized>(v: &T) -> i64 {
+    let mut h = FxHasher::default();
+    v.hash(&mut h);
+    h.finish() as i64
+}
+
+/// Cached hash slot: an `i64` payload plus a separate presence flag.
+///
+/// The flag means the full `i64` range is a valid cached hash -- no value
+/// is reserved as an "unset" sentinel. (The previous implementation used
+/// `i64::MIN` as the sentinel and silently remapped a real hash of
+/// `i64::MIN` to `i64::MIN + 1`, colliding with the genuine hash of
+/// `i64::MIN + 1`.)
+#[derive(Debug)]
+pub struct CachedHash {
+    hash: AtomicI64,
+    present: AtomicBool,
+}
+
+impl CachedHash {
+    pub fn new() -> Self {
+        Self {
+            hash: AtomicI64::new(0),
+            present: AtomicBool::new(false),
+        }
+    }
+
+    pub fn get(&self) -> Option<i64> {
+        // ``Acquire`` on the flag pairs with the ``Release`` in ``set`` so
+        // a reader that observes ``present`` also sees the hash write.
+        if self.present.load(Ordering::Acquire) {
+            Some(self.hash.load(Ordering::Relaxed))
+        } else {
+            None
+        }
+    }
+
+    pub fn set(&self, v: i64) {
+        self.hash.store(v, Ordering::Relaxed);
+        self.present.store(true, Ordering::Release);
+    }
+
+    pub fn clear(&self) {
+        self.present.store(false, Ordering::Release);
+    }
+}
+
+impl Clone for CachedHash {
+    fn clone(&self) -> Self {
+        Self {
+            hash: AtomicI64::new(self.hash.load(Ordering::Relaxed)),
+            present: AtomicBool::new(self.present.load(Ordering::Relaxed)),
+        }
+    }
+}
+
+impl Default for CachedHash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Convert an integer to a signed integer of a given bit width, wrapping as necessary.
+fn to_signed_i(v: i128, bits: u32) -> i128 {
+    if bits == 0 || bits >= 128 {
+        return v;
+    }
+    // Truncate to `bits` bits, then sign-extend from bit `bits - 1`.
+    let masked = v & ((1i128 << bits) - 1);
+    if masked >= 1i128 << (bits - 1) {
+        masked - (1i128 << bits)
+    } else {
+        masked
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unset_by_default() {
+        assert_eq!(CachedHash::new().get(), None);
+    }
+
+    #[test]
+    fn to_signed_i_wraps_to_bit_width() {
+        // Unsigned two's-complement forms normalize to negative values.
+        assert_eq!(to_signed_i((1i128 << 64) - 8, 64), -8);
+        assert_eq!(to_signed_i(0xFFFF_FFF8, 32), -8);
+        // Values already in the signed range pass through unchanged.
+        assert_eq!(to_signed_i(-8, 64), -8);
+        assert_eq!(to_signed_i(-8, 32), -8);
+        assert_eq!(to_signed_i(8, 32), 8);
+        assert_eq!(to_signed_i(0, 32), 0);
+        // Boundary values.
+        assert_eq!(to_signed_i(1i128 << 31, 32), -(1i128 << 31));
+        assert_eq!(to_signed_i((1i128 << 31) - 1, 32), (1i128 << 31) - 1);
+        // Negative multiples of 2^bits wrap to zero, and anything beyond
+        // the width wraps modulo 2^bits.
+        assert_eq!(to_signed_i(-(1i128 << 32), 32), 0);
+        assert_eq!(to_signed_i(-(1i128 << 32) - 8, 32), -8);
+        assert_eq!(to_signed_i((1i128 << 33) + 8, 32), 8);
+    }
+
+    #[test]
+    fn every_i64_round_trips() {
+        // The full i64 range is storable, including the values the old
+        // i64::MIN-sentinel scheme corrupted.
+        for v in [0i64, 1, -1, i64::MAX, i64::MIN, i64::MIN + 1] {
+            let c = CachedHash::new();
+            c.set(v);
+            assert_eq!(c.get(), Some(v), "value {v} did not round-trip");
+        }
+    }
+
+    #[test]
+    fn clear_resets_presence() {
+        let c = CachedHash::new();
+        c.set(i64::MIN);
+        assert_eq!(c.get(), Some(i64::MIN));
+        c.clear();
+        assert_eq!(c.get(), None);
+    }
+
+    #[test]
+    fn clone_preserves_state() {
+        let set = CachedHash::new();
+        set.set(i64::MIN);
+        assert_eq!(set.clone().get(), Some(i64::MIN));
+        assert_eq!(CachedHash::new().clone().get(), None);
+    }
+}

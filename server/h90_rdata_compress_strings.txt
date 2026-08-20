@@ -1,0 +1,42 @@
+0x813840  unknown compression method
+0x813878  unknown compression method
+0x8146b0  C:\Jenkins\workspace\audio-apps\h90control\H90\AppCommon\juce-modules\modules\juce_core\zip/juce_GZIPCompressorOutputStream.cpp
+0x814730  C:\Jenkins\workspace\audio-apps\h90control\H90\AppCommon\juce-modules\modules\juce_core\zip/juce_GZIPCompressorOutputStream.cpp
+0x814820  C:\Jenkins\workspace\audio-apps\h90control\H90\AppCommon\juce-modules\modules\juce_core\zip/juce_GZIPCompressorOutputStream.cpp
+0x8148a0  C:\Jenkins\workspace\audio-apps\h90control\H90\AppCommon\juce-modules\modules\juce_core\zip/juce_GZIPDecompressorInputStream.cpp
+0x8149e0  need dictionary
+0x82e398  unexpected zlib return code
+0x82e3b8  zlib IO error
+0x82e3c8  missing LZ dictionary
+0x82e3f8  bad parameters to zlib
+0x82e438  unexpected zlib return
+0x82e450  unsupported zlib version
+0x82fb60  Truncated compressed data in IDAT
+0x82fb88  Extra compression data in IDAT
+0x82fba8  Extra compressed data in IDAT
+0x82fed0  extra compressed data
+0x830040  extra compressed data
+0x830080  extra compressed data
+0x830098  bad compression method
+0x830770  Unknown compression method in IHDR
+0x830940  Extra compressed data
+0x830d20  Invalid iCCP compression method
+0x830dc0  text compression mode is out of range
+0x830ff0  Compression buffer size cannot be changed because it is in use
+0x831060  Compression buffer size cannot be reduced below 6
+0x831098  Compression buffer size limited to system maximum
+0x8315b0  unknown compression type
+0x8316b0  bad compression info
+0x832330  Only compression windows <= 32k supported by PNG
+0x8323a8  Only compression method 8 is supported by PNG
+0x8323d8  Only compression windows >= 256 supported by PNG
+0x8324a0  deflateEnd failed (ignored)
+0x8324c0  Invalid compression type specified
+0x8324e8  compressed data too long
+0x8fb6f0  C:\Jenkins\workspace\audio-apps\h90control\H90\AppCommon\juce-modules\modules\juce_core\zip/juce_GZIPCompressorOutputStream.cpp
+0x8fb780  C:\Jenkins\workspace\audio-apps\h90control\H90\AppCommon\juce-modules\modules\juce_core\zip/juce_GZIPDecompressorInputStream.cpp
+0x8fc4c0  multipart/x-gzip
+0x8fc4d8  application/x-compressed
+0x8fc4f8  application/x-gzip
+0x8fe6b8  application/x-zip-compressed
+0x8fe6e8  application/x-compress

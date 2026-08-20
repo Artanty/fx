@@ -1,0 +1,126 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from typing import TYPE_CHECKING
+
+from archinfo.arch_arm import is_arm_arch
+
+from angr.knowledge_plugins.plugin import KnowledgeBasePlugin
+
+from .cfg_model import CFGModel
+
+if TYPE_CHECKING:
+    from .cfg_model import CFG_ADDR_TYPES
+
+
+class CFGManager(KnowledgeBasePlugin):
+    """
+    This is the CFG manager, it manages CFGs
+    """
+
+    def __init__(self, kb):
+        super().__init__(kb=kb)
+
+        self.cfgs = {}
+
+    def __repr__(self):
+        return f"<CFGManager with {len(self.cfgs)} CFGs>"
+
+    def __contains__(self, ident):
+        return ident in self.cfgs
+
+    def __getitem__(self, ident) -> CFGModel:
+        if ident not in self.cfgs:
+            if self._kb is not None and self._kb._project is not None:
+                is_arm = is_arm_arch(self._kb._project.arch)
+                cache_limit = self._kb._project.get_cfg_node_cache_limit()
+                edge_cache_limit = self._kb._project.get_cfg_edge_cache_limit()
+            else:
+                is_arm = False
+                cache_limit = None
+                edge_cache_limit = None
+            self.cfgs[ident] = CFGModel(
+                ident,
+                cfg_manager=self,
+                is_arm=is_arm,
+                cache_limit=cache_limit,
+                edge_cache_limit=edge_cache_limit,
+            )
+        return self.cfgs[ident]
+
+    def __setitem__(self, ident, model):
+        self.cfgs[ident] = model
+
+    def new_model(self, prefix, addr_type: CFG_ADDR_TYPES = "int"):
+        if prefix not in self.cfgs:
+            model = self[prefix]
+            model.addr_type = addr_type
+            return model
+
+        # find a unique ident
+        i = 0
+        while True:
+            ident = f"{prefix}_{i}"
+            if ident not in self.cfgs:
+                break
+            i += 1
+        model = self[ident]
+        model.addr_type = addr_type
+        return model
+
+    def copy(self):
+        cm = CFGManager(self._kb)
+        cm.cfgs = {x[0]: x[1].copy() for x in self.cfgs.items()}
+        return cm
+
+    def get_most_accurate(self) -> CFGModel | None:
+        """
+        :return: The most accurate CFG present in the CFGManager, or None if it does not hold any.
+        """
+        less_accurate_to_most_accurate = ["CFGFast", "CFGEmulated"]
+
+        sorted_cfgs_by_prefix = defaultdict(list)
+        for key, cfg_model in self.cfgs.items():
+            for prefix in less_accurate_to_most_accurate:
+                if key.startswith(prefix):
+                    the_prefix = prefix
+                    break
+            else:
+                # not found
+                continue
+
+            sorted_cfgs_by_prefix[the_prefix].append((key, cfg_model))
+
+        for key in reversed(less_accurate_to_most_accurate):
+            if key in sorted_cfgs_by_prefix:
+                lst = sorted(sorted_cfgs_by_prefix[key], key=lambda item: item[0])
+                return lst[-1][-1]
+        return None
+
+    #
+    # Pickling
+    #
+
+    def __getstate__(self):
+        return {
+            "_kb": self._kb,
+            "cfgs": self.cfgs,
+        }
+
+    def __setstate__(self, state):
+        self._kb = state["_kb"]
+        self.cfgs = state["cfgs"]
+        for cfg_model in self.cfgs.values():
+            cfg_model._cfg_manager = self
+
+    def set_kb(self, kb):
+        super().set_kb(kb)
+        # re-attach the RuntimeDb to all CFG models so that node/edge spilling works again after unpickling
+        rtdb = kb.rtdb
+        for cfg_model in self.cfgs.values():
+            cfg_model._cfg_manager = self  # pylint:disable=protected-access
+            if cfg_model.graph is not None:
+                cfg_model.graph.set_rtdb(rtdb)
+
+
+KnowledgeBasePlugin.register_default("cfgs", CFGManager)

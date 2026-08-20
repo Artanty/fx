@@ -503,6 +503,105 @@ structure (segment gaps / variant encoding) is still to be mapped.
 4. Then persist a reusable `server/h90_reconstruct.py` (workflow above was
    exploratory stdin scripts; the analysis code lives in this doc's commands).
 
+## 2026-08-13 — dict = previous program's write serialization (req2 fully mapped, 21 bytes left)
+
+New findings that correct/supersede the 2026-08-09 "known unknowns" list. Artifacts:
+`server/h90-recon/decode_status.json` (position lists), temp scripts under
+`C:\Users\Thoma\AppData\Local\Temp\opencode\`.
+
+### Correction: the `\x00\x00` bytes are NOT dict-copies
+
+The 08-09 note claimed the NUL-looking bytes in `out[211:976]` (230-231, 254-255,
+273-274, 549-550, …) were all dict-copy placeholders. **Wrong.** With
+`h90_dict_recover.deflate_track` those positions decode as `('copy', abs>=32768)`
+= **output-copies** (fixed, self-referential LZ matches) whose real value is the
+`\x00\x00` byte pair in the write. They are KNOWN.
+
+True dict-copies in req1 (bytes whose value can only come from the runtime
+dictionary): exactly **72**, at output positions
+`[560-565, 587-591, 594-596, 618-628, 735-739, 759-761, 799-804, 851-858,
+917-922, 952-954, 956-968, 973-975]`.
+
+### adler32 oracle (proves zeros-dict tail is wrong)
+
+Stored zlib adler32 in the deflate trailers vs the zeros-dict decode:
+
+| stream | stored adler32 | zeros-decode adler32 |
+|--------|---------------|----------------------|
+| req1 | `0xee497217` | `0xb3c1f985` |
+| req2 | `0xac6eda29` | `0x77305a75` |
+
+Mismatch confirms the 72 dict-copied bytes are wrong under the zero placeholder.
+
+### req2's dictionary = req1's output (TWO-WAY write serialization) — CONFIRMED
+
+- req2's 169 dict refs are at window offsets **31916–32764**. Since req1's output
+  (976 B) is right-aligned at the window end (BASE = 32768−976 = 31792), each ref
+  maps to `req1_out[w−31792]` → range `req1_out[124:973]`.
+- Decoding req2 with a dict built from req1's **known** bytes resolves 787/787 of
+  req2's output EXCEPT the bytes that alias req1's 72 unknown positions: exactly
+  **21** req2 output bytes are still unknown, all of them dict-copies sourced from
+  req1's 72 unknown bytes.
+- Structural proof: req2's output contains `Tap2DelayDivision` (MURKY's object
+  name) AND b64 fragments `…ide.h9.tfreve…`, `noxypwitchyb`, `"syn`, `"routing_…`
+  that come from req1's (TWO-WAY) serialization via dict copies. So the write is
+  **the current program's write-serialization, patched with the imported preset's
+  values** — dict-copies where new==current, literals where they differ.
+
+### The 72 bytes = VECHOLONG's values; unrecoverable from these captures
+
+- req1's 72 dict-copies reference the dict, which is the program state present
+  before import #1 = **VECHOLONG** (the pedal's initial program).
+- req1 = VECHOLONG's serialization patched with TWO-WAY's values; req2 = req1's
+  output patched with MURKY's values. The 72 (21) shared bytes are the same
+  VECHOLONG values, never transmitted (the app only ever references them via the
+  dict), and only 2 adler32 equations exist for 72 unknowns → not solvable here.
+- They ARE part of the base64 JSON stream (b64 alphabet chars), so a candidate
+  dict is still scoreable: fill `dict[31792:32768] = req1_out`, then check
+  req2's 148 known-alias refs agree AND adler32(req2) == `0xac6eda29`.
+
+### Write-variant structure (later 08-13): b64 runs + marker bytes, values = file JSON
+
+Per-run decoding of `out1[211:976]` (765 B) shows it is **NOT one contiguous b64
+stream** — it is 637 b64 chars split into runs by **128 non-b64 bytes** (117
+`\x00`, 4×`0x3f`, 2×`0x0d`, 2×`0x80`, 1×`0x2d`, 1×`0x14`, 1×`0x10`). Of those 128:
+the **72 deflate dict-copies** (VECHOLONG) + **56 literal output bytes** (the
+`\x00\x00`/odd markers that are part of the write itself, e.g. the `\x00\x00` of
+the `vcm`→`\x00\x00t` groups).
+
+- **Every b64 run decodes to 100% clean ASCII at some phase**, and the readable
+  text is the `.preset90` file's JSON: e.g. run at [275..548] phase0 =
+  `987.4534912109375,"dlya_denormalized_pretaper":350.0,"dlya_end_exp":0.9823130369186401,"dlya_start_exp":0.6586937904357910,"dlyb":1597.311401367188,"dlyb_denormalized_pretaper":343.8124694824219,` — byte-identical to `preset90_twoway.bin`'s JSON. The write's literal VALUES are TWO-WAY's values.
+- **The stream is NOT phase-continuous**: run phases do not chain (cumulative
+  char count mod 4 ≠ observed phase) and do not equal the file-position phase.
+  The pedal-side decoder must reassemble per-chunk.
+- `iIn0K` at `out[946:950]` decodes to `"}\n` — the write JSON ends exactly like
+  the file JSON. So the write JSON ≈ file JSON end-to-end; the only divergences
+  are the 72 dict-copy positions and the marker groups (write emits 2 dict-chars
+  + 1 literal where the file has 3 chars, e.g. `vcm`→`\x00\x00t`).
+- Full layout: `[0:32]` TRPC wrapper; `[32:192]` ValueTree structure bytes
+  (incl. float32 1.0/0.5 at 176-187); `tjknobs-knob4\x00\x00\x00xdl` at 192-210;
+  b64 stream 211-871; second `tjknobs-knob4\x00\x00\x00xdl` at 872-890; more b64;
+  `"}\n` at ~946; trailer `\x00\x00\x00\x00\x14\x00\x00\x00 ... \x10\x00\x00\x00...` at 951-976.
+- `req1_dict_constraints.json` records the 72 refs → **69 distinct dict offsets,
+  range 31004–32730** (some offsets hit by 2 refs).
+
+Implication: a fully-literal write (fill the 72 dict-copies + 56 markers with the
+file's b64 chars, position-preserving) WOULD inflate to the file JSON, but the
+pedal-side parser expects the marker groups — untested whether it accepts a
+marker-free stream. The marker semantics are still unknown (2 dict-chars + 1
+literal per group is the current best model).
+
+### Next steps (updated)
+
+1. **Primary:** live lldb capture of the dict at send time (per 08-05 section)
+   — that directly yields the 72 bytes.
+2. **Static (secondary):** in the app binary, xref the deflate/`zdict` construction
+   to find where the "current program serialization" string is built (capstone tool,
+   08-12 section).
+3. Once the dict is known: verify `deflate_track(req, zdict=cand)` matches both
+   stored adler32s, then implement the encoder in `server/server.js`.
+
 ## 2026-08-12 — capstone static-analysis tool (`server/h90_capstone.py`)
 
 New tool for the static RE of the app binary. Finds **ADRP/ADD and ADR xrefs**

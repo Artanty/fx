@@ -1,0 +1,537 @@
+# pylint:disable=unused-argument,no-self-use
+from __future__ import annotations
+
+import logging
+from itertools import count
+from typing import TYPE_CHECKING
+
+from angr import sim_type
+from angr.sim_type import SimType, TypeRef
+
+from . import typeconsts
+from .typeconsts import TypeConstant
+
+if TYPE_CHECKING:
+    import archinfo
+
+
+l = logging.getLogger(__name__)
+
+
+class SimTypeTempRef(sim_type.SimType):
+    """
+    Represents a temporary reference to another type. TypeVariableReference is translated to SimTypeTempRef.
+    """
+
+    def __init__(self, typevar):
+        super().__init__()
+        self.typevar = typevar
+
+    def c_repr(self, name=None, full=0, memo=None, indent: int | None = 0, name_parens: bool = True) -> str:  # pylint: disable=unused-argument
+        return "<SimTypeTempRef>"
+
+
+class TypeTranslator:
+    """
+    Translate type constants to SimType and SimType to type constants.
+    """
+
+    __slots__ = (
+        "_has_nonexistent_ref",
+        "_struct_ctr",
+        "_struct_def_ctr",
+        "_struct_sig_cache",
+        "arch",
+        "known_structs",
+        "memo",
+        "named_struct_id_counter",
+        "struct_name_to_idx",
+        "structs",
+        "translated",
+        "translated_simtypes",
+    )
+
+    def __init__(self, arch: archinfo.Arch):
+        self.arch: archinfo.Arch = arch
+
+        self.translated: dict[TypeConstant, SimType] = {}
+        self.translated_simtypes: dict[SimType, TypeConstant] = {}
+        self.structs = {}
+        # _struct_sig_cache maps structural signatures to canonical SimStructs. Used to deduplicate auto-named,
+        # angr-generated structs that share an identical layout. See _translate_Struct for the rationale.
+        self._struct_sig_cache: dict[tuple, sim_type.SimStruct] = {}
+        self._struct_ctr = count()
+        # a name-independent, deterministic per-function ordering id stamped onto each translated struct
+        self._struct_def_ctr = count()
+        # we encode SimStruct, SimCppClass, and SimTypeRef into strings so they can be used as unified keys for memo
+        self.memo: dict[str, typeconsts.Struct] = {}
+        self.named_struct_id_counter = count(133337)
+        self.struct_name_to_idx = {}
+        # definitions of known structs (library types or user-defined types), keyed by name
+        self.known_structs: dict[str, sim_type.SimStruct] = {}
+
+        # will be updated every time .tc2simtype() is called
+        self._has_nonexistent_ref = False
+
+    #
+    # Naming
+    #
+
+    def struct_name(self):
+        return f"struct_{next(self._struct_ctr)}"
+
+    @staticmethod
+    def _simstruct_cppclass_to_memo_key(
+        st: sim_type.SimStruct | sim_type.SimCppClass | sim_type.SimTypeRef,
+    ) -> str | None:
+        if isinstance(st, sim_type.SimStruct):
+            return f"struct_{st.name}"
+        if isinstance(st, sim_type.SimCppClass):
+            return f"cppclass_{st.name}"
+        if isinstance(st, sim_type.SimTypeRef):
+            if st.original_type is sim_type.SimStruct:
+                return f"struct_{st.name}"
+            if st.original_type is sim_type.SimCppClass:
+                return f"cppclass_{st.name}"
+        return None
+
+    #
+    # Type translation
+    #
+
+    def tc2simtype(self, tc):
+        self._has_nonexistent_ref = False
+        return self._tc2simtype(tc), self._has_nonexistent_ref
+
+    def _tc2simtype(self, tc):
+        if tc is None:
+            return sim_type.SimTypeBottom().with_arch(self.arch)
+
+        try:
+            handler = TypeConstHandlers[tc.__class__]
+        except KeyError:
+            return sim_type.SimTypeBottom().with_arch(self.arch)
+
+        return handler(self, tc)
+
+    def simtype2tc(self, simtype: sim_type.SimType) -> typeconsts.TypeConstant:
+        return self._simtype2tc(simtype)
+
+    def _simtype2tc(self, simtype: sim_type.SimType) -> typeconsts.TypeConstant:
+        if isinstance(simtype, TypeRef):
+            simtype = simtype.ty
+
+        if simtype in self.translated_simtypes:
+            return self.translated_simtypes[simtype]
+        try:
+            handler = SimTypeHandlers[simtype.__class__]
+            return handler(self, simtype)
+        except KeyError:
+            return typeconsts.BottomType()
+
+    # compatibility and quality of life
+    lift = simtype2tc
+    concretize = tc2simtype
+
+    #
+    # Typehoon type handlers
+    #
+
+    def _translate_Pointer64(self, tc):
+        if isinstance(tc.basetype, typeconsts.BottomType):
+            # void *
+            internal = sim_type.SimTypeBottom(label="void").with_arch(self.arch)
+        else:
+            internal = self._tc2simtype(tc.basetype)
+        return sim_type.SimTypePointer(internal, label=tc.name).with_arch(self.arch)
+
+    def _translate_Pointer32(self, tc):
+        if isinstance(tc.basetype, typeconsts.BottomType):
+            # void *
+            internal = sim_type.SimTypeBottom(label="void").with_arch(self.arch)
+        else:
+            internal = self._tc2simtype(tc.basetype)
+        return sim_type.SimTypePointer(internal, label=tc.name).with_arch(self.arch)
+
+    def _translate_Array(self, tc: typeconsts.Array) -> sim_type.SimTypeArray:
+        elem_type = self._tc2simtype(tc.element)
+        return sim_type.SimTypeArray(elem_type, length=tc.count, label=tc.name).with_arch(self.arch)
+
+    def _translate_Struct(self, tc: typeconsts.Struct):
+        if tc in self.structs:
+            return self.structs[tc]
+
+        if tc.name is not None:
+            known = self.known_structs.get(tc.name)
+            if known is not None:
+                # do not re-derive the fields of a known struct
+                self.structs[tc] = known
+                return known
+
+        name = tc.name or self.struct_name()
+
+        if tc.is_cppclass:
+            s = sim_type.SimCppClass(name=name).with_arch(self.arch)
+        else:
+            s = sim_type.SimStruct({}, name=name).with_arch(self.arch)
+        # stamp a stable, name-independent definition order for deterministic, rename-proof codegen ordering
+        s._def_order = next(self._struct_def_ctr)
+        self.structs[tc] = s
+
+        next_offset = 0
+        for offset, typ in sorted(tc.fields.items(), key=lambda item: item[0]):
+            if offset > next_offset:
+                # we need padding!
+                padding_size = offset - next_offset
+                s.fields[f"padding_{next_offset:x}"] = sim_type.SimTypeFixedSizeArray(
+                    sim_type.SimTypeChar(signed=False).with_arch(self.arch), padding_size
+                ).with_arch(self.arch)
+
+            translated_type = self._tc2simtype(typ)
+            if isinstance(translated_type, sim_type.SimTypeBottom):
+                # we cannot have bottom types in a struct since that would mess with offsets of all future types
+                # for now, we replace it with an unsigned char
+                translated_type = sim_type.SimTypeChar(signed=False).with_arch(self.arch)
+
+            field_name = tc.field_names[offset] if tc.field_names and offset in tc.field_names else f"field_{offset:x}"
+            s.fields[field_name] = translated_type
+
+            if isinstance(translated_type, SimTypeTempRef):
+                next_offset = self.arch.bytes + offset
+            else:
+                next_offset = translated_type.size // self.arch.byte_width + offset
+
+        # Structurally deduplicate structuring-generated (unnamed) structs.
+        if tc.name is None:
+            sig = tuple(
+                (field_name, type(field_type).__name__, getattr(field_type, "size", None))
+                for field_name, field_type in s.fields.items()
+            )
+            canon = self._struct_sig_cache.get(sig)
+            if canon is not None:
+                self.structs[tc] = canon
+                return canon
+            self._struct_sig_cache[sig] = s
+
+        return s
+
+    def _translate_Int8(self, tc):
+        return sim_type.SimTypeChar(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_Int16(self, tc):
+        if tc.name == "WCHAR":
+            return sim_type.SimTypeWideChar(label=tc.name).with_arch(self.arch)
+        return sim_type.SimTypeShort(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_Int32(self, tc):
+        return sim_type.SimTypeInt(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_Int64(self, tc):
+        return sim_type.SimTypeLongLong(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_Int128(self, tc):
+        return sim_type.SimTypeInt128(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_Int256(self, tc):
+        return sim_type.SimTypeInt256(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_Int512(self, tc):
+        return sim_type.SimTypeInt512(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_TypeVariableReference(self, tc):
+        if tc.typevar in self.translated:
+            return self.translated[tc.typevar]
+
+        self._has_nonexistent_ref = True
+        return SimTypeTempRef(tc.typevar)
+
+    def _translate_Float32(self, tc: typeconsts.Float32) -> sim_type.SimTypeFloat:
+        return sim_type.SimTypeFloat(label=tc.name).with_arch(self.arch)
+
+    def _translate_Float64(self, tc: typeconsts.Float64) -> sim_type.SimTypeDouble:
+        return sim_type.SimTypeDouble(label=tc.name).with_arch(self.arch)
+
+    def _translate_Enum(self, tc: typeconsts.Enum) -> sim_type.SimTypeEnum:
+        """Convert Enum type constant to SimTypeEnum."""
+        base_simtype = None
+        if tc.base_type is not None:
+            base_simtype = self._tc2simtype(tc.base_type)
+        return sim_type.SimTypeEnum(
+            members=dict(tc.members),
+            name=tc.name,
+            base_type=base_simtype,
+        ).with_arch(self.arch)
+
+    def _translate_Fd(self, tc: typeconsts.Fd) -> sim_type.SimTypeFd:
+        return sim_type.SimTypeFd(label=tc.name).with_arch(self.arch)
+
+    def _translate_SInt8(self, tc):
+        return sim_type.SimTypeChar(signed=True, label=tc.name).with_arch(self.arch)
+
+    def _translate_UInt8(self, tc):
+        return sim_type.SimTypeChar(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_SInt16(self, tc):
+        return sim_type.SimTypeShort(signed=True, label=tc.name).with_arch(self.arch)
+
+    def _translate_UInt16(self, tc):
+        return sim_type.SimTypeShort(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_SInt32(self, tc):
+        return sim_type.SimTypeInt(signed=True, label=tc.name).with_arch(self.arch)
+
+    def _translate_UInt32(self, tc):
+        return sim_type.SimTypeInt(signed=False, label=tc.name).with_arch(self.arch)
+
+    def _translate_SInt64(self, tc):
+        return sim_type.SimTypeLongLong(signed=True, label=tc.name).with_arch(self.arch)
+
+    def _translate_UInt64(self, tc):
+        return sim_type.SimTypeLongLong(signed=False, label=tc.name).with_arch(self.arch)
+
+    #
+    # Backpatching
+    #
+
+    def backpatch(self, st, translated):
+        """
+
+        :param sim_type.SimType st:
+        :param dict translated:
+        :return:
+        """
+
+        if isinstance(st, sim_type.SimTypePointer):
+            self.backpatch(st.pts_to, translated)
+
+        elif isinstance(st, sim_type.SimStruct):
+            fields_patch = {}
+            for offset, fld in st.fields.items():
+                if isinstance(fld, SimTypeTempRef) and fld.typevar in translated:
+                    fields_patch[offset] = translated[fld.typevar]
+                st.fields.update(fields_patch)
+
+    #
+    # SimType handlers
+    #
+
+    def _translate_SimTypeNum(self, st: sim_type.SimTypeNum) -> typeconsts.TypeConstant:
+        if st.size not in {8, 16, 32, 64}:
+            return typeconsts.BottomType()
+
+        tc = typeconsts.signed_int_type(st.size) if st.signed else typeconsts.unsigned_int_type(st.size)
+        tc.name = st.label
+        return tc
+
+    def _translate_SimTypeInt128(self, st: sim_type.SimTypeChar) -> typeconsts.Int128:
+        return typeconsts.Int128(name=st.label)
+
+    def _translate_SimTypeInt256(self, st: sim_type.SimTypeChar) -> typeconsts.Int256:
+        return typeconsts.Int256(name=st.label)
+
+    def _translate_SimTypeInt512(self, st: sim_type.SimTypeChar) -> typeconsts.Int512:
+        return typeconsts.Int512(name=st.label)
+
+    def _translate_SimTypeInt(self, st: sim_type.SimTypeInt) -> typeconsts.TypeConstant:
+        if st.signed:
+            return typeconsts.SInt32(name=st.label)
+        return typeconsts.UInt32(name=st.label)
+
+    def _translate_SimTypeLong(self, st: sim_type.SimTypeLong) -> typeconsts.TypeConstant:
+        if st.signed:
+            return typeconsts.SInt32(name=st.label)
+        return typeconsts.UInt32(name=st.label)
+
+    def _translate_SimTypeLongLong(self, st: sim_type.SimTypeLongLong) -> typeconsts.TypeConstant:
+        if st.signed:
+            return typeconsts.SInt64(name=st.label)
+        return typeconsts.UInt64(name=st.label)
+
+    def _translate_SimTypeShort(self, st: sim_type.SimTypeInt) -> typeconsts.TypeConstant:
+        if st.signed:
+            return typeconsts.SInt16(name=st.label)
+        return typeconsts.UInt16(name=st.label)
+
+    def _translate_SimTypeChar(self, st: sim_type.SimTypeChar) -> typeconsts.TypeConstant:
+        if st.signed:
+            return typeconsts.SInt8(name=st.label)
+        return typeconsts.UInt8(name=st.label)
+
+    def _translate_SimTypeWideChar(self, st: sim_type.SimTypeWideChar) -> typeconsts.Int16:
+        return typeconsts.Int16(name=st.label)
+
+    def _translate_SimTypeRef(self, st: sim_type.SimTypeRef) -> typeconsts.TypeConstant | typeconsts.BottomType:
+        # we really should not get SimTypeRef here, but if we do, we conduct a best-effort translation of SimTypeRef to
+        # a type constant.
+        l.error(
+            "TypeTranslator encountered an unexpected SimTypeRef. You probably forgot to call "
+            "dereference_simtype() to translate a SimTypeRef to a SimType!"
+        )
+        type_key = self._simstruct_cppclass_to_memo_key(st)
+        if type_key is not None and type_key in self.memo:
+            return self.memo[type_key]
+
+        if st.original_type is sim_type.SimStruct:
+            obj = typeconsts.Struct(fields={}, name=st.name)
+            if type_key is not None:
+                self.memo[type_key] = obj
+            return obj
+        if st.original_type is sim_type.SimCppClass:
+            obj = typeconsts.Struct(fields={}, name=st.name, is_cppclass=True)
+            if type_key is not None:
+                self.memo[type_key] = obj
+            return obj
+        return typeconsts.BottomType()
+
+    def _translate_SimStruct(self, st: sim_type.SimStruct) -> typeconsts.Struct | typeconsts.BottomType:
+        type_key = self._simstruct_cppclass_to_memo_key(st)
+        assert type_key is not None
+        if type_key in self.memo:
+            # a recursive reference: point back at the struct that is being translated
+            return self.memo[type_key]
+
+        struct_idx = {}
+        if st.name:
+            if st.name not in self.struct_name_to_idx:
+                self.struct_name_to_idx[st.name] = next(self.named_struct_id_counter)
+            struct_idx["idx"] = self.struct_name_to_idx[st.name]
+
+        obj = typeconsts.Struct(fields={}, name=st.name, **struct_idx)
+        self.memo[type_key] = obj
+        self._remember_known_struct(st)
+
+        fields = {}
+        field_names = {}
+        offsets = st.offsets
+        for field_name, simtype in st.fields.items():
+            if field_name not in offsets:
+                del self.memo[type_key]
+                return typeconsts.BottomType()
+            offset = offsets[field_name]
+            fields[offset] = self._simtype2tc(simtype)
+            field_names[offset] = field_name
+        obj.fields = fields
+        obj.field_names = field_names
+        del self.memo[type_key]
+
+        return obj
+
+    def _translate_SimCppClass(self, st: sim_type.SimCppClass) -> typeconsts.Struct | typeconsts.BottomType:
+        type_key = self._simstruct_cppclass_to_memo_key(st)
+        assert type_key is not None
+        if type_key in self.memo:
+            # a recursive reference: point back at the class that is being translated
+            return self.memo[type_key]
+
+        struct_idx = {}
+        if st.name:
+            if st.name not in self.struct_name_to_idx:
+                self.struct_name_to_idx[st.name] = next(self.named_struct_id_counter)
+            struct_idx["idx"] = self.struct_name_to_idx[st.name]
+
+        obj = typeconsts.Struct(fields={}, name=st.name, is_cppclass=True, **struct_idx)
+        self.memo[type_key] = obj
+        self._remember_known_struct(st)
+
+        fields = {}
+        field_names = {}
+        offsets = st.offsets
+        for field_name, simtype in st.fields.items():
+            if field_name not in offsets:
+                del self.memo[type_key]
+                return typeconsts.BottomType()
+            offset = offsets[field_name]
+            fields[offset] = self._simtype2tc(simtype)
+            field_names[offset] = field_name
+        obj.fields = fields
+        obj.field_names = field_names
+        del self.memo[type_key]
+
+        return obj
+
+    def _remember_known_struct(self, st: sim_type.SimStruct) -> None:
+        if st.name and st.name != "<anon>" and not st.anonymous:
+            self.known_structs.setdefault(st.name, st)
+
+    def _translate_SimTypeArray(self, st: sim_type.SimTypeArray) -> typeconsts.Array:
+        elem_type = self._simtype2tc(st.elem_type)
+        return typeconsts.Array(elem_type, count=st.length, name=st.label)
+
+    def _translate_SimTypePointer(self, st: sim_type.SimTypePointer) -> typeconsts.Pointer32 | typeconsts.Pointer64:
+        base = self._simtype2tc(st.pts_to)
+        if self.arch.bits == 32:
+            return typeconsts.Pointer32(base, name=st.label)
+        if self.arch.bits == 64:
+            return typeconsts.Pointer64(base, name=st.label)
+        raise TypeError(f"Unsupported pointer size {self.arch.bits}")
+
+    def _translate_SimTypeFloat(self, st: sim_type.SimTypeFloat) -> typeconsts.Float32:
+        return typeconsts.Float32(name=st.label)
+
+    def _translate_SimTypeDouble(self, st: sim_type.SimTypeDouble) -> typeconsts.Float64:
+        return typeconsts.Float64(name=st.label)
+
+    def _translate_SimTypeEnum(self, st: sim_type.SimTypeEnum) -> typeconsts.Enum:
+        """Convert SimTypeEnum to Enum type constant."""
+        base_tc = None
+        if st._base_type is not None:
+            base_tc = self._simtype2tc(st._base_type)
+        return typeconsts.Enum(
+            members=dict(st.members),
+            base_type=base_tc,
+            name=st.name,
+        )
+
+    def _translate_SimTypeFd(self, st: sim_type.SimTypeFd) -> typeconsts.Fd:
+        return typeconsts.Fd(name=st.label)
+
+
+TypeConstHandlers = {
+    typeconsts.Pointer64: TypeTranslator._translate_Pointer64,
+    typeconsts.Pointer32: TypeTranslator._translate_Pointer32,
+    typeconsts.Array: TypeTranslator._translate_Array,
+    typeconsts.Struct: TypeTranslator._translate_Struct,
+    typeconsts.Enum: TypeTranslator._translate_Enum,
+    typeconsts.Int8: TypeTranslator._translate_Int8,
+    typeconsts.Int16: TypeTranslator._translate_Int16,
+    typeconsts.Int32: TypeTranslator._translate_Int32,
+    typeconsts.Int64: TypeTranslator._translate_Int64,
+    typeconsts.Int128: TypeTranslator._translate_Int128,
+    typeconsts.Int256: TypeTranslator._translate_Int256,
+    typeconsts.Int512: TypeTranslator._translate_Int512,
+    typeconsts.SInt8: TypeTranslator._translate_SInt8,
+    typeconsts.UInt8: TypeTranslator._translate_UInt8,
+    typeconsts.SInt16: TypeTranslator._translate_SInt16,
+    typeconsts.UInt16: TypeTranslator._translate_UInt16,
+    typeconsts.SInt32: TypeTranslator._translate_SInt32,
+    typeconsts.UInt32: TypeTranslator._translate_UInt32,
+    typeconsts.SInt64: TypeTranslator._translate_SInt64,
+    typeconsts.UInt64: TypeTranslator._translate_UInt64,
+    typeconsts.TypeVariableReference: TypeTranslator._translate_TypeVariableReference,
+    typeconsts.Float32: TypeTranslator._translate_Float32,
+    typeconsts.Float64: TypeTranslator._translate_Float64,
+    typeconsts.Fd: TypeTranslator._translate_Fd,
+}
+
+
+SimTypeHandlers = {
+    sim_type.SimTypePointer: TypeTranslator._translate_SimTypePointer,
+    sim_type.SimTypeNum: TypeTranslator._translate_SimTypeNum,
+    sim_type.SimTypeChar: TypeTranslator._translate_SimTypeChar,
+    sim_type.SimTypeWideChar: TypeTranslator._translate_SimTypeWideChar,
+    sim_type.SimTypeInt: TypeTranslator._translate_SimTypeInt,
+    sim_type.SimTypeShort: TypeTranslator._translate_SimTypeShort,
+    sim_type.SimTypeLong: TypeTranslator._translate_SimTypeLong,
+    sim_type.SimTypeLongLong: TypeTranslator._translate_SimTypeLongLong,
+    sim_type.SimTypeInt128: TypeTranslator._translate_SimTypeInt128,
+    sim_type.SimTypeInt256: TypeTranslator._translate_SimTypeInt256,
+    sim_type.SimTypeInt512: TypeTranslator._translate_SimTypeInt512,
+    sim_type.SimStruct: TypeTranslator._translate_SimStruct,
+    sim_type.SimTypeArray: TypeTranslator._translate_SimTypeArray,
+    sim_type.SimTypeFloat: TypeTranslator._translate_SimTypeFloat,
+    sim_type.SimTypeDouble: TypeTranslator._translate_SimTypeDouble,
+    sim_type.SimTypeEnum: TypeTranslator._translate_SimTypeEnum,
+    sim_type.SimCppClass: TypeTranslator._translate_SimCppClass,
+    sim_type.SimTypeFd: TypeTranslator._translate_SimTypeFd,
+    sim_type.SimTypeRef: TypeTranslator._translate_SimTypeRef,
+}

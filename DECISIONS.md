@@ -1,11 +1,57 @@
 # Decisions — Programmatic H90 control from the web app
 
+## Workflow (session convention)
+
+- **Session start:** read this file (and `H90-IMPORT-NOTES.md` for H90 work)
+  first and keep it in mind for the whole session.
+- **Before every task:** append a `## Plan — <date> <task>` entry at the bottom
+  of this file (goal + how it will be verified). Then do the work.
+- **After every task:** append a `## Progress — <date> <task>` entry (what was
+  done, artifacts, results, next steps). Update `H90-IMPORT-NOTES.md` too where
+  it tracks H90 protocol work.
+
 Status: **in progress**. The read/download path is fully decoded (plain zlib
 FlatBuffers) and the import **write** path is now decoded too — it is zlib
 **DEFLATE with a preset dictionary**, NOT encryption. The custom inflate decoder
 (`server/h90_dict_recover.py`) is built and validated byte-for-byte against
 zlib. The only remaining unknown is the exact dictionary (built at runtime from
 pedal data). See "Resume here".
+
+## Current state — 2026-08-13 session end (resume point)
+
+**Where we are:** the write request = DEFLATE stream whose output is the pedal's
+**current program** (VECHOLONG) serialization **patched with the imported
+preset's values** (TWO-WAY for req1, MURKY for req2). req1's output decodes to a
+ValueTree wrapper + base64 JSON; **every literal b64 run decodes to the
+`.preset90` file's JSON byte-for-byte** (e.g. `987.4534912109375,
+"dlya_denormalized_pretaper":350.0,...`), confirming the imported values equal
+the file's values. The ONLY unknowns left are the **72 dict-copied bytes** in
+req1's output (21 in req2, all sourced from req1's 72), which are VECHOLONG's
+values — never transmitted, 2 adler32 equations for 72 unknowns → not solvable
+offline from existing captures.
+
+**What was confirmed this session:**
+- Write-variant structure: `out[211:976]` = 637 b64 chars + **128 non-b64 bytes**
+  (117 `\x00`, 4×`0x3f`, 2×`0x0d`, 2×`0x80`, `0x2d`, `0x14`, `0x10`). 72 = deflate
+  dict-copies (VECHOLONG); 56 = literal marker bytes. The b64 runs decode to the
+  file JSON at per-run phases (stream is NOT phase-continuous; pedal reassembles
+  chunks — marker semantics unknown).
+- 72 dict-copies → **69 distinct window offsets 31004–32730**
+  (`req1_dict_constraints.json`).
+- req2's dict = req1's output (window offsets 31916–32764 ↔ `req1_out[124:973]`);
+  148/169 req2 refs resolve from known req1 bytes.
+- Full output layout documented in `H90-IMPORT-NOTES.md` (08-13 section):
+  `[0:32]` TRPC wrapper, `[32:192]` ValueTree structure, `tjknobs-knob4\x00\x00\x00xdl`
+  at 192-210, b64 stream 211-871, second `tjknobs-knob4` block at 872-890, more
+  b64, `"}\n` at ~946, trailer at 951-976.
+
+**Decision pending (user paused; will continue later):** how to obtain the 72
+VECHOLONG bytes. Options: (1) Mac lldb dict recapture — dump the 32768-byte
+deflate window at send time (`server/h90-captures/h90_dict_capture.py`, primary);
+(2) static RE of the app binary for the `zdict` construction (angr/capstone);
+(3) build a literal-only write from the file JSON and test on the pedal whether
+it accepts a marker-free stream. Artifacts:
+`server/h90-recon/decode_status.json`, `H90-IMPORT-NOTES.md` 08-13 section.
 
 ## 2026-08-05 (late) update — write path DECODED: DEFLATE + preset dictionary
 
@@ -292,3 +338,30 @@ breakpoints. Ready-to-reuse helper + arm command are documented in
   lldb-attachable, running live against the pedal through `server/h90_proxy`)
 - `~/Library/Eventide/H90 Control/Firmware/h90-1.11.4.os` — local pedal firmware
   (34.9 MB; has zlib, no plaintext object names)
+
+## Plan — 2026-08-13 angr static analysis of the Windows H90 Control.exe
+
+Goal: use **angr** (source checkout `input/angr-master`, Python 3.12) to
+statically locate the write-path zlib **dictionary construction** in the
+Windows x64 `H90 Control.exe` (v1.9.13, the same JUCE build family as the
+capture-era macOS 1.9.5), then score any recovered candidate dict offline with
+`server/h90_dict_recover.py` against `req2_dict_constraints.json` (144
+constraints) / `req1_dict_constraints.json` (69). The live lldb capture stays
+the primary route; this is the offline static route (DECISIONS "Resume here"
+step 4, H90-IMPORT-NOTES "2026-08-12").
+
+Steps:
+1. Install Rust (winget `Rustlang.Rustup`, `stable-msvc`) — MSVC 14.29 present.
+2. Patch `input/angr-master/pyproject.toml`: `pyvex==9.3.3.dev0` (not on PyPI)
+   → `pyvex>=9.3.2` (released win_amd64 wheel). Build via
+   `pip install ./input/angr-master` under `vcvars64.bat`. Fallback: PyPI wheel.
+3. User installs `input/H90Control-1.9.13-windows-x64-installer.exe`.
+4. New `server/h90_angr.py`: load exe → locate/decompile the documented TRPC
+   `sendMessage` fn `0x14013b610` (sanity vs rizin notes) → FLIRT-match
+   zlib (`deflate`, `deflateSetDictionary`) → xref callers → decompile →
+   backward-slice the `zdict` argument → recover dict construction.
+5. Verify: `deflate_track(req, zdict=cand)` vs the constraint JSONs; if clean,
+   `zlib.decompressobj(-15, zdict=cand)` gives full req1/req2 plaintext matching
+   the TWO-WAY / MURKY `.preset90` heads.
+
+Deliverable: `server/h90_angr.py` + Progress entry + H90-IMPORT-NOTES section.

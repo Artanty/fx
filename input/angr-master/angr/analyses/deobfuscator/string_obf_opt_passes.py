@@ -1,0 +1,138 @@
+# pylint:disable=too-many-boolean-expressions
+from __future__ import annotations
+
+import archinfo
+
+from angr.ailment import Block
+from angr.ailment.expression import Call, Const, Register, VirtualVariable
+from angr.ailment.statement import Assignment, SideEffectStatement, Statement
+from angr.analyses.decompiler.notes.deobfuscated_strings import DeobfuscatedStringsNote
+from angr.analyses.decompiler.optimization_passes import register_optimization_pass
+from angr.analyses.decompiler.optimization_passes.optimization_pass import OptimizationPass, OptimizationPassStage
+
+WIN64_REG_ARGS = {
+    archinfo.ArchAMD64().registers["rcx"][0],
+    archinfo.ArchAMD64().registers["rdx"][0],
+    archinfo.ArchAMD64().registers["r8"][0],
+    archinfo.ArchAMD64().registers["r9"][0],
+}
+
+
+class StringObfType3Rewriter(OptimizationPass):
+    """
+    Type-3 optimization pass replaces deobfuscate_string calls with the deobfuscated strings, and then removes
+    arguments on the stack.
+    """
+
+    ARCHES = ["X86", "AMD64"]
+    PLATFORMS = ["windows"]
+    STAGE = OptimizationPassStage.AFTER_MAKING_CALLSITES
+
+    NAME = "Simplify Type 3 string deobfuscation calls"
+    DESCRIPTION = "Simplify Type 3 string deobfuscation calls"
+    stmt_classes = ()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.analyze()
+
+    def _check(self):
+        if self.kb.obfuscations.type3_deobfuscated_strings:
+            return True, None
+        return False, None
+
+    @staticmethod
+    def is_call_or_call_assignment(stmt) -> bool:
+        return isinstance(stmt, SideEffectStatement) or (isinstance(stmt, Assignment) and isinstance(stmt.src, Call))
+
+    def _analyze(self, cache=None):
+        # find all blocks with type-3 deobfuscation calls
+        for block in list(self._graph):
+            if not block.statements:
+                continue
+            last_stmt = block.statements[-1]
+            if (
+                self.is_call_or_call_assignment(last_stmt)
+                and last_stmt.tags["ins_addr"] in self.kb.obfuscations.type3_deobfuscated_strings
+            ):
+                the_str = self.kb.obfuscations.type3_deobfuscated_strings[block.statements[-1].tags["ins_addr"]]
+                if "deobfuscated_strings" not in self.notes:
+                    self.notes["deobfuscated_strings"] = DeobfuscatedStringsNote("deobfuscated_strings")
+                self.notes["deobfuscated_strings"].add_string("3", the_str, ref_addr=last_stmt.tags["ins_addr"])
+                new_block = self._process_block(block, the_str)
+                if new_block is not None:
+                    self._update_block(block, new_block)
+
+    def _process_block(self, block: Block, deobf_content: bytes):
+        # FIXME: This rewriter is very specific to the implementation of the deobfuscation scheme. we can make it more
+        # generic when there are more cases available in the wild.
+
+        # TODO: Support multiple blocks
+
+        # replace the call
+        old_stmt: Statement = block.statements[-1]
+        str_id = self.kb.custom_strings.allocate(deobf_content)
+        if isinstance(old_stmt, Assignment):
+            old_call_expr: Call = old_stmt.src
+        else:
+            old_call_expr: Call = old_stmt.expr
+        str_const = Const(self.manager.next_atom(), str_id, self.project.arch.bits)
+        self.manager.variable_map.set_custom_string(str_const)
+        new_call = Call(
+            old_call_expr.idx,
+            "init_str",
+            args=[
+                old_call_expr.args[0],
+                str_const,
+                Const(None, len(deobf_content), self.project.arch.bits),
+            ],
+            bits=old_call_expr.bits,
+            **old_call_expr.tags,
+        )
+        if isinstance(old_stmt, Assignment):
+            new_stmt = Assignment(old_stmt.idx, old_stmt.dst, new_call, **old_stmt.tags)
+        else:
+            new_stmt = SideEffectStatement(old_stmt.idx, new_call, ret_expr=old_stmt.ret_expr, **old_stmt.tags)
+
+        statements = [*block.statements[:-1], new_stmt]
+
+        # remove N-2 continuous stack assignment
+        if len(deobf_content) > 2:
+            stack_offset_to_stmtid: dict[int, int] = {}
+            for idx, stmt in enumerate(statements):
+                if (
+                    isinstance(stmt, Assignment)
+                    and isinstance(stmt.dst, VirtualVariable)
+                    and stmt.dst.was_stack
+                    and isinstance(stmt.dst.stack_offset, int)
+                    and isinstance(stmt.src, Const)
+                    and stmt.src.value <= 0xFF
+                ):
+                    stack_offset_to_stmtid[stmt.dst.stack_offset] = idx
+            sorted_offsets = sorted(stack_offset_to_stmtid)
+            if sorted_offsets:
+                spacing = 8  # FIXME: Make it adjustable
+                distance = min(len(deobf_content) - 2, len(sorted_offsets) - 1)
+                for start_idx in range(len(sorted_offsets) - distance):
+                    if sorted_offsets[start_idx] + spacing * distance == sorted_offsets[start_idx + distance]:
+                        # found them
+                        # remove these statements
+                        for i in range(start_idx, start_idx + distance + 1):
+                            statements[stack_offset_to_stmtid[sorted_offsets[i]]] = None
+                        break
+                statements = [stmt for stmt in statements if stmt is not None]
+
+        # remove writes to rdx, rcx, r8, and r9
+        if self.project.arch.name == "AMD64":
+            statements = [stmt for stmt in statements if not self._stmt_sets_win64_reg_arg(stmt)]
+
+        # return the new block
+        return block.copy(statements=statements)
+
+    @staticmethod
+    def _stmt_sets_win64_reg_arg(stmt) -> bool:
+        return isinstance(stmt, Assignment) and isinstance(stmt.dst, Register) and stmt.dst.reg_offset in WIN64_REG_ARGS
+
+
+register_optimization_pass(StringObfType3Rewriter, presets=["fast", "full"])

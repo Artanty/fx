@@ -1,0 +1,449 @@
+# TODO: SimValue being able to compare two symbolics for is_solution
+from __future__ import annotations
+
+import enum
+import logging
+import warnings
+from collections.abc import Callable
+from dataclasses import dataclass, fields
+from typing import Any
+
+from angr.sim_state import SimState
+
+from .plugin import SimStatePlugin
+
+l = logging.getLogger(name=__name__)
+
+
+class EventType(enum.StrEnum):
+    """Event types for breakpoints."""
+
+    VEX_LIFT = "vex_lift"
+    MEM_READ = "mem_read"
+    MEM_WRITE = "mem_write"
+    ADDRESS_CONCRETIZATION = "address_concretization"
+    REG_READ = "reg_read"
+    REG_WRITE = "reg_write"
+    TMP_READ = "tmp_read"
+    TMP_WRITE = "tmp_write"
+    EXPR = "expr"
+    STATEMENT = "statement"
+    INSTRUCTION = "instruction"
+    IRSB = "irsb"
+    CONSTRAINTS = "constraints"
+    EXIT = "exit"
+    FORK = "fork"
+    SYMBOLIC_VARIABLE = "symbolic_variable"
+    CALL = "call"
+    RETURN = "return"
+    SIMPROCEDURE = "simprocedure"
+    DIRTY = "dirty"
+    SYSCALL = "syscall"
+    CFG_HANDLE_JOB = "cfg_handle_job"
+    VFG_HANDLE_SUCCESSOR = "vfg_handle_successor"
+    ENGINE_PROCESS = "engine_process"
+    MEMORY_PAGE_MAP = "memory_page_map"
+
+
+@dataclass
+class InspectAttrs:
+    """
+    Per-event attributes published by the inspect machinery while a breakpoint is firing.
+
+    Each field is set on the active state before any matching breakpoint is checked, then
+    cleared (back to ``None``) after the event completes. Breakpoint actions read and write
+    these fields through ``state.inspect.attrs`` to observe or override the in-flight event.
+    """
+
+    # vex_lift
+    vex_lift_addr: Any = None
+    vex_lift_size: Any = None
+    vex_lift_buff: Any = None
+    # mem_read
+    mem_read_address: Any = None
+    mem_read_expr: Any = None
+    mem_read_length: Any = None
+    mem_read_condition: Any = None
+    mem_read_endness: Any = None
+    # mem_write
+    mem_write_address: Any = None
+    mem_write_expr: Any = None
+    mem_write_length: Any = None
+    mem_write_condition: Any = None
+    mem_write_endness: Any = None
+    # reg_read
+    reg_read_offset: Any = None
+    reg_read_expr: Any = None
+    reg_read_length: Any = None
+    reg_read_condition: Any = None
+    reg_read_endness: Any = None
+    # reg_write
+    reg_write_offset: Any = None
+    reg_write_expr: Any = None
+    reg_write_length: Any = None
+    reg_write_condition: Any = None
+    reg_write_endness: Any = None
+    # tmp_read
+    tmp_read_num: Any = None
+    tmp_read_expr: Any = None
+    # tmp_write
+    tmp_write_num: Any = None
+    tmp_write_expr: Any = None
+    # expr
+    expr: Any = None
+    expr_result: Any = None
+    # statement
+    statement: Any = None
+    # instruction
+    instruction: Any = None
+    # irsb
+    address: Any = None
+    # constraints
+    added_constraints: Any = None
+    # call
+    function_address: Any = None
+    # exit
+    exit_target: Any = None
+    exit_guard: Any = None
+    exit_jumpkind: Any = None
+    backtrace: Any = None  # unused?
+    # symbolic_variable
+    symbolic_name: Any = None
+    symbolic_size: Any = None
+    symbolic_expr: Any = None
+    # address_concretization
+    address_concretization_strategy: Any = None
+    address_concretization_action: Any = None
+    address_concretization_memory: Any = None
+    address_concretization_expr: Any = None
+    address_concretization_result: Any = None
+    address_concretization_add_constraints: Any = None
+    # syscall
+    syscall_name: Any = None
+    # simprocedure
+    simprocedure_name: Any = None
+    simprocedure_addr: Any = None
+    simprocedure_result: Any = None
+    simprocedure: Any = None
+    # dirty
+    dirty_name: Any = None
+    dirty_handler: Any = None
+    dirty_args: Any = None
+    dirty_result: Any = None
+    # engine_process
+    sim_engine: Any = None
+    sim_successors: Any = None
+    # memory mapping
+    mapped_page: Any = None
+    mapped_address: Any = None
+
+
+inspect_attributes: frozenset[str] = frozenset(f.name for f in fields(InspectAttrs))
+
+NO_OVERRIDE = object()
+
+
+class When(enum.StrEnum):
+    """When to trigger breakpoints."""
+
+    BEFORE = "before"
+    AFTER = "after"
+    BOTH = "both"
+
+
+BP_BEFORE = When.BEFORE
+BP_AFTER = When.AFTER
+BP_BOTH = When.BOTH
+
+
+type Action = Callable[[SimState], None]
+
+
+def BP_IPDB(state: SimState) -> None:  # pylint: disable=unused-argument
+    __import__("ipdb").set_trace()
+
+
+def BP_IPYTHON(state: SimState) -> None:  # pylint: disable=unused-argument
+    import IPython
+
+    shell = IPython.terminal.embed.InteractiveShellEmbed()  # noqa: T100
+    shell.mainloop(
+        display_banner="This is an ipython shell for you to happily debug your state!\n"
+        + "The state can be accessed through the variable 'state'. You can\n"
+        + "make modifications, then exit this shell to resume your analysis."
+    )
+
+
+class BP:
+    """
+    A breakpoint.
+    """
+
+    def __init__(
+        self,
+        when: When = When.BEFORE,
+        enabled: bool = True,
+        condition: Callable[[SimState], bool] | None = None,
+        action: Action = BP_IPDB,
+        **kwargs: dict[str, Any],
+    ):
+        if len({k.replace("_unique", "") for k in kwargs} - set(inspect_attributes)) != 0:
+            raise ValueError(
+                f"Invalid inspect attribute(s) {kwargs} passed in. "
+                f"Should be one of {inspect_attributes}, or their _unique option."
+            )
+
+        if condition is not None:
+            warnings.warn(
+                "The `condition` argument is deprecated. Integrate condition functions into the `action` function "
+                "instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+            orig_condition = condition
+            orig_action = action
+
+            def _gated_action(state: SimState) -> None:
+                if orig_condition(state):
+                    orig_action(state)
+
+            action = _gated_action
+
+        self.enabled = enabled
+        self.action = action
+        self.when = when
+        self.kwargs = kwargs
+
+    def check(self, state: SimState, when: When) -> bool:
+        """
+        Checks state `state` to see if the breakpoint should fire.
+
+        :param state:   The state.
+        :param when:    Whether the check is happening before or after the event.
+        :return:        A boolean representing whether the checkpoint should fire.
+        """
+        ok = self.enabled and self.when in (when, When.BOTH)
+        if not ok:
+            return ok
+        l.debug("... after enabled and when: %s", ok)
+
+        for a in [_ for _ in self.kwargs if not _.endswith("_unique")]:
+            current_expr = getattr(state.inspect.attrs, a)
+            needed = self.kwargs.get(a, None)
+
+            l.debug("... checking condition %s", a)
+
+            if current_expr is None and needed is None:
+                l.debug("...... both None, True")
+                c_ok = True
+            elif current_expr is not None and needed is not None:
+                if state.solver.solution(current_expr, needed):
+                    l.debug("...... is_solution!")
+                    c_ok = True
+                else:
+                    l.debug("...... not solution...")
+                    c_ok = False
+
+                if c_ok and self.kwargs.get(a + "_unique", True):
+                    l.debug("...... checking uniqueness")
+                    if not state.solver.unique(current_expr):
+                        l.debug("...... not unique")
+                        c_ok = False
+            else:
+                l.debug("...... one None, False")
+                c_ok = False
+
+            ok = ok and c_ok
+            if not ok:
+                return ok
+            l.debug("... after condition %s: %s", a, ok)
+
+        return ok
+
+    def fire(self, state: SimState):
+        """
+        Trigger the breakpoint.
+
+        :param state:   The state.
+        """
+        self.action(state)
+
+    def __repr__(self):
+        return f"<BP {self.when}-action with conditions {self.kwargs!r}>"
+
+
+class SimInspector(SimStatePlugin):
+    """
+    The breakpoint interface, used to instrument execution. For usage information, look here:
+    https://docs.angr.io/core-concepts/simulation#breakpoints
+    """
+
+    BP_AFTER = When.AFTER
+    BP_BEFORE = When.BEFORE
+    BP_BOTH = When.BOTH
+
+    def __init__(self):
+        SimStatePlugin.__init__(self)
+        self._breakpoints: dict[EventType, list[BP]] = {}
+        for t in EventType:
+            self._breakpoints[t] = []
+
+        self.action_attrs_set = False  # action() will set it to True if the kwargs passed in have been set as
+        # attributes to self.
+
+        self.attrs = InspectAttrs()
+
+    def _set_inspect_attrs(self, **kwargs: dict[str, Any]) -> None:
+        for k, v in kwargs.items():
+            if k not in inspect_attributes:
+                raise ValueError(f"Invalid inspect attribute {k} passed in. Should be one of: {inspect_attributes}")
+            setattr(self.attrs, k, v)
+
+    def action(self, event_type: EventType, when: When, **kwargs: dict[str, Any]) -> None:
+        """
+        Called from within the engine when events happens. This function checks all breakpoints registered for that
+        event and fires the ones whose conditions match.
+        """
+
+        self._set_inspect_attrs(**kwargs)
+        self.action_attrs_set = True
+
+        for bp in self._breakpoints[event_type]:
+            if not self.action_attrs_set:
+                self._set_inspect_attrs(**kwargs)
+                self.action_attrs_set = True
+            if bp.check(self.state, when):
+                bp.fire(self.state)
+
+        self.action_attrs_set = False
+
+    def make_breakpoint(
+        self,
+        event_type: EventType,
+        when: When = When.BEFORE,
+        enabled: bool = True,
+        condition: Callable[[SimState], bool] | None = None,
+        action: Action = BP_IPDB,
+        **kwargs: dict[str, Any],
+    ):
+        """
+        Creates and adds a breakpoint which would trigger on `event_type`. Additional arguments are passed to the
+        :class:`BP` constructor.
+
+        :return:    The created breakpoint, so that it can be removed later.
+        """
+        bp = BP(when=when, enabled=enabled, condition=condition, action=action, **kwargs)
+        self.add_breakpoint(event_type, bp)
+        return bp
+
+    b = make_breakpoint
+
+    def add_breakpoint(self, event_type: EventType, bp: BP) -> None:
+        """
+        Adds a breakpoint which would trigger on `event_type`.
+
+        :param event_type:  The event type to trigger on
+        :param bp:          The breakpoint
+        :return:            The created breakpoint.
+        """
+        if event_type not in EventType:
+            raise ValueError(
+                "Invalid event type {} passed in. Should be one of: {}".format(
+                    event_type, ", ".join(e.value for e in EventType)
+                )
+            )
+        self._breakpoints[event_type].append(bp)
+
+    def remove_breakpoint(
+        self, event_type: EventType, bp: BP | None = None, filter_func: Callable[[BP], bool] | None = None
+    ) -> None:
+        """
+        Removes a breakpoint.
+
+        :param bp:  The breakpoint to remove.
+        :param filter_func: A filter function to specify whether each breakpoint should be removed or not.
+        """
+
+        if bp is None and filter_func is None:
+            raise ValueError('remove_breakpoint(): You must specify either "bp" or "filter".')
+
+        try:
+            if bp is not None:
+                self._breakpoints[event_type].remove(bp)
+            else:
+                self._breakpoints[event_type] = [b for b in self._breakpoints[event_type] if not filter_func(b)]
+        except ValueError:
+            # the breakpoint is not found
+            l.error("remove_breakpoint(): Breakpoint %s (type %s) is not found.", bp, event_type)
+
+    @SimStatePlugin.memo
+    def copy(self, memo):  # pylint: disable=unused-argument
+        c = SimInspector()
+        for i in inspect_attributes:
+            setattr(c.attrs, i, getattr(self.attrs, i))
+
+        for t, a in self._breakpoints.items():
+            c._breakpoints[t].extend(a)
+        return c
+
+    def downsize(self):
+        """
+        Reset event-specific attributes on this plugin instance to save memory.
+        This method is supposed to be called by breakpoint implementors. A typical workflow looks like the following:
+
+        >>> # Add `attr0` and `attr1` via the inspect machinery
+        >>> self.state.inspect(xxxxxx, attr0=yyyy, attr1=zzzz)
+        >>> # Get new attributes out of SimInspect in case they are modified by the user
+        >>> new_attr0 = self.state.inspect.attrs.attr0
+        >>> new_attr1 = self.state.inspect.attrs.attr1
+        >>> # Reset them
+        >>> self.state.inspect.downsize()
+        """
+        self.attrs = InspectAttrs()
+
+    def _combine(self, others):
+        for t in EventType:
+            seen = {id(e) for e in self._breakpoints[t]}
+            for o in others:
+                for b in o._breakpoints[t]:
+                    if id(b) not in seen:
+                        self._breakpoints[t].append(b)
+                        seen.add(id(b))
+        return False
+
+    def merge(self, others, merge_conditions, common_ancestor=None):  # pylint: disable=unused-argument
+        return self._combine(others)
+
+    def set_state(self, state):
+        super().set_state(state)
+        state.supports_inspect = True
+
+    # Backwards compatibility: allow access to inspect attributes directly on SimInspector, but warn about it.
+
+    def __getattr__(self, item):
+        if item in inspect_attributes:
+            warnings.warn(
+                f"Accessing inspect attribute '{item}' via SimInspector is deprecated. "
+                f"Use state.inspect.attrs.{item} instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return getattr(self.attrs, item)
+        return super().__getattribute__(item)
+
+    def __setattr__(self, key, value):
+        if key in inspect_attributes:
+            warnings.warn(
+                f"Setting inspect attribute '{key}' via SimInspector is deprecated. "
+                f"Use state.inspect.attrs.{key} instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            setattr(self.attrs, key, value)
+            self.action_attrs_set = True
+        else:
+            super().__setattr__(key, value)
+
+
+SimState.register_default("inspect", SimInspector)

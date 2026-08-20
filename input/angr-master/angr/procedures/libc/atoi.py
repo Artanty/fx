@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+import logging
+
+import angr
+
+l = logging.getLogger(name=__name__)
+
+
+class atoi(angr.SimProcedure):
+    # pylint:disable=arguments-differ
+    def run(self, s):
+        strtol = angr.SIM_PROCEDURES["libc"]["strtol"]
+        val = strtol.strtol_inner(s, self.state, self.state.memory, 10, True)[1]
+        return val[self.arch.sizeof["int"] - 1 : 0]

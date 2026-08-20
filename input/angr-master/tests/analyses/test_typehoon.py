@@ -1,0 +1,737 @@
+#!/usr/bin/env python3
+# pylint:disable=missing-class-docstring,no-self-use,protected-access
+from __future__ import annotations
+
+__package__ = __package__ or "tests.analyses"  # pylint:disable=redefined-builtin
+
+import os
+import re
+import unittest
+from collections import OrderedDict
+from typing import cast
+
+import archinfo
+
+import angr
+from angr.analyses.decompiler.clinic import Clinic
+from angr.analyses.typehoon.simple_solver import SimpleSolver
+from angr.analyses.typehoon.translator import TypeTranslator
+from angr.analyses.typehoon.typeconsts import (
+    Array,
+    BottomType,
+    Float32,
+    Float64,
+    Int1,
+    Int8,
+    Int32,
+    IntVar,
+    Pointer64,
+    SInt32,
+    SInt64,
+    Struct,
+)
+from angr.analyses.typehoon.typehoon import Typehoon
+from angr.analyses.typehoon.typevars import (
+    DerivedTypeVariable,
+    FuncIn,
+    FuncOut,
+    HasField,
+    Load,
+    Store,
+    Subtype,
+    TypeVariable,
+)
+from angr.knowledge_plugins.functions.function import PrototypeSource
+from angr.sim_type import (
+    SimStruct,
+    SimTypeArray,
+    SimTypeBottom,
+    SimTypeChar,
+    SimTypeFloat,
+    SimTypeFunction,
+    SimTypeInt,
+    SimTypeNum,
+    SimTypePointer,
+)
+from tests.common import bin_location, print_decompilation_result
+
+test_location = os.path.join(bin_location, "tests")
+
+
+class TestTypehoon(unittest.TestCase):
+    def test_smoketest(self):
+        p = angr.Project(os.path.join(test_location, "x86_64", "linked_list"), auto_load_libs=False)
+        cfg = p.analyses.CFG(data_references=True, normalize=True)
+
+        main_func = cfg.kb.functions["sum"]
+
+        vr = p.analyses.VariableRecoveryFast(main_func)
+        p.analyses.CompleteCallingConventions()
+
+        # import pprint
+        tcons = vr.type_constraints
+        # pprint.pprint(vr._outstates[0x4005b2].typevars._typevars)
+        # pprint.pprint(tcons)
+
+        _ = p.analyses.Typehoon(tcons, vr.func_typevar, var_mapping=vr.var_to_typevars)
+        # pprint.pprint(t.simtypes_solution)
+
+        # convert function blocks to AIL blocks
+        # clinic = p.analyses.Clinic(main_func)
+
+        # t = p.analyses.Typehoon(main_func) #, clinic)
+        # print(t)
+
+    def test_type_inference_byte_pointer_cast(self):
+        proj = angr.Project(os.path.join(test_location, "i386", "type_inference_1"), auto_load_libs=False)
+        cfg = proj.analyses.CFG(data_references=True, normalize=True)
+        main_func = cfg.kb.functions["main"]
+        proj.analyses.VariableRecoveryFast(main_func)
+        proj.analyses.CompleteCallingConventions()
+
+        dec = proj.analyses.Decompiler(main_func)
+        assert dec.codegen is not None and dec.codegen.text is not None
+        assert "->field_0 = 10;" in dec.codegen.text
+        assert "->field_4 = 20;" in dec.codegen.text
+        assert "->field_8 = 0x30303030;" in dec.codegen.text
+        assert "->field_c = 0;" in dec.codegen.text
+
+    def test_function_call_argument_type_propagation(self):
+        # ensure that UNICODE_STRING is propagated to stack variables from calls to RtlInitUnicodeString
+        proj = angr.Project(os.path.join(test_location, "x86_64", "windows", "sioctl.sys"), auto_load_libs=False)
+        cfg = proj.analyses.CFG(normalize=True)
+        main_func = cfg.kb.functions[0x140006000]
+        proj.analyses.VariableRecoveryFast(main_func)
+        proj.analyses.CompleteCallingConventions()
+
+        dec = proj.analyses.Decompiler(main_func, cfg=cfg.model)
+        assert dec.codegen is not None and dec.codegen.text is not None
+        print_decompilation_result(dec)
+        assert dec.codegen.text.count("UNICODE_STRING v") == 2
+
+    def test_type_inference_auto_update_and_back_propagation(self):
+        bin_path = os.path.join(test_location, "x86_64", "bomb")
+        proj = angr.Project(bin_path)
+        cfg = proj.analyses.CFG(normalize=True)
+
+        func_phase2 = cfg.kb.functions["phase_2"]
+        assert func_phase2.prototype_source == PrototypeSource.NONE
+
+        proj.analyses.CompleteCallingConventions()
+
+        # let's decompile phase_2 first
+        func_phase2 = cfg.kb.functions["phase_2"]
+        print(func_phase2.prototype)
+        print(func_phase2.prototype_source)
+        assert func_phase2.prototype_source == PrototypeSource.CCA_LOW
+        func_read6numbers = cfg.kb.functions["read_six_numbers"]
+        assert func_read6numbers.prototype_source == PrototypeSource.CCA_LOW
+        dec_phase2 = proj.analyses.Decompiler(
+            func_phase2, fail_fast=True, options=[("constrain_callee_prototypes", True)]
+        )
+        print_decompilation_result(dec_phase2)
+        assert dec_phase2.codegen is not None and dec_phase2.codegen.text is not None
+        assert func_phase2.prototype_source == PrototypeSource.CCA_DECOMPILER
+
+        # (char*, char*) -> ?
+        assert func_read6numbers.prototype_source == PrototypeSource.CALLSITE_DECOMPILER
+        assert isinstance(func_read6numbers.prototype, SimTypeFunction)
+        assert len(func_read6numbers.prototype.args) == 2
+        print(func_read6numbers.prototype)
+        assert isinstance(func_read6numbers.prototype.args[0], SimTypePointer) and isinstance(
+            func_read6numbers.prototype.args[0].pts_to, SimTypeChar
+        )
+        assert isinstance(func_read6numbers.prototype.args[1], SimTypePointer) and isinstance(
+            func_read6numbers.prototype.args[1].pts_to, SimTypeChar
+        )
+
+        # decompile read_six_numbers, and its prototype should be updated to (char*, uint32_t*)
+        dec_read6numbers = proj.analyses.Decompiler(
+            func_read6numbers, fail_fast=True, options=[("constrain_callee_prototypes", True)]
+        )
+        assert dec_read6numbers.codegen is not None and dec_read6numbers.codegen.text is not None
+        print_decompilation_result(dec_read6numbers)
+        assert func_read6numbers.prototype_source == PrototypeSource.CCA_DECOMPILER
+        assert isinstance(func_read6numbers.prototype, SimTypeFunction)
+        assert len(func_read6numbers.prototype.args) == 2
+        assert isinstance(func_read6numbers.prototype.args[0], SimTypePointer) and isinstance(
+            func_read6numbers.prototype.args[0].pts_to, SimTypeChar
+        )
+        assert (
+            isinstance(func_read6numbers.prototype.args[1], SimTypePointer)
+            and isinstance(func_read6numbers.prototype.args[1].pts_to, SimTypeInt)
+            and func_read6numbers.prototype.args[1].pts_to.signed is True
+        )
+
+        # decompile phase_2 again, and we should see an unsigned int [6] on the stack. regen_clinic=True forces a
+        # fresh run so the newly-inferred read_six_numbers prototype back-propagates instead of reusing the cache.
+        dec_phase2 = proj.analyses.Decompiler(
+            func_phase2, fail_fast=True, options=[("constrain_callee_prototypes", True)], regen_clinic=True
+        )
+        assert dec_phase2.codegen is not None and dec_phase2.codegen.text is not None
+        print_decompilation_result(dec_phase2)
+        assert re.search(r"  int v\d+\[6];", dec_phase2.codegen.text) is not None
+
+    def test_type_inference_basic_case_0(self):
+        func_f = TypeVariable(name="F")
+        v0 = TypeVariable(name="v0")
+        type_constraints = {func_f: {Subtype(v0, Int32())}}
+        proj = angr.load_shellcode(b"\x90\x90", "AMD64")
+        typehoon = proj.analyses.Typehoon(
+            type_constraints,
+            func_f,
+        )
+
+        assert isinstance(typehoon.solution[v0], Int32)
+
+    def test_type_inference_basic_case_1(self):
+        func_f = TypeVariable(name="F")
+        func_close = TypeVariable(name="close")
+        t0 = TypeVariable(name="t0")
+        t1 = TypeVariable(name="t1")
+        t2 = TypeVariable(name="t2")
+        type_constraints = {
+            func_f: {
+                Subtype(DerivedTypeVariable(func_f, FuncIn(0)), t2),
+                Subtype(t1, t0),
+                Subtype(t2, t0),
+                Subtype(DerivedTypeVariable(t0, None, labels=[Load(), HasField(32, 0)]), t1),
+                Subtype(DerivedTypeVariable(t0, None, labels=[Load(), HasField(32, 4)]), Int32()),
+                Subtype(Int32(), DerivedTypeVariable(func_f, FuncOut(0))),
+            },
+            func_close: set(),
+        }
+        proj = angr.load_shellcode(b"\x90\x90", "AMD64")
+        typehoon = proj.analyses.Typehoon(type_constraints, func_f)
+
+        # print(typehoon.simtypes_solution)
+        # print(typehoon.structs)
+        t0_solution = typehoon.solution[t0]
+        assert isinstance(t0_solution, Pointer64)
+        assert isinstance(t0_solution.basetype, Struct)
+        assert 0 in t0_solution.basetype.fields
+        assert 4 in t0_solution.basetype.fields
+        assert isinstance(t0_solution.basetype.fields[0], Pointer64)
+        assert t0_solution.basetype.fields[0].basetype is t0_solution.basetype
+        assert isinstance(t0_solution.basetype.fields[4], Int32)
+
+    def test_type_inference_transitive(self):
+        # a <: b <: c ==> a <: c
+        func_f = TypeVariable(name="F")
+        t0 = TypeVariable(name="T0")
+        t1 = TypeVariable(name="T1")
+        t2 = DerivedTypeVariable(t1, None, labels=[Store(), HasField(64, 0)])
+
+        type_constraints = {
+            func_f: {
+                Subtype(Float64(), t0),
+                Subtype(t0, t2),
+            },
+        }
+        proj = angr.load_shellcode(b"\x90\x90", "AMD64")
+        typehoon = proj.analyses.Typehoon(type_constraints, func_f)
+        soln = typehoon.solution
+
+        assert isinstance(soln[t0], Float64)
+        assert isinstance(soln[t1], Pointer64)
+        assert isinstance(soln[t1].basetype, Float64)
+        assert isinstance(soln[t2], Float64)
+
+    def test_struct_with_multiple_same_typed_members(self):
+        func_f = TypeVariable(name="F")
+        t0 = TypeVariable(name="T0")
+        type_constraints = {
+            func_f: {
+                Subtype(DerivedTypeVariable(t0, None, labels=[Store(), HasField(64, 0)]), t0),
+                Subtype(DerivedTypeVariable(t0, None, labels=[Store(), HasField(64, 8)]), t0),
+            },
+        }
+        proj = angr.load_shellcode(b"\x90\x90", "AMD64")
+        typehoon = proj.analyses.Typehoon(type_constraints, func_f)
+
+        sol = typehoon.solution[t0]
+        assert isinstance(sol, Pointer64)
+        assert isinstance(sol.basetype, Struct)
+        assert len(sol.basetype.fields) == 2
+        assert 0 in sol.basetype.fields
+        assert 8 in sol.basetype.fields
+        assert isinstance(sol.basetype.fields[0], Pointer64)
+        assert sol.basetype.fields[0].basetype == sol.basetype
+        assert isinstance(sol.basetype.fields[8], Pointer64)
+        assert sol.basetype.fields[8].basetype == sol.basetype
+
+    def test_solving_cascading_type_constraints(self):
+        p = angr.Project(os.path.join(test_location, "x86_64", "decompiler", "tiny_aes_test.elf"), auto_load_libs=False)
+        cfg = p.analyses.CFG(data_references=True, normalize=True)
+
+        func = cfg.kb.functions["Cipher"]
+        p.analyses.CompleteCallingConventions()
+        dec = p.analyses.Decompiler(func, cfg=cfg.model)
+        assert dec.codegen is not None and dec.codegen.text is not None
+        print(dec.codegen.text)
+
+        # no masking should exist in the decompilation; all redundant variable type casts are removed
+        assert "& 0x" not in dec.codegen.text
+
+        assert dec.clinic is not None and dec.clinic.typehoon is not None
+        assert 0 < max(dec.clinic.typehoon.eqclass_constraints_count) < 350
+
+    def test_equivalence_class_computation_budgit_cgc_insert(self):
+        p = angr.Project(os.path.join(test_location, "x86_64", "decompiler", "BudgIT"), auto_load_libs=False)
+        cfg = p.analyses.CFG(data_references=True, normalize=True)
+        p.analyses.CompleteCallingConventions()
+        func = cfg.kb.functions[0x403140]
+        dec = p.analyses.Decompiler(func, cfg=cfg.model)
+        assert (
+            dec.codegen is not None
+            and dec.codegen.text is not None
+            and dec.clinic is not None
+            and dec.clinic.typehoon is not None
+        )
+
+        # it has exactly one struct class that looks like the following:
+        # struct struct_0 {
+        #     struct struct_0 *field_0;
+        #     struct struct_0 *field_8;
+        # };
+        sols = dec.clinic.typehoon.simtypes_solution
+        tvs = [
+            tv
+            for tv in sols
+            if not isinstance(tv, DerivedTypeVariable) and tv.name is None and isinstance(sols[tv], SimTypePointer)
+        ]
+        assert len(tvs) == 3
+        assert sols[tvs[1]] == sols[tvs[2]]
+        sol = sols[tvs[1]]
+        assert isinstance(sol, SimTypePointer)
+        assert isinstance(sol.pts_to, SimStruct)
+        assert len(sol.pts_to.fields) == 2
+        assert "field_0" in sol.pts_to.fields and "field_8" in sol.pts_to.fields
+        field_0 = sol.pts_to.fields["field_0"]
+        assert isinstance(field_0, SimTypePointer)
+        assert isinstance(field_0.pts_to, SimStruct)
+        assert field_0.pts_to == sol.pts_to
+        field_8 = sol.pts_to.fields["field_8"]
+        assert isinstance(field_8, SimTypePointer)
+        assert isinstance(field_8.pts_to, SimStruct)
+        assert field_8.pts_to == sol.pts_to
+
+    def test_equivalence_class_computation_budgit_cgc_remove(self):
+        p = angr.Project(os.path.join(test_location, "x86_64", "decompiler", "BudgIT"), auto_load_libs=False)
+        cfg = p.analyses.CFG(data_references=True, normalize=True)
+        p.analyses.CompleteCallingConventions()
+        func = cfg.kb.functions[0x4030F0]
+        dec = p.analyses.Decompiler(func, cfg=cfg.model)
+        assert (
+            dec.codegen is not None
+            and dec.codegen.text is not None
+            and dec.clinic is not None
+            and dec.clinic.typehoon is not None
+        )
+        print_decompilation_result(dec)
+        assert "->field_0 = NULL;\n" in dec.codegen.text
+        assert "->field_8 = NULL;\n" in dec.codegen.text
+
+        # it has five struct classes (I would love to have one, but we don't have enough information to force that):
+        #
+        # typedef struct struct_2 {
+        #     struct struct_0 *field_0;
+        #     struct struct_1 *field_8;
+        # } struct_2;
+        #
+        # typedef struct struct_3 {
+        #     char padding_0[8];
+        #     struct struct_4 *field_8;
+        # } struct_3;
+        #
+        # typedef struct struct_0 {
+        #     char padding_0[8];
+        #     struct struct_1 *field_8;
+        # } struct_0;
+        #
+        # typedef struct struct_1 {
+        #     struct struct_0 *field_0;
+        # } struct_1;
+        #
+        # typedef struct struct_4 {
+        #     struct struct_3 *field_0;
+        # } struct_4;
+        sols = dec.clinic.typehoon.simtypes_solution
+        tvs = sorted(
+            [
+                tv
+                for tv in sols
+                if not isinstance(tv, DerivedTypeVariable) and tv.name is None and isinstance(sols[tv], SimTypePointer)
+            ],
+            key=lambda x: x.idx,
+        )
+        assert len(tvs) == 4  # the last two tvs are for the NULL pointers
+        sol = sols[tvs[1]]
+        assert isinstance(sol, SimTypePointer)
+        assert isinstance(sol.pts_to, SimStruct)
+        assert len(sol.pts_to.fields) == 2
+        assert "field_0" in sol.pts_to.fields and "field_8" in sol.pts_to.fields
+        field_0 = sol.pts_to.fields["field_0"]
+        assert isinstance(field_0, SimTypePointer)
+        assert isinstance(field_0.pts_to, SimStruct)
+        assert len(field_0.pts_to.fields) == 2
+        assert "field_8" in field_0.pts_to.fields
+        field_0_field_8 = field_0.pts_to.fields["field_8"]
+        assert isinstance(field_0_field_8, SimTypePointer)
+        assert isinstance(field_0_field_8.pts_to, SimStruct)
+        field_8 = sol.pts_to.fields["field_8"]
+        assert isinstance(field_8, SimTypePointer)
+        assert isinstance(field_8.pts_to, SimStruct)
+        assert len(field_8.pts_to.fields) == 1
+        assert "field_0" in field_8.pts_to.fields
+        field_8_field_0 = field_8.pts_to.fields["field_0"]
+        assert isinstance(field_8_field_0, SimTypePointer)
+        assert isinstance(field_8_field_0.pts_to, SimStruct)
+        assert field_0.pts_to == field_8_field_0.pts_to
+        assert field_8.pts_to == field_0_field_8.pts_to
+
+    def test_global_variable_type(self):
+        bin_path = os.path.join(test_location, "x86_64", "g_game.o")
+        proj = angr.Project(bin_path, auto_load_libs=False)
+        cfg = proj.analyses.CFG(data_references=True, normalize=True)
+        proj.analyses.CompleteCallingConventions()
+
+        # Test bodyqueslot from G_CheckSpot
+        func = cfg.kb.functions["G_CheckSpot"]
+        dec = proj.analyses.Decompiler(func, cfg=cfg.model)
+        bodyqueslot_addr = proj.loader.find_symbol("bodyqueslot").rebased_addr
+        cexterns = {cvar.variable.addr: cvar.variable_type for cvar in dec.codegen.cexterns}
+        assert isinstance(cexterns[bodyqueslot_addr], SimTypeInt)
+
+        # Test displayplayer from G_Responder
+        func = cfg.kb.functions["G_Responder"]
+        dec = proj.analyses.Decompiler(func, cfg=cfg.model)
+        displayplayer_addr = proj.loader.find_symbol("displayplayer").rebased_addr
+        cexterns = {cvar.variable.addr: cvar.variable_type for cvar in dec.codegen.cexterns}
+        assert isinstance(cexterns[displayplayer_addr], SimTypeInt)
+
+        # Test joyxmove, mousex, and gametic from G_DoLoadLevel
+        func = cfg.kb.functions["G_DoLoadLevel"]
+        dec = proj.analyses.Decompiler(func, cfg=cfg.model)
+        joyxmove_addr = proj.loader.find_symbol("joyxmove").rebased_addr
+        mousex_addr = proj.loader.find_symbol("mousex").rebased_addr
+        gametic_addr = proj.loader.find_symbol("gametic").rebased_addr
+        cexterns = {cvar.variable.addr: cvar.variable_type for cvar in dec.codegen.cexterns}
+        assert isinstance(cexterns[joyxmove_addr], SimTypeInt)
+        assert isinstance(cexterns[mousex_addr], SimTypeInt)
+        assert isinstance(cexterns[gametic_addr], SimTypeInt)
+
+    def test_type_inference_with_custom_label(self):
+        bin_path = os.path.join(test_location, "x86_64", "windows", "ipnathlp.dll")
+        proj = angr.Project(bin_path, auto_load_libs=False)
+
+        cfg = proj.analyses.CFGFast(fail_fast=True, normalize=True)
+
+        func = cfg.functions[0x18003CA70]
+        assert func is not None
+        dec = proj.analyses.Decompiler(func, cfg=cfg)
+        assert (
+            dec.codegen is not None
+            and dec.codegen.text is not None
+            and dec.clinic is not None
+            and dec.clinic.typehoon is not None
+        )
+        # print(dec.codegen.text)
+        sols = dec.clinic.typehoon.simtypes_solution
+        all_sols = {v.label for v in sols.values()}
+        assert "HKEY" in all_sols
+        assert "PWSTR" in all_sols
+        assert "HANDLE" in all_sols
+
+
+class TestTypeTranslator(unittest.TestCase):
+    def test_tc2simtype(self):
+        tx = TypeTranslator(archinfo.arch_from_id("x86"))
+        tc = Float32()
+        st, _ = tx.tc2simtype(tc)
+        assert isinstance(st, SimTypeFloat)
+
+    def test_simtype2tc(self):
+        tx = TypeTranslator(archinfo.arch_from_id("x86"))
+        st = SimTypeFloat()
+        tc = tx.simtype2tc(st)
+        assert isinstance(tc, Float32)
+
+    def test_simtypenum_struct_round_trip(self):
+        arch = archinfo.arch_from_id("amd64")
+        st = SimTypePointer(
+            SimStruct(
+                OrderedDict(
+                    {
+                        "ut_addr_v6": SimTypeArray(SimTypeNum(32, signed=True, label="int32_t"), 4),
+                        "tv_usec": SimTypeNum(64, signed=True, label="int64_t"),
+                    }
+                ),
+                name="utmp",
+            )
+        ).with_arch(arch)
+        tx = TypeTranslator(arch)
+
+        tc = tx.simtype2tc(st)
+        assert isinstance(tc, Pointer64)
+        assert isinstance(tc.basetype, Struct)
+        assert isinstance(tc.basetype.fields[0], Array)
+        assert isinstance(tc.basetype.fields[0].element, SInt32)
+        assert tc.basetype.fields[0].element.name == "int32_t"
+        assert isinstance(tc.basetype.fields[16], SInt64)
+        assert tc.basetype.fields[16].name == "int64_t"
+
+        restored, has_nonexistent_ref = tx.tc2simtype(tc)
+        assert not has_nonexistent_ref
+        assert isinstance(restored, SimTypePointer)
+        assert isinstance(restored.pts_to, SimStruct)
+        assert restored.pts_to.offsets == {"ut_addr_v6": 0, "tv_usec": 16}
+        assert restored.pts_to.size == 192
+        restored_array = restored.pts_to.fields["ut_addr_v6"]
+        assert isinstance(restored_array, SimTypeArray)
+        assert restored_array.size == 128
+        assert restored_array.elem_type.size == 32
+        assert restored_array.elem_type.signed is True
+
+    def test_unsupported_width_simtypenum(self):
+        arch = archinfo.arch_from_id("amd64")
+        tx = TypeTranslator(arch)
+
+        for bits in (1, 9, 24, 128):
+            for signed in (False, True):
+                with self.subTest(bits=bits, signed=signed):
+                    tc = tx.simtype2tc(SimTypeNum(bits, signed=signed, label=f"int{bits}_t").with_arch(arch))
+                    assert isinstance(tc, BottomType)
+
+        # Int1 and IntVar cannot be converted to equally-sized SimTypes: their sizes use incompatible units. They must
+        # remain unsupported rather than creating zero-alignment or incorrectly laid-out fields in a SimStruct.
+        struct = Struct(fields={0: Int1(), 1: IntVar(9), 2: Int8()})
+        restored, has_nonexistent_ref = tx.tc2simtype(struct)
+        assert not has_nonexistent_ref
+        assert isinstance(restored, SimStruct)
+        assert restored.offsets == {"field_0": 0, "field_1": 1, "field_2": 2}
+
+    def test_standard_width_simtypenum_round_trip(self):
+        arch = archinfo.arch_from_id("amd64")
+        tx = TypeTranslator(arch)
+
+        for bits in (8, 16, 32, 64):
+            for signed in (False, True):
+                with self.subTest(bits=bits, signed=signed):
+                    label = f"{'u' if not signed else ''}int{bits}_t"
+                    tc = tx.simtype2tc(SimTypeNum(bits, signed=signed, label=label).with_arch(arch))
+                    assert not isinstance(tc, IntVar)
+                    assert tc.size * arch.byte_width == bits
+                    assert tc.name == label
+
+                    restored, has_nonexistent_ref = tx.tc2simtype(tc)
+                    assert not has_nonexistent_ref
+                    assert restored.size == bits
+                    assert restored.signed is signed
+                    assert restored.label == label
+
+    def test_lift_recursive_struct(self):
+        arch = archinfo.arch_from_id("amd64")
+        fields = OrderedDict({"ptr": SimTypePointer(SimTypeBottom())})
+        st = SimStruct(fields, name="test_struct")
+        assert isinstance(st.fields["ptr"], SimTypePointer)
+        st.fields["ptr"].pts_to = st
+        st = st.with_arch(arch)
+        tx = TypeTranslator(arch)
+        tc = tx.simtype2tc(st)
+        assert isinstance(tc, Struct)
+        assert 0 in tc.fields
+        assert isinstance(tc.fields[0], Pointer64)
+        assert 0 in tc.field_names
+        assert tc.field_names[0] == "ptr"
+        # the recursive reference points back at the struct being lifted instead of degrading into BOT
+        assert tc.fields[0].basetype is tc
+
+    @staticmethod
+    def _mutually_recursive_structs(arch):
+        """
+        struct Alpha { struct Beta *beta; int x; }; struct Beta { struct Alpha *alpha; int y; };
+        The shape ``dereference_simtype`` produces for library types such as DRIVER_OBJECT/DEVICE_OBJECT.
+        """
+        alpha = cast(SimStruct, SimStruct({}, name="Alpha").with_arch(arch))
+        beta = cast(SimStruct, SimStruct({}, name="Beta").with_arch(arch))
+        alpha.fields = OrderedDict({"beta": SimTypePointer(beta).with_arch(arch), "x": SimTypeInt().with_arch(arch)})
+        beta.fields = OrderedDict({"alpha": SimTypePointer(alpha).with_arch(arch), "y": SimTypeInt().with_arch(arch)})
+        return alpha, beta
+
+    def test_mutually_recursive_structs_keep_their_references(self):
+        arch = archinfo.arch_from_id("amd64")
+        alpha, _ = self._mutually_recursive_structs(arch)
+        tx = TypeTranslator(arch)
+
+        tc = tx.simtype2tc(alpha)
+        assert isinstance(tc, Struct)
+        beta_tc = tc.fields[0].basetype
+        assert isinstance(beta_tc, Struct)
+        assert beta_tc.name == "Beta"
+        # ... and Beta points back at the same Alpha
+        assert beta_tc.fields[0].basetype is tc
+
+    def test_known_struct_fields_are_not_re_inferred(self):
+        arch = archinfo.arch_from_id("amd64")
+        alpha, beta = self._mutually_recursive_structs(arch)
+        tx = TypeTranslator(arch)
+
+        # translating back returns the known definition itself, whichever type is lifted first
+        for lifted in (alpha, beta):
+            restored, _ = tx.tc2simtype(tx.simtype2tc(lifted))
+            assert restored is lifted
+
+        # reaching Beta through Alpha yields the same Beta, not a re-derived copy
+        restored_alpha, _ = tx.tc2simtype(tx.simtype2tc(alpha))
+        assert restored_alpha.fields["beta"].pts_to is beta
+
+
+class TestSimpleSolverLatticeOps(unittest.TestCase):
+    """Tests for the SimType-level lattice operations SimpleSolver.join_simtypes / meet_simtypes."""
+
+    arch = archinfo.arch_from_id("amd64")
+
+    def test_join_signed_unsigned_int(self):
+        # join(signed int, unsigned int) -> int (their common Int32 supertype)
+        joined = SimpleSolver.join_simtypes(
+            SimTypeInt(signed=True).with_arch(self.arch),
+            SimTypeInt(signed=False).with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(joined, SimTypeInt)
+
+    def test_join_same_pointer(self):
+        # join(char *, char *) -> char *
+        joined = SimpleSolver.join_simtypes(
+            SimTypePointer(SimTypeChar()).with_arch(self.arch),
+            SimTypePointer(SimTypeChar()).with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(joined, SimTypePointer)
+        assert isinstance(joined.pts_to, SimTypeChar)
+
+    def test_join_same_struct_pointer_preserves_struct(self):
+        # join(struct A *, struct A *) -> struct A *
+        s = SimStruct({"a": SimTypeInt()}, name="A").with_arch(self.arch)
+        joined = SimpleSolver.join_simtypes(
+            SimTypePointer(s).with_arch(self.arch),
+            SimTypePointer(s).with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(joined, SimTypePointer)
+        assert isinstance(joined.pts_to, SimStruct)
+        assert joined.pts_to.name == "A"
+
+    def test_join_distinct_struct_pointers_to_void(self):
+        # join(struct A *, struct B *) -> void * (no common struct supertype)
+        sa = SimStruct({"a": SimTypeInt()}, name="A").with_arch(self.arch)
+        sb = SimStruct({"b": SimTypeInt()}, name="B").with_arch(self.arch)
+        joined = SimpleSolver.join_simtypes(
+            SimTypePointer(sa).with_arch(self.arch),
+            SimTypePointer(sb).with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(joined, SimTypePointer)
+        assert isinstance(joined.pts_to, SimTypeBottom)
+
+    def test_join_incompatible_scalars_is_bottom(self):
+        # join(char, int): the only common supertype is the generic Int, which has no precise SimType -> bottom
+        joined = SimpleSolver.join_simtypes(
+            SimTypeChar().with_arch(self.arch),
+            SimTypeInt().with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(joined, SimTypeBottom)
+
+    def test_meet_identical_type(self):
+        # meet(char, char) -> char
+        met = SimpleSolver.meet_simtypes(
+            SimTypeChar(signed=True).with_arch(self.arch),
+            SimTypeChar(signed=True).with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(met, SimTypeChar)
+
+    def test_meet_incompatible_is_bottom(self):
+        # meet(signed int, unsigned int): no common subtype on the lattice -> bottom
+        met = SimpleSolver.meet_simtypes(
+            SimTypeInt(signed=True).with_arch(self.arch),
+            SimTypeInt(signed=False).with_arch(self.arch),
+            self.arch,
+        )
+        assert isinstance(met, SimTypeBottom)
+
+
+class TestFunctionArgTypeNormalization(unittest.TestCase):
+    """Tests for Clinic._flatten_pointer_to_array, the call-site argument type normalization filter."""
+
+    arch = archinfo.arch_from_id("amd64")
+
+    def test_pointer_to_array_becomes_pointer(self):
+        # type[N] * -> type *
+        ty = SimTypePointer(SimTypeArray(SimTypeInt(), 4)).with_arch(self.arch)
+        flattened = Clinic._flatten_pointer_to_array(ty)
+        assert isinstance(flattened, SimTypePointer)
+        assert isinstance(flattened.pts_to, SimTypeInt)
+
+    def test_plain_pointer_unchanged(self):
+        ty = SimTypePointer(SimTypeChar()).with_arch(self.arch)
+        flattened = Clinic._flatten_pointer_to_array(ty)
+        assert flattened is ty
+
+    def test_non_pointer_unchanged(self):
+        ty = SimTypeInt().with_arch(self.arch)
+        flattened = Clinic._flatten_pointer_to_array(ty)
+        assert flattened is ty
+
+    def test_array_pointers_of_different_lengths_join_after_filter(self):
+        # int[4] * and int[8] * normalize to int *, which then join to int *
+        t1 = Clinic._flatten_pointer_to_array(SimTypePointer(SimTypeArray(SimTypeInt(), 4)).with_arch(self.arch))
+        t2 = Clinic._flatten_pointer_to_array(SimTypePointer(SimTypeArray(SimTypeInt(), 8)).with_arch(self.arch))
+        joined = SimpleSolver.join_simtypes(t1, t2, self.arch)
+        assert isinstance(joined, SimTypePointer)
+        assert isinstance(joined.pts_to, SimTypeInt)
+
+
+class TestLocalVariableTypeFlattening(unittest.TestCase):
+    """
+    Tests for Typehoon._flatten_pointer_to_array, which flattens pointer-to-array solutions for function-scope
+    variables. A local variable (register or pointer-sized stack slot) holds a pointer value; keeping the
+    pointer-to-array type would make the C backend declare it as an array (``SimTypePointer.c_repr`` drops
+    the pointer level when the pointee is an array), and any later assignment to it would be illegal C
+    ("assignment to expression with array type").
+    """
+
+    arch = archinfo.arch_from_id("amd64")
+
+    def test_pointer_to_array_flattens_to_element_pointer(self):
+        # int[8] * -> int *
+        ty = SimTypePointer(SimTypeArray(SimTypeInt(), 8)).with_arch(self.arch)
+        flattened = Typehoon._flatten_pointer_to_array(ty, self.arch)
+        assert isinstance(flattened, SimTypePointer)
+        assert isinstance(flattened.pts_to, SimTypeInt)
+        # the resulting declaration must be a pointer, not an array
+        assert flattened.c_repr(name="v").endswith("*v")
+
+    def test_pointer_to_nested_array_flattens_fully(self):
+        # int[4][8] * -> int *; single-level flattening would still be declared as an array
+        ty = SimTypePointer(SimTypeArray(SimTypeArray(SimTypeInt(), 4), 8)).with_arch(self.arch)
+        flattened = Typehoon._flatten_pointer_to_array(ty, self.arch)
+        assert isinstance(flattened, SimTypePointer)
+        assert isinstance(flattened.pts_to, SimTypeInt)
+
+    def test_plain_array_unchanged(self):
+        # a genuine in-place local array (char v[22]) is typed as a plain array and must keep its type
+        ty = SimTypeArray(SimTypeChar(), 22).with_arch(self.arch)
+        flattened = Typehoon._flatten_pointer_to_array(ty, self.arch)
+        assert flattened is ty
+
+    def test_plain_pointer_unchanged(self):
+        ty = SimTypePointer(SimTypeChar()).with_arch(self.arch)
+        flattened = Typehoon._flatten_pointer_to_array(ty, self.arch)
+        assert flattened is ty
+
+
+if __name__ == "__main__":
+    unittest.main()
