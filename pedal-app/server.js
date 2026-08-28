@@ -4,7 +4,7 @@ const { findLalady, listSourceAudioDevices } = require('./src/sourceAudioHid');
 const { SourceAudioProtocol } = require('./src/sourceAudio');
 const { loadOsbf } = require('./src/osbf');
 const { buildPre, parsePre } = require('./src/prePreset');
-const { decodeBinary53 } = require('./src/neuroMap');
+const { decodeBinary53, encodeBinary53 } = require('./src/neuroMap');
 const {
   SLOT_PAGES,
   activeSlotPage,
@@ -12,6 +12,8 @@ const {
   describePreset,
   MIDI_MAP_START,
   MIDI_MAP_LEN,
+  LALADY_PRESET_BASE,
+  LALADY_PRESET_PITCH,
   LALADY_DATA_OFF,
   LALADY_NAME_OFF,
   LALADY_DATA_SIZE
@@ -107,6 +109,7 @@ function snapshot(fresh) {
 }
 
 const app = express();
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'web')));
 
 app.get('/api/device', (req, res) => {
@@ -203,6 +206,72 @@ app.get('/api/export-ref', (req, res) => {
   if (!item) return res.status(400).json({ error: 'id must be UP0-UP2 or US0-US2' });
   const xml = buildPreFromBinary(item.raw, item.name);
   servePre(res, xml, item.name + '.pre');
+});
+
+function buildParamsFromBody(body) {
+  if (body.preText) {
+    const pre = parsePre(body.preText);
+    return { name: pre.info.preset_name || body.name, params: pre.params };
+  }
+  if (body.params) return { name: body.name, params: body.params };
+  throw new Error('body must contain preText or params');
+}
+
+// Write a preset (from .pre text or named params) to a flash slot on the pedal,
+// then read the slot back and verify byte-equality. Deliberately open/write/close.
+// body: { slot?: "0x03c000", idx?: 0..5, name?, params? | preText? }
+// If `idx` is given, the target page is derived from it (the writable user
+// preset region at 0x03f000+); otherwise `slot` selects the page directly.
+app.post('/api/write', (req, res) => {
+  let page = parseInt(req.body.slot, 16);
+  const idx = typeof req.body.idx === 'number' ? req.body.idx : undefined;
+  if (idx !== undefined) page = activeSlotPage(idx);
+  if (isNaN(page)) return res.status(400).json({ error: 'invalid slot/idx' });
+  if (idx === undefined && !SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
+  if (!req.body || (!req.body.preText && !req.body.params)) return res.status(400).json({ error: 'body must contain preText or params' });
+
+  const dev = findLalady();
+  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+
+  const p = new SourceAudioProtocol(dev);
+  p.open();
+  try {
+    // Snapshot current slot so it can be restored via a re-upload if needed.
+    const before = p.readSlotRaw(page).toString('hex');
+    const { name, params } = buildParamsFromBody(req.body);
+    const body = p.buildSlotBody({ name, params });
+    p.writePreset(page, { name, params, idx });
+    const after = p.readSlotRaw(page).toString('hex');
+    res.json({ ok: true, slot: page.toString(16), idx, before, after, written: body.toString('hex') });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    p.close();
+  }
+});
+
+// Make a slot the active/live preset. body: { slot: "0x03c000", idx? }
+// `idx` is the config.activePreset value for that slot. It is uncertain how the
+// 6 onboard pages map to active-preset indices (see laLadyModel.activeSlotPage),
+// so pass idx explicitly if known; otherwise we derive a best guess.
+app.post('/api/activate', (req, res) => {
+  const page = parseInt(req.body.slot, 16);
+  if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
+
+  const dev = findLalady();
+  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+
+  const p = new SourceAudioProtocol(dev);
+  p.open();
+  try {
+    const idx = typeof req.body.idx === 'number' ? req.body.idx : (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH - 3;
+    const reply = p.setActivePreset(idx);
+    res.json({ ok: true, slot: page.toString(16), activeIndex: idx, reply: reply ? reply.join(',') : null });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    p.close();
+  }
 });
 
 app.listen(PORT, () => {

@@ -41,6 +41,9 @@
   .btnlink { display:inline-block; font-size:11.5px; text-decoration:none; color:var(--accent); border:1px solid var(--border); border-radius:6px; padding:3px 8px; margin-right:4px; }
   .btnlink:hover { border-color:var(--accent); background:rgba(79,140,255,.08); }
   .nowrap { white-space:nowrap; }
+  .wctl { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+  .preFile { width:150px; font-size:11px; color:var(--muted); }
+  .wres { font-size:11px; }
   details { border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin-top:6px; }
   summary { cursor:pointer; color:var(--accent); font-size:12.5px; }
 </style>
@@ -126,15 +129,25 @@ async function refresh() {
     const refId = mRef ? (mRef[1][0] === 'U' ? 'UP' : 'US') + mRef[2] : null;
     const backup = (refId ? '<a class="btnlink" title="from .osbf (no pedal contact)" href="/api/export-ref?id=' + refId + '">ref</a> ' : '') +
       '<a class="btnlink" title="read from pedal once" href="/api/export?slot=' + s.page.toString(16) + '">backup .pre</a>';
+    const slotHex = s.page.toString(16);
+    const writeCell =
+      '<div class="wctl">' +
+      '<input type="file" accept=".pre,application/xml,text/xml" class="preFile" data-slot="0x' + slotHex + '" title="Neuro .pre to write into this slot">' +
+      '<button class="btnlink doWrite" data-slot="0x' + slotHex + '">Write</button>' +
+      '<button class="btnlink doActivate" data-slot="0x' + slotHex + '">Activate</button>' +
+      '<input type="number" class="wIdx" data-slot="0x' + slotHex + '" min="0" max="127" placeholder="erase idx" title="preset index to erase (optional; defaults to page mapping)">' +
+      '<input type="number" class="aIdx" data-slot="0x' + slotHex + '" min="0" max="127" placeholder="act idx" title="active-preset index (optional)">' +
+      '<span class="wres" data-slot="0x' + slotHex + '"></span></div>';
     return '<tr class="' + (s.page === all.presets.activePage ? 'active' : '') + '">' +
       '<td class="mono">' + esc(s.name || '(unnamed)') + '</td>' +
-      '<td class="mono muted">' + s.page.toString(16) + '</td>' +
+      '<td class="mono muted">' + slotHex + '</td>' +
       '<td>' + tags.join(' ') + '</td>' +
       '<td><details class="datad"><summary>${esc(s.hex.slice(0, 24))}… <span class="muted">(${s.hex.length / 2} B)</span></summary><div class="hexdump">${esc(s.hex)}</div><table>' + rows + '</table></details></td>' +
-      '<td class="nowrap">' + backup + '</td></tr>';
+      '<td class="nowrap">' + backup + '</td>' +
+      '<td class="nowrap">' + writeCell + '</td></tr>';
   }).join('');
 
-  $('presets').innerHTML = '<table><tr><th>name</th><th>page</th><th>source</th><th>data</th><th>backup</th></tr>' + slots + '</table>';
+    $('presets').innerHTML = '<table><tr><th>name</th><th>page</th><th>source</th><th>data</th><th>backup</th><th>write</th></tr>' + slots + '</table>';
   const mm = all.eeprom.midiMap;
   $('eeprom').innerHTML = `
     <dl class="kv">
@@ -156,6 +169,44 @@ refresh();
 $('refreshBtn').addEventListener('click', () => {
   $('lastUpdate').textContent = 'refreshing…';
   refresh();
+});
+
+const resOf = slot => document.querySelector('.wres[data-slot="' + slot + '"]');
+
+async function doWrite(slot) {
+  const fi = document.querySelector('.preFile[data-slot="' + slot + '"]');
+  const out = resOf(slot);
+  if (!fi || !fi.files.length) { out.textContent = 'choose a .pre first'; out.style.color = 'var(--bad)'; return; }
+  const idxEl = document.querySelector('.wIdx[data-slot="' + slot + '"]');
+  const idx = idxEl && idxEl.value !== '' ? parseInt(idxEl.value, 10) : undefined;
+  out.textContent = 'writing…'; out.style.color = 'var(--muted)';
+  try {
+    const text = await fi.files[0].text();
+    const r = await fetch('/api/write', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot, preText: text, idx }) });
+    const j = await r.json();
+    if (!r.ok) { out.textContent = 'err: ' + (j.error || r.status); out.style.color = 'var(--bad)'; }
+    else { out.textContent = 'ok ✓ (verify + refresh)'; out.style.color = 'var(--ok)'; }
+  } catch (e) { out.textContent = 'err ' + e.message; out.style.color = 'var(--bad)'; }
+}
+
+async function doActivate(slot) {
+  const out = resOf(slot);
+  const idxEl = document.querySelector('.aIdx[data-slot="' + slot + '"]');
+  const idx = idxEl && idxEl.value !== '' ? parseInt(idxEl.value, 10) : undefined;
+  out.textContent = 'activating…'; out.style.color = 'var(--muted)';
+  try {
+    const r = await fetch('/api/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot, idx }) });
+    const j = await r.json();
+    if (!r.ok) { out.textContent = 'err: ' + (j.error || r.status); out.style.color = 'var(--bad)'; }
+    else { out.textContent = 'active ✓'; out.style.color = 'var(--ok)'; }
+  } catch (e) { out.textContent = 'err ' + e.message; out.style.color = 'var(--bad)'; }
+}
+
+document.addEventListener('click', e => {
+  const w = e.target.closest('.doWrite');
+  if (w) { doWrite(w.dataset.slot); return; }
+  const a = e.target.closest('.doActivate');
+  if (a) { doActivate(a.dataset.slot); return; }
 });
 </script>
 </body>

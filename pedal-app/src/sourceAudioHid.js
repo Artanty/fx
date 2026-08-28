@@ -36,9 +36,23 @@ function findLalady() {
   return (
     list.find(d => d.productId === AS_PID_LALADY) ||
     list.find(d => d.usagePage === 0xffa0 && d.interface === 2) ||
-    list[0] ||
     null
   );
+}
+
+// Strict lookup for any operation that WRITES to the device. Refuses to run
+// unless we are certain we have the L.A. Lady (matching PID, or the known
+// usage-page/interface), so we never send commands to the wrong HID device.
+function requireLalady() {
+  const d = findLalady();
+  if (!d) throw new Error('L.A. Lady (VID 0x29a4 PID 0x0300) not found — check the USB connection.');
+  const ok = d.productId === AS_PID_LALADY || (d.usagePage === 0xffa0 && d.interface === 2);
+  if (!ok) {
+    throw new Error(
+      `Found a Source Audio device but not the L.A. Lady (PID 0x${d.productId ? d.productId.toString(16) : '?'}) — refusing to write.`
+    );
+  }
+  return d;
 }
 
 function buildReport(cmd) {
@@ -109,6 +123,7 @@ module.exports = {
   EEPROM_SIZE,
   listSourceAudioDevices,
   findLalady,
+  requireLalady,
   buildReport,
   SourceAudioHid
 };
