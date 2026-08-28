@@ -719,3 +719,29 @@ Router design (mirrors macOS h90_proxy.swift):
   copy). No capture was performed. Next applicable step, if resumed: set up the
   Bome MIDI Router bridge + Log Window monitor as above, then trigger an
   import in the H90 Control app and capture app->pedal TX and pedal->app RX.
+
+
+### Status - 2026-08-28 H90 Control UI automation (screen parser + parameter driver)
+
+- Discovered the H90 Control app (JUCE) exposes a full UI Automation (UIA)
+  tree via pywinauto: device button H90: XC-05987, tabs, and every editor knob
+  as a co-located Slider (rotary) + Edit (value readout) + Text (label).
+  This makes pixel/OCR reading unnecessary.
+- Created server/h90_ui.py:
+  * scan_params(): walks the UIA tree, groups labels/readouts/sliders by
+    column and row; each value readout consumed by exactly one label.
+  * --list: prints all visible params with current values.
+  * --get LABEL: reads one parameter.
+  * --set LABEL VALUE: drives the knob by mouse-dragging its slider center
+    vertically, with on-the-fly calibration (measures px-per-value-unit from a
+    20px reference nudge, then iterates to land on target within tolerance).
+- Verified live: In Gain 0.0dB -> set 3 -> 3.1dB (0.1dB coarse step), then
+  restored to ~0dB. Continuous knobs (Mix, gains, filters, resonance, fuzz,
+  envelope, sensitivity, hotknob) read+set cleanly.
+- LIMITATIONS: switch-type knobs (Bypass, Tails, Pitch Mix, Oct-Fuzz Mix,
+  Kill Dry, Tempo Mode) show empty readouts (their value is not a plain Edit on
+  the same row); would need click-on-selector handling.
+- VALUE FOR PROJECT: every --set drives the app to emit SysEx to the pedal, so
+  h90_ui.py is the missing trigger generator for the reverse-engineering
+  sweep: pair with the Bome MIDI Router capture to map each knob -> JSON key,
+  resolving the encoder dictionary + key order.
