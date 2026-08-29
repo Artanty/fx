@@ -909,3 +909,23 @@ pinned offline - requires a 2nd ground-truth write to verify.
 
 MicroPitch float pairs verified: pre block 0.0 + mmix_end_exp(?); the mechanism
 (simple block = 2 exact float32 params) is consistent with the octaver proof.
+
+
+### Status - 2026-08-28 Write data region = TRUNCATED JSON base64 prefix (encoder-defining finding)
+
+Definitive: the 976-byte write document''s data region [211:951] holds only the
+FIRST ~637 base64 chars of the full program JSON (twoway full b64 = 1560 chars).
+test_import_plaintext.bin data-region base64 == tw_b64[:637] EXACTLY; req1_out.bin
+(wire) == tw_b64[2:639] with raw binary gap bytes. Both share a BYTE-IDENTICAL
+write header [0:210] = fixed per-program template.
+
+The write is NON-SELF-CONTAINED: ~923 of 1560 JSON chars are supplied via the
+zlib import dictionary (previous program''s write), compressed-away from this
+write. 00 00 gap bytes (plain) / raw dict data (wire) mark where dict-copied
+chars go.
+
+Encoder implication (h90_enc.py, next): must (a) emit fixed per-algorithm header
+[0:210] template, (b) place b64 prefix in [211:951] with gap-byte placeholders,
+(c) DEFLATE-compress with prev-write as dictionary so pedal reconstructs full
+JSON. New tools: align_json.py, reconstruct_ref.py, wire_vs_plain.py,
+req1_stream.py, prefix_check.py (recon probes).
