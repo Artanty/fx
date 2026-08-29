@@ -929,3 +929,14 @@ Encoder implication (h90_enc.py, next): must (a) emit fixed per-algorithm header
 (c) DEFLATE-compress with prev-write as dictionary so pedal reconstructs full
 JSON. New tools: align_json.py, reconstruct_ref.py, wire_vs_plain.py,
 req1_stream.py, prefix_check.py (recon probes).
+
+
+### Plan - 2026-08-29 Reverse H90 Control.exe write-serializer (option 1)
+
+Offline captures proved unfalsifiable for the DEFLATE layer (req1_defl.raw/test_import.bin
+do not inflate as plain zlib with any candidate dict; framing layer undetermined).
+User chose: disassemble H90 Control.exe (v1.9.13 on disk, 11.2MB) to find the code
+that builds the 976-byte write buffer (header [0:210] + truncated JSON base64 region
+[211:951] + trailer) and the DEFLATE framing. Anchors: model file 0x770a0e, UUID
+table 0x7cc7f8, Octaver UUID 0163d495-aaea-4727-a223-ef5b190975d3, sep literal
+"tjknobs-knob4". Goal: authoritative layout + framing so h90_enc.py emits valid writes.
