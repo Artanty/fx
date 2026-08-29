@@ -745,3 +745,49 @@ Router design (mirrors macOS h90_proxy.swift):
   h90_ui.py is the missing trigger generator for the reverse-engineering
   sweep: pair with the Bome MIDI Router capture to map each knob -> JSON key,
   resolving the encoder dictionary + key order.
+
+
+### Status - 2026-08-28 Algorithm parameter model extracted (knob -> JSON key)
+
+Big step for the encoder: identified "Drty Vocals" as the Octaver algorithm
+(UUID 0163d495-aaea-4727-a223-ef5b190975d3) and recovered its parameter model
+from the running app's live editor descriptor (verified in PID 14716) plus the
+binary 52-algorithm JSON model (file 0x771f6f / 0x770a0e, UUID table 0x7cc7f8).
+
+Octaver JSON key order: atck, sens, fuzz, fzmx, resb, resa, fltb, flta, pmix,
+mmix.
+
+Knob label -> key (verified live):
+  Mix=mmix, Pitch Mix=pmix, Oct-Fuzz Mix=fzmx, Envelope=atck, Sensitivity=sens,
+  Fuzz=fuzz, Filter A=flta, Filter B=fltb, Resonance A=resa, Resonance B=resb.
+
+On-screen order is NOT the JSON order; UI re-sorts to [mmix,pmix,fzmx,atck,
+sens,fuzz,flta,fltb,resa,resb] and shows Filter/Resonance A-before-B though JSON
+is B-before-A. knob index != display order either (hints: knob1=atck ...
+knob10=mmix). This mirrors the Reverse/UUID key list [xfad,mdpt,mspd,fltr,
+fbkb,fbka,dlyb,dlya,dmix,mmix] -- 'mix' base keys (dmix/mmix) recur consistently.
+
+Other on-screen knobs (In Gain, Out Gain, Bypass, Tails, Tempo Mode, HotKnob,
+Kill Dry) are global/pedal-level params, not algorithm digits; they map to
+twoway.json-style global keys (in1_sens/out1_sens, bypa_normal, killdry,
+expression_pedal, tmpv, tsyn, x_switch/y_switch/z_switch).
+
+Agent artifacts in C:\Users\Thoma\AppData\Local\Temp\opencode\ : octaver_desc*,
+model.json (52-entry model), d2.txt/d3.txt, scan_full.py, hexwin.py,
+dump_region.py.
+
+
+### Status - 2026-08-28 Live knob -> JSON key value correlation (Octaver)
+
+After extracting the octaver parameter model, captured the current "Drty
+Vocals" (Octaver) preset's live values via h90_ui.py and mapped them to JSON
+base keys. Same key list applies as in the model:
+  mmix=100, pmix=A6+B10, fzmx=oct...........:fz, atck=54, sens=15, fuzz=8,
+  flta=69, fltb=76, resa=8, resb=7.
+Pitch Mix / Oct-Fuzz Mix are multi-state selector knobs (their readout shows
+the option format A6+B10 / oct...........:fz, not a continuous number).
+
+Created server/h90_params.py (algorithm key lists + knob->key maps for
+Reverse/UUID and Octaver) and server/h90_read_correlate.py (reads live screen
+and prints knob -> JSON key -> value). These are reusable inputs for the
+write-serialization encoder.

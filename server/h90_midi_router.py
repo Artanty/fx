@@ -19,6 +19,14 @@ import rtmidi
 
 
 def find_port(lst, name, clist):
+    """Return (portlist index, port name). Prefers an exact match, falls back
+    to substring. If `name` is the base of several loopMIDI halves (e.g.
+    'H90Bridge' matches both 'H90Bridge 2' and 'H90BridgeRX 1'), the caller
+    should pass a name that excludes the other (e.g. 'H90Bridge 2')."""
+    name = name.strip()
+    for i, p in enumerate(lst):
+        if p.strip().lower() == name.lower():
+            return i, p
     for i, p in enumerate(lst):
         if name.lower() in p.lower():
             return i, p
