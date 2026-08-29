@@ -882,3 +882,30 @@ the program parameter values, so an encoder can regenerate it from JSON.
 New recon scripts: octaver_knob_blocks.py (float-pair extractor),
 octaver_decode.py, composite_decode.py (probes). Full mapping of composite
 children still pending (Juce-ish child-layout with offsets relative to node end).
+
+
+### Status - 2026-08-28 Full .lst90 record anatomy derived (layout + knob clusters)
+
+Derived the complete per-program record anatomy shared by ALL 37 records:
+
+Record = [RecordHeader] + [knob tree pre-JSON] + [JSON b64] + [knob tree
+post-JSON].
+
+RecordHeader (e.g. CHORUS ROOM @50800): "gram\0" + NUL-padded UUID
+"00000000-0000-...-0001" + fixed words (70 0d 00 00 b4 08 00 00 58 04 00 00
+04 00 00 00 3e 80 fe ff 08 01 00 00 50 00 00 00 ...).
+
+Knob blocks appear in PAIRS straddling the JSON (same tags pre and post, e.g.
+MicroPitch = knob10 pre @50944 + knob10 post @52048; Octaver = knob3/knob4/knob9
+pre + knob4/knob3 post). Each block = simple (ptr + 40-byte header ending in
+float 1.0 0x0000803f + 2 float params) OR composite (count 07 00 00 00 + 7
+offsets + per-child records with fd-relative pointers and descending index tags
+06,05,04,03,02,01).
+
+Confirmed composite child region is the H90 app CUSTOM binary serialization
+(count + offsets + child records), NOT vanilla Juce writeToStream streaming
+format (which has no offset table). The per-child field layout was NOT fully
+pinned offline - requires a 2nd ground-truth write to verify.
+
+MicroPitch float pairs verified: pre block 0.0 + mmix_end_exp(?); the mechanism
+(simple block = 2 exact float32 params) is consistent with the octaver proof.
