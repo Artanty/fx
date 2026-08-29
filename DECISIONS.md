@@ -865,3 +865,20 @@ tag sets per algorithm still need a cleaner record-boundary parser to be fully
 trusted.
 
 This unblocks modeling the algorithm-specific write header offline.
+
+
+### Status - 2026-08-28 Juce knob-block header decodes to exact float32 params (PROOF OF CONCEPT)
+
+Decoded the per-program "tjknobs-knobN" header blocks in .lst90 (MASSIVUZZ
+octaver record). The serialized float pairs are EXACT float32 copies of JSON
+parameter values:
+  * knob3 block  : fzmx_start_exp=0.3079179, fzmx_end_exp=0.5513197 (matches JSON 0.3079178929328918/0.5513196587562561)
+  * knob4 block  : pmix_start_exp=0.0, pmix_end_exp=0.5679374 (matches JSON)
+Each simple block = ptr + fixed 40-byte header ending in float 1.0 (0x0000803f)
++ 2 float params. Composite blocks (knob9/knob3 here) carry a count + 7 offsets
++ per-child value records. This PROVES the header is a deterministic function of
+the program parameter values, so an encoder can regenerate it from JSON.
+
+New recon scripts: octaver_knob_blocks.py (float-pair extractor),
+octaver_decode.py, composite_decode.py (probes). Full mapping of composite
+children still pending (Juce-ish child-layout with offsets relative to node end).
