@@ -973,3 +973,21 @@ Disassembled H90 Control.exe (v1.9.13, PE32+, x86-64, stripped) with pefile+caps
 - Blocked: the in-memory doc-builder cannot be statically fingerprinted; exact doc-asm
   would need a dynamic trace (debugger break on 0x14045E1A0 b64 encoder during write),
   which is not attempted (app running is user-managed / MIDI capture blocked).
+
+
+### Status - 2026-08-29 h90_enc.py built; DATA region = base64 + embedded binary markers
+
+Committed server/h90-recon/h90_enc.py. Corrected model: the 740-byte DATA region
+[211:951] is NOT clean base64 + zero padding. The captured reference interleaves
+the base64 prefix with non-zero embedded binary knob-block markers (float32 1.0
+pattern 00 80 3f, structural 0d, etc.) woven through the stream. Run-length
+analysis of test_import_plaintext.bin region is highly irregular (compressor/LZ77
+determined), so the region is per-program, not a fixed template rule.
+
+h90_enc.py reproduces the known Reverse write BYTE-FOR-BYTE (self-check
+"byte-identical: True", 976/976): header [0:211] + trailer [951:976] are fixed
+per-algorithm templates; DATA region is loaded verbatim from the reference. A
+mask-based build_data_region() fallback emits a structurally-valid 976-byte doc
+(637 b64 literals + markers) for generalizing to new programs once more
+reference writes are captured. Verification: only 9/976 bytes differ between the
+mask-fallback and reference, all embedded non-zero marker bytes.
