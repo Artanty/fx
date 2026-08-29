@@ -846,3 +846,22 @@ offset table + scalar fields for each algorithm. Added analysis scripts
 correlate_write.py, align_twoway.py, recon_write_json.py, decode_aligned.py,
 verify_twoway_b64.py, reconstruct_plaintext.py, write_keys.py, fill_gaps.py,
 coverage.py (probe analysis; not part of final toolchain).
+
+
+### Status - 2026-08-28 .lst90 embeds per-program Juce ValueTree header/knob structure
+
+Confirmed: each .lst90 record stores, immediately after its base64 JSON, the
+program''s Juce ValueTree binary header including per-knob "tjknobs-knobN"
+separator tags and a count-prefixed offset table (e.g. Phaser record:
+0e 00 00 00 "tjknobs-knob10" then 07 00 00 00 + 7 offsets then per-knob value
+records with fd-relative pointers). This means the per-algorithm header offset
+table (the algorithm-specific part of the 976-byte write doc [76:139]) can be
+extracted from .lst90 WITHOUT MIDI capture.
+
+server/h90-recon/knob_tags.py enumerates per-record knob tags; e.g. Octaver
+CLASSIC OCTAVER shows tags knob2,knob1,knob7,knob8,knob9,knob9. NOTE: clustering
+has some windowing noise (trailing records truncated at EOF), so exact per-knob
+tag sets per algorithm still need a cleaner record-boundary parser to be fully
+trusted.
+
+This unblocks modeling the algorithm-specific write header offline.
