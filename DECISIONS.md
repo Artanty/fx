@@ -791,3 +791,26 @@ Created server/h90_params.py (algorithm key lists + knob->key maps for
 Reverse/UUID and Octaver) and server/h90_read_correlate.py (reads live screen
 and prints knob -> JSON key -> value). These are reusable inputs for the
 write-serialization encoder.
+
+
+### Status - 2026-08-28 Full program JSON corpus extracted from H90 Control .lst90 export
+
+Breakthrough: the H90 Control app''s Export (Preset Library -> Export) writes a
+158,768-byte .lst90 library file to <repo>/input/ that embeds, for EVERY
+program, a NUL-terminated base64 JSON payload preceded by a "tjknobs-knobN"
+separator and followed by an "activeBypassMomentary-obj" marker. The JSON is
+the complete, full-key serialized preset (algorithm_name, all algorithm params,
+aux exp-envelope keys, bypa*/bypt_normal, in/out sens, preset_mix, preset_name,
+product_id, slow_mode, tmpv, tsyn, version).
+
+server/h90-recon/extract_lst90.py parses it into lst90_json/<NN>_<NAME>.json
+plus manifest.txt. Extracted 37 programs.
+
+This DEFINITIVELY confirms the octaver knob->JSON-key mapping from h90_params.py:
+DRTY VOCALS B (lst90_json/35_DRTY_VOCALS.json) matches the live editor values
+exactly (atck=54.05,sens=14.9,fuzz=7.79,flta=68.7,fltb=76.05,resa=7.95,
+resb=6.55,mmix=100,pmix=69.86,fzmx=100). Full octaver key order captured from
+02_MASSIVUZZ.json.
+
+Deliverable is now a full algorithm parameter corpus + confirmed knob map,
+giving the encoder the exact per-algorithm JSON key set and value ranges.
