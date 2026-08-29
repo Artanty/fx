@@ -940,3 +940,36 @@ that builds the 976-byte write buffer (header [0:210] + truncated JSON base64 re
 [211:951] + trailer) and the DEFLATE framing. Anchors: model file 0x770a0e, UUID
 table 0x7cc7f8, Octaver UUID 0163d495-aaea-4727-a223-ef5b190975d3, sep literal
 "tjknobs-knob4". Goal: authoritative layout + framing so h90_enc.py emits valid writes.
+
+
+### Status - 2026-08-29 Authoritative static RE of H90 Control.exe (option 1 done)
+
+Disassembled H90 Control.exe (v1.9.13, PE32+, x86-64, stripped) with pefile+capstone
+(no radare/IDA available). Key corrected findings (subagent ses_fb16a2785ffel1Xl7L3IOjR3pJ):
+
+- Real name-token table = file 0x7D1618 / VA 0x1407D3018: "tjknobs-knob", "envr-obj",
+  "envm-obj", JSON key builders (algorithm_name, preset_name, *_start_exp/end_exp, etc.).
+  The 0x7CFC18 table I earlier called the anchor is actually build-path strings.
+  "tjknobs-knob4" is NOT a literal; the separator is built at runtime from tokens.
+- 976-byte doc = [0:32] root headers (u32 4, -4, 0x4F<type=import>, 12) + [32:192] Juce
+  ValueTree field-structure + [192:211] separator "tjknobs-knob4\0\0\0xdl" + [211:976]
+  base64-JSON payload w/ fixed NUL marker pairs + [951:976] trailer (incl 0x1000).
+  Header constants live only as C++ object members (no immediate/template in binary).
+- Write path: program -> knob keys (token table) -> JSON::toString @0x14047EDA0 ->
+  base64 @0x14045E1A0 (only live encoder; call site 0x14038959F in parseProgram
+  0x140388E90, a JSON canonical serializer) -> doc assembly ([211] payload = b64) ->
+  zlib deflate w/ prev-write dictionary -> "78 9c" + adler32 (adler32 live @0x140451F60;
+  both crc32 impls have ZERO callers -> confirms zlib not gzip) -> 7-bit TRPC SysEx
+  type 0x4F (import).
+- zlib/deflate strings @0x82c9a3/0x830aa0 belong to bundled libpng (UI graphics), not
+  the write path. Static-only RE has converged; the exact in-memory doc-builder VA is
+  not pinnable statically (compressor reached via indirect dispatch; header consts are
+  object members).
+- RECONCILIATION: my byte-level finding (data region = TRUNCATED b64 of JSON, ~637/740
+  chars, rest from deflate dict) is CONSISTENT with static RE: region is 740 bytes but
+  full 52-key JSON b64 is 1560 chars -> region physically holds only a b64 prefix + NUL
+  marker pairs; remainder supplied by dictionary across deflate. Both frames share an
+  identical [0:210] header = deterministic per-program template.
+- Blocked: the in-memory doc-builder cannot be statically fingerprinted; exact doc-asm
+  would need a dynamic trace (debugger break on 0x14045E1A0 b64 encoder during write),
+  which is not attempted (app running is user-managed / MIDI capture blocked).
