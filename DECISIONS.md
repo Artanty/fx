@@ -814,3 +814,35 @@ resb=6.55,mmix=100,pmix=69.86,fzmx=100). Full octaver key order captured from
 
 Deliverable is now a full algorithm parameter corpus + confirmed knob map,
 giving the encoder the exact per-algorithm JSON key set and value ranges.
+
+
+### Status - 2026-08-28 Write-document serialization mapped; encoder groundwork
+
+Correlated the captured write plaintext req1_out.bin (976 B, TWO WAY/Reverse)
+against the authoritative source twoway.json.
+
+Findings (validated):
+- [0:3] version field (04 00 00 00), [4:7] -12, [8:15] length, [16:31]/[32:47]
+  size metadata, [48:51] 0xABC, [52:55] 20.
+- [76:139] running-offset table (Juce ValueTree child-order) into the data
+  region; the offsets are ALGORITHM-SPECIFIC (depend on knob count/order), so the
+  header is NOT a fixed template.
+- [190:211] separator "tjknobs-knob4" + 0x00 00 00 + "xdldmVy" (start of b64).
+- [211:951] = base64 of the program JSON (full key set in canonical twoway key
+  order). Readable fragments confirm all keys present: algorithm_name, bypa_normal,
+  bypt_normal, dlya, dlya_denormalized_pretaper, dlya_end_exp, dlya_start_exp,
+  dlyb, dlyb_denormalized_pretaper, dmix, preset_name(product_id), routing_type,
+  slow_mode, tsyn, version, x_switch, y_switch, z_switch, xfad.
+- The interleaved non-base64 gap bytes are LZ77 references to the PREVIOUS
+  program write (used as the import deflate dictionary, FDICT=0); base64 chars
+  shared with the previous slot are not stored literally (103 unresolved bytes).
+- [951:976] trailer (mostly zeros + small counts).
+
+Encoder strategy: produce a self-contained 976-byte plaintext with the full
+base64 JSON stored inline in [211:951]; serialize JSON = json.dumps(dict,
+separators=(',',':')), key order = canonical per-algorithm order (from lst90
+corpus + twoway.json). Remaining work: model the algorithm-specific [76:139]
+offset table + scalar fields for each algorithm. Added analysis scripts
+correlate_write.py, align_twoway.py, recon_write_json.py, decode_aligned.py,
+verify_twoway_b64.py, reconstruct_plaintext.py, write_keys.py, fill_gaps.py,
+coverage.py (probe analysis; not part of final toolchain).
