@@ -1197,3 +1197,13 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Added "start:lalady" script to web/package.json: `npm --prefix ../pedal-app start`
   (launches the L.A. Lady backend on :3111 from the web project).
 - Usage: Terminal 1 `npm run start:lalady` (cwd web), Terminal 2 `npm start` (cwd web).
+
+## Progress - 2026-08-30 web: decouple la-lady (dist) from h90 for now
+- Per user: stop tying the la-lady app to the h90 backend for now; use a separate
+  backend. The dist UI already talks DIRECTLY to the la-lady backend
+  (pedal-app/server.js on :3111) - no shared-h90/:3000 dependency.
+- app.routes: default route "" and "**" now redirect to `dist` (was h90), so a
+  bare `npm start` boots straight to the la-lady import/export page and never
+  triggers the h90 /api proxy calls (the ECONNREFUSED :3000 noise).
+- Header: only `dist` nav link for now; h90 routes kept reachable at /h90 behind
+  its own backend (needs :3000 + presets.db), intentionally not default.
