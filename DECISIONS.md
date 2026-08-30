@@ -1176,3 +1176,19 @@ NEXT: update README/TODO; optional git commit [pedal-app].
   import/write, export, activate). Knobs/buttons come later.
 - dist UI calls the la-lady backend (pedal-app server.js, port 3111) directly;
   add a small dev CORS middleware there (no new npm dep) so :4211 can reach it.
+
+## Progress - 2026-08-30 web+pedal-app: site shell + dist module DONE
+
+- Global site header (h90/dist nav) added to the h90-web shell above the
+  router-outlet (app.component.html/scss/ts).
+- h90 routes moved under /h90; / and ** redirect to /h90. New lazy route /dist.
+- dist module (web/src/app/dist) created & lazy-loaded (build emitted
+  `lalady-component` + `dist-routes` lazy chunks). L.A. Lady import/export page:
+  lists 6 slots, per-slot .pre import -> /api/write, /api/export (.pre download),
+  /api/activate. Knobs/buttons are a later iteration.
+- lalady-api.service calls http://localhost:3111 directly.
+- pedal-app/server.js: added dev CORS middleware (no new dep) so :4211 can reach
+  :3111 cross-origin. get/status validated via `npx ng build` (web) + node -c (server).
+- .gitignore: un-ignored web/src/app/dist (collided with build dist/ rule).
+- Commits: [web] 493c736, [pedal-app] 146e874.
+NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/buttons later.
