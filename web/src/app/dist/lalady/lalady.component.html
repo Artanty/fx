@@ -17,6 +17,7 @@
     <thead>
       <tr>
         <th>slot</th>
+        <th>page</th>
         <th>name</th>
         <th>source</th>
         <th>import</th>
@@ -26,6 +27,7 @@
     </thead>
     <tbody>
       <tr *ngFor="let row of rows; let i = index">
+        <td class="slotnum">{{ i + 1 }}</td>
         <td class="mono">{{ row.slot.page.toString(16) }}</td>
         <td>{{ row.slot.name || '—' }}</td>
         <td class="muted">{{ row.slot.kind }}</td>

@@ -55,11 +55,18 @@ export class LaladyComponent implements OnInit {
   private loadSlots(): void {
     this.api.presets().subscribe({
       next: (p: LaladyPresets) => {
-        this.rows = p.slots.map((s) => ({
-          slot: s,
-          state: { kind: 'idle' },
-          hasFile: false,
-        }));
+        // Physical page order from the backend is [0x3c000, 0x3d000, 0x3e000,
+        // 0x3f000, 0x40000, 0x41000] (physical slots 1..6). The UI presents them
+        // in display order 1..6 mapping to physical 4,5,6,1,2,3.
+        const displayOrder = [3, 4, 5, 0, 1, 2];
+        this.rows = displayOrder.map((i) => {
+          const slot = p.slots[i];
+          return {
+            slot,
+            state: { kind: 'idle' },
+            hasFile: false,
+          };
+        });
         this.loading = false;
       },
       error: (e) => {

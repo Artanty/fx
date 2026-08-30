@@ -1207,3 +1207,10 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
   triggers the h90 /api proxy calls (the ECONNREFUSED :3000 noise).
 - Header: only `dist` nav link for now; h90 routes kept reachable at /h90 behind
   its own backend (needs :3000 + presets.db), intentionally not default.
+
+## Progress - 2026-08-30 web: preset display order in dist UI
+- dist (la-lady) UI now presents slots in display order 1..6 mapping to physical
+  slots 4,5,6,1,2,3 (physical pages 0x3f000,0x40000,0x41000,0x3c000,0x3d000,0x3e000).
+- Added a "slot" display-number column (1..6) plus the physical page hex column.
+- Implementation: displayOrder = [3,4,5,0,1,2] reorders the backend's physical
+  page order; per-user requirement "1 is 4, 2 is 5, 3 is 6, 4 is 1, 5 is 2, 6 is 3".
