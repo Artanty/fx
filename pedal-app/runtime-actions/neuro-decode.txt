@@ -1,0 +1,10 @@
+﻿Traceback (most recent call last):
+  File "C:\server\fx\pedal-app\scripts\decode_usbpcap.py", line 116, in <module>
+    main()
+  File "C:\server\fx\pedal-app\scripts\decode_usbpcap.py", line 88, in main
+    for p in iter_packets(fn):
+             ^^^^^^^^^^^^^^^^
+  File "C:\server\fx\pedal-app\scripts\decode_usbpcap.py", line 66, in iter_packets
+    with open(fn, 'rb') as f:
+         ^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\server\\fx\\pedal-app\\runtime-actions\\nuro-save-1788101504727.pcap'

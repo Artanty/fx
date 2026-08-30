@@ -109,7 +109,7 @@ class SourceAudioHid {
       }
       if (r.length && list.includes(r[0])) return r;
     }
-    throw new Error(`timeout waiting for reply 0x${heads.map(h => h.toString(16)).join('/')} to 0x${cmd.toString(16)}`);
+    throw new Error(`timeout waiting for reply 0x${(Array.isArray(heads) ? heads : [heads]).map(h => h.toString(16)).join('/')} to 0x${cmd.toString(16)}`);
   }
 }
 

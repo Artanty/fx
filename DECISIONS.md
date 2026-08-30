@@ -991,3 +991,176 @@ mask-based build_data_region() fallback emits a structurally-valid 976-byte doc
 (637 b64 literals + markers) for generalizing to new programs once more
 reference writes are captured. Verification: only 9/976 bytes differ between the
 mask-fallback and reference, all embedded non-zero marker bytes.
+
+## Plan - 2026-08-30 pedal-app L.A. Lady import: docs + resume write work
+
+Goal: resume the pedal-app (Source Audio L.A. Lady, VID 0x29a4 / PID 0x0300)
+Phase-2 write/import work now that the pedal is physically connected and
+enumerates correctly (interface 2, "Source Audio One Series"). Phase 1 (read:
+slots, EEPROM, config, MIDI map, .pre/.osbf export) works. Phase 2 is blocked:
+no working erase/commit command - PRESET_ERASE (0x38) is inert (83 arg forms
+tested) and FLASH_WRITE (0x35) is clear-only, so writePreset (src/sourceAudio.js)
+throws because the target region cannot clear to 0xFF.
+
+Deliverables this session (docs only, no src changes):
+1. pedal-app/README.md - new: overview, Phase-1/Phase-2 status, quickstart
+   (npm run start / live), architecture map (src/, scripts/, web/), API
+   endpoints, safety workflow (requireLalady, backupFull/checkScratch).
+2. pedal-app/TODO.md - new: blocker-first ordered task list.
+3. DECISIONS plan entry (this one).
+
+Blocker-resolution route (chosen by user, next task, not this session):
+capture the official Neuro desktop app save via USBPcap + Wireshark (tshark) on
+Windows, decode host->device reports with scripts/decodeCapture.js, discover the
+real erase/commit (ACTIVE_SET/ACTIVE_WRITE/ACTIVE_STORE 0x77/0x6e/0x76 or a
+proper erase), implement it in erasePreset, finalize writePreset, verify
+/api/write + /api/activate, heal corrupted slot 0x03c000 from backup.
+
+Verification of docs: files exist, are accurate against current src/, and TODO
+items are actionable. Progress entry appended after docs are written.
+## Progress - 2026-08-30 pedal-app docs written (README.md + TODO.md)
+
+Docs-only session, no src changes. Pedal confirmed connected and enumerating
+correctly (VID 0x29a4 / PID 0x0300, interface 2, "Source Audio One Series").
+
+- Created pedal-app/README.md: overview, Phase-1 (read, working) vs Phase-2
+  (write, blocked on erase) status, quickstart (npm run start / live), full
+  architecture map of src/ (sourceAudioHid, sourceAudio, laLadyModel, neuroMap,
+  prePreset, osbf), API endpoint table, safety workflow (requireLalady +
+  backupFull/checkScratch), scripts/ summary, known-corruption note.
+- Created pedal-app/TODO.md: blocker-first task list (1. capture Neuro save ->
+  2. implement erase in erasePreset -> 3. re-validate flashWrite framing ->
+  4. verify writePreset -> 5. verify /api/write + /api/activate -> 6. heal slot
+  0x03c000 -> 7. document solved protocol), plus recurring safety steps.
+- Environment check for the capture route: USBPcapCMD present
+  (C:\Program Files\USBPcap); Wireshark/tshark NOT installed; Source Audio
+  Neuro app NOT installed. Both are user-installs (admin) before the capture.
+
+Next (not this session): install Neuro + Wireshark, USBPcap a single save,
+decode with scripts/decodeCapture.js, discover the real erase/commit command.
+## Plan - 2026-08-30 (pm) pedal-app: USBPcap capture of Neuro save
+
+Goal: capture the Source Audio Neuro Desktop 3 app's USB-HID save traffic to the
+L.A. Lady to discover the real erase/commit command (the Phase-2 blocker), now
+that Neuro + Wireshark are installed and the pedal is connected.
+
+Done so far:
+- Confirmed Neuro install at C:\Program Files (x86)\Source Audio\Neuro Desktop 3.
+- Installed Wireshark 4.6.8 (tshark at C:\Program Files\Wireshark\tshark.exe) via winget.
+- USBPcapCMD present (C:\Program Files\USBPcap). Driver (usbpcap) loaded/RUNNING
+  but NOT bound as USB class UpperFilters to any hub -> captures return 0 bytes.
+  USBPcap.inf adds USBPcap to UpperFilters of class {36FC9E60-...}, which only
+  attaches at hub (re)enumeration -> REBOOT REQUIRED for capture to work.
+- Pre-reboot safety backup taken: runtime-actions/lalady-backup-1788097151575.json
+  (slots + eeprom). Slot 0x3c000 still shows the known corruption (empty name).
+
+Prepared tooling so we can act immediately after reboot:
+- scripts/capture-lalady.ps1 - scans USBPcap hubs for the pedal, captures a timed
+  window to runtime-actions/usbpcap-<ts>.pcap, prints the tshark + decode commands.
+
+Next after reboot (user step): reconnect pedal, run capture-lalady.ps1, do ONE
+Neuro save of a preset to a KNOWN slot, then tshark-extract + decodeCapture.js
+to read the command sequence (expect ACTIVE_SET/WRITE/STORE 0x77/0x6e/0x76 or a
+proper erase). Implement the discovered command in erasePreset (sourceAudio.js).
+
+Verification: decoded sequence reproduces the slot clear; checkScratch.js shows
+no collateral corruption; the corresponding write lands + reads back.
+
+## Progress - 2026-08-30 (pm) pedal-app: Neuro save captured -> L.A. Lady saves via ACTIVE_WRITE (0x6e), not 0x38
+
+Captured the real Neuro Desktop 3 save over USBPcap1 (--devices 1, the pedal).
+User saved a preset to slot 1 (0x3f000), naming it "effect1".
+
+RESULT / BLOCKER RESOLVED (conceptually):
+- The save did NOT use FLASH_WRITE (0x35) or PRESET_ERASE (0x38) for the slot.
+  Instead it used the ACTIVE_* family:
+    - ACTIVE_STORE (0x76) x2:  [76 00 00 ...] off=0x0000 pld=[20 9a 8c 16 2c 04 00 00 00 05 00 00 04 a2 00 00 17 ...]
+                                [76 01 20 ...] off=0x0120 pld=[15 00 16 00 90 08 04 00 ...]
+    - ACTIVE_WRITE (0x6e) x1:  [6e 03 01 ...] off=0x0301 pld=[65 66 66 65 63 74 31 ...] = name "effect1"
+  offset = (rep[1]<<8)|rep[2]; payload = rep[3:38].
+- Only ONE FLASH_WRITE (0x35) in the whole capture: at device init, addr 0x007000
+  (boot config block, NOT the preset save).
+- Post-save read-back confirms slot 0x3f000 was written: data starts
+  9a 8c 16 2c 04 00 00 00 05 00 00 04 a2 00 00 17..., name "effect1".
+  (A transient read disagreement - full range gave zeros once - resolved on re-read.)
+
+INTERPRETATION:
+- The preset params were already in the device's active/working buffer (Neuro edits
+  live), so this save only staged a couple of header/meta blocks via ACTIVE_STORE and
+  committed with ACTIVE_WRITE (0x6e). ACTIVE_WRITE is the erase+commit primitive.
+- For a full fresh import (our app), the likely sequence is ACTIVE_SET (0x77) to
+  select the slot, ACTIVE_STORE (0x76) to stage the whole 85-byte body in blocks,
+  then ACTIVE_WRITE (0x6e) to commit.
+
+OPEN / NEXT:
+- Need to pin the exact ACTIVE_STORE block framing (leading byte 0x20 on the 0x0000
+  block and 0x15 on the 0x0120 block are ambiguous - length vs selector). Sparse save
+  doesn't show a full body write. -> schedule a second, MORE REVEALING capture: user
+  saves a preset whose params were newly edited / a different preset, so the full
+  ACTIVE_STORE body stream is visible. Then implement in erasePreset/writePreset.
+- Artifacts: runtime-actions/neuro-save-1788101504727.pcap (+ neuro-decode.txt),
+  decoder scripts/decode_usbpcap.py now validated (direction = p[m-2]).
+- capture-note: kill stray USBPcapCMD before each capture; a stuck USBPcapCMD makes
+  new captures return 0 bytes. Device-address filter --devices 1 is stable.
+
+## Plan - 2026-08-30 (night) pedal-app: implement ACTIVE_* write protocol
+
+Framework now fully pinned from MichaelMCE/TeensyC4Synth sa_c4.h + captures:
+- ACTIVE_STORE (0x76) = [76, lastFlag, offset, payloadLen, ...data], block size 32.
+  Capture save2: block0 [76 0 0 0x20 <32B>], block1 [76 1 0x20 0x15 <21B>] =
+  exactly the 53-byte body (older decode mislabeled these as idx=0/0x0120).
+- ACTIVE_WRITE (0x6e) = [6e, presetIdx, 1, name(32)]; commits working preset to
+  slot. Capture: [6e 03 01 "effect1"], presetIdx 3 -> page 0x3f000. So presetIdx =
+  (page - 0x3c000)/0x1000, slots 0..5, NO -3 offset.
+- ACTIVE_SET (0x77) = [77, presetIdx, 0]; selects active preset (thierryd25).
+- PRESET_ERASE (0x38) = [38, presetIdx | 0x80, 0, 0]; needs ACTIVE_SET first.
+PLAN:
+1. Rewrite erasePreset(idx): ACTIVE_SET(idx) -> wait 500ms -> [38, idx|0x80, 0, 0].
+2. Rewrite writePreset(page,{name,params,idx}): stage 53-byte body in <=32B blocks
+   via ACTIVE_STORE, then ACTIVE_WRITE(idx, name) to commit (no separate erase).
+3. Verify read-back (data+name), as before.
+4. Server.js: pass raw presetIdx (not user idx with -3) to writePreset/activate.
+5. Validate on disposable slot 0x3f000, then heal 0x3c000. Backup exists:
+   runtime-actions/lalady-backup-1788108072470.json.
+
+## Progress - 2026-08-30 (night) pedal-app: ACTIVE_WRITE write path VERIFIED on 0x3f000
+
+Validation (scripts/validateActiveWrite.js) succeeded:
+- Target slot 0x3f000 (scratch "esfsef") re-written via new writePreset
+  (ACTIVE_STORE x2: 32B @ off0 last=0 + 21B @ off32 last=1, then ACTIVE_WRITE
+  [6e, idx=3, 1, name]). New name "zval992200".
+- Read-back matches EXACTLY (85B compare passed); no collateral change on the
+  other 5 slots. RESULT: PASS.
+- The old FLASH_WRITE-based writePreset path is fully superseded. Note: the
+  ACTIVE_WRITE report carries the 32-byte name at rep[3] (NOT the full body);
+  buildReport returns a plain Array so the name is copied byte-by-byte.
+- setup note: buildReport returns Array (not Buffer) -> Buffer.copy(target)
+  throws; fixed with an index loop.
+- /api/write and /api/activate now pass the raw slot index (0..5) derived as
+  (page-0x3c000)/0x1000 (no -3); ACTIVE_SET is [0x77, idx, 0]; PRESET_ERASE is
+  [0x38, idx|0x80, 0, 0].
+NEXT: heal corrupt slot 0x3c000 with the same path (name from backup), then
+update README/TODO and commit [pedal-app].
+
+## Progress - 2026-08-30 (night) pedal-app: slot 0x3c000 HEALED; PRESET_ERASE (0x38) inert on L.A. Lady
+
+- Healed the corrupted slot 0x3c000 ("empty name, header 020400..") using the new
+  ACTIVE_STORE/WRITE path + the FIRST backup body (lalady-backup-1787936146287.json,
+  "goodtone fixed mids"). Result: header rebuilt byte-identical
+  (ee373500b61201..), data+name match the backup exactly, no collateral change.
+  Fresh backup runtime-actions/lalady-backup-1788109370489.json records the healed state.
+- NEW FINDING: PRESET_ERASE 0x38 is INERT on the L.A. Lady. script probeErase.js:
+  [0x38, 3|0x80, 0, 0] (library-exact framing, sa_c4.c as_erase()) did NOT change
+  slot 0x3f000 over 8s, and the reply was a config-ish block (head 0x75/0x50,
+  fw 01 06 model f4) NOT an ERASE_ACK 0x37. The sa_c4 as_erase() targets the C4
+  preset bank at 0x080000, which the L.A. Lady does not expose; its 6 on-board
+  sounds are at 0x3c000 (as_getPresetDefault's AS_PRESET_ADDRESS_DEFAULTS).
+- CONCLUSION for writes: a standalone erase is NOT needed. ACTIVE_WRITE (0x6e)
+  performs erase+program atomically (this is the primitive Neuro uses, and why
+  healSlot3c000.js succeeded with just writePreset after a no-op erasePreset).
+  erasePreset() is kept for C4-style targets but documented as inert on L.A. Lady.
+- requestSkim(): hardcoded single-number heads crashed in the error path
+  ("heads.map is not a function"); fixed with Array.isArray() guard.
+- validation + heal scripts committed: scripts/validateActiveWrite.js,
+  scripts/healSlot3c000.js, scripts/probeErase.js.
+NEXT: update README/TODO; optional git commit [pedal-app].

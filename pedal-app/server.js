@@ -240,9 +240,10 @@ app.post('/api/write', (req, res) => {
     const before = p.readSlotRaw(page).toString('hex');
     const { name, params } = buildParamsFromBody(req.body);
     const body = p.buildSlotBody({ name, params });
-    p.writePreset(page, { name, params, idx });
+    const rawIdx = (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    p.writePreset(page, { name, params, idx: rawIdx });
     const after = p.readSlotRaw(page).toString('hex');
-    res.json({ ok: true, slot: page.toString(16), idx, before, after, written: body.toString('hex') });
+    res.json({ ok: true, slot: page.toString(16), idx, rawIdx, before, after, written: body.toString('hex') });
   } catch (e) {
     res.status(500).json({ error: e.message });
   } finally {
@@ -251,9 +252,8 @@ app.post('/api/write', (req, res) => {
 });
 
 // Make a slot the active/live preset. body: { slot: "0x03c000", idx? }
-// `idx` is the config.activePreset value for that slot. It is uncertain how the
-// 6 onboard pages map to active-preset indices (see laLadyModel.activeSlotPage),
-// so pass idx explicitly if known; otherwise we derive a best guess.
+// ACTIVE_SET (0x77) selects a preset by raw slot index (0..5) directly
+// (see sa_c4.h); the 6 on-board pages 0x3c000+idx*0x1000 match idx 0..5.
 app.post('/api/activate', (req, res) => {
   const page = parseInt(req.body.slot, 16);
   if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
@@ -264,7 +264,7 @@ app.post('/api/activate', (req, res) => {
   const p = new SourceAudioProtocol(dev);
   p.open();
   try {
-    const idx = typeof req.body.idx === 'number' ? req.body.idx : (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH - 3;
+    const idx = typeof req.body.idx === 'number' ? req.body.idx : (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
     const reply = p.setActivePreset(idx);
     res.json({ ok: true, slot: page.toString(16), activeIndex: idx, reply: reply ? reply.join(',') : null });
   } catch (e) {

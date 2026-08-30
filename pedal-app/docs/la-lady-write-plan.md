@@ -33,22 +33,34 @@ already works.
   unless the device matches `VID 0x29a4` (+ `PID 0x0300` or
   `usagePage 0xffa0`/`interface 2`). All write/erase scripts must use it.
 
-## Current blocker
-We do not have a working **erase** command. `0x38` doesn't erase, and
-`FLASH_WRITE` can't set bits. Without an erase we cannot write or restore
-anything. The real save sequence is almost certainly a higher-level command
-(`ACTIVE_STORE` 0x76 / `ACTIVE_WRITE` 0x6e / `CONFIG_SET` 0x6f / `CTRL_SET`
-0x70) that the firmware uses to erase+program internally. Blindly probing those
-is risky (can't restore without an erase), so we are **capturing the Neuro
-app's real HID traffic during a save** instead.
+## Current status — RESOLVED 2026-08-30
 
-## Corruption to be aware of (recoverable)
-- Slot `0x03c000` ("goodtone fixed m") was corrupted by an early unsafe
-  `0xFF`-write test — 58 bytes differ from backup. **The other 5 slots and the
-  EEPROM are intact** (verified with `scripts/checkScratch.js`).
-- User confirmed "goodtone fixed m" is **recoverable via the Neuro app**, so it
-  is not a blocker. Once we have the real erase/write, we can also heal it from
-  the backup JSON.
+The save path was reverse-engineered from live **Neuro captures** plus the
+MichaelMCE/TeensyC4Synth library (`sa_c4.c`/`sa_c4.h`), and validated on
+hardware. The write primitive is the **ACTIVE_** family, not a raw erase:
+
+- **ACTIVE_STORE (0x76)** stages the working preset body in 32-byte blocks:
+  `[0x76, lastFlag, offset, payloadLen, ...data]`. L.A. Lady body is 53 bytes →
+  block0 `[0x76, 0, 0x00, 0x20, <32B>]`, block1 `[0x76, 1, 0x20, 0x15, <21B>]`.
+- **ACTIVE_WRITE (0x6e)** commits the working preset + name to a slot:
+  `[0x6e, presetIdx, 1, name(32), 0, 0, 0]`. This is the **erase+program**
+  primitive Neuro uses; no separate erase is required.
+- **ACTIVE_SET (0x77)** selects the active preset: `[0x77, presetIdx, 0]`.
+- `presetIdx = (page - 0x03c000)/0x1000` (slots 0..5; confirmed: idx 3 → 0x3f000).
+- A 500 ms settle is required after each ACTIVE_* command.
+
+Implemented in `src/sourceAudio.js`. `erasePreset(idx)` stays as
+`[0x38, idx|0x80, 0, 0]` for C4-style targets but is **inert on the L.A. Lady**
+(verified — ACTIVE_WRITE supersedes it).
+
+## Heal + validation (done)
+
+- `scripts/validateActiveWrite.js`: re-wrote slot 0x3f000 → read-back
+  byte-identical (85 B), no collateral change. PASS.
+- `scripts/healSlot3c000.js`: restored the corrupted slot 0x03c000
+  ("goodtone fixed mids") byte-for-byte from the first backup, header rebuilt
+  identically (`ee373500b61201..`), no collateral change.
+- Fresh full backup after heal: `runtime-actions/lalady-backup-1788109370489.json`.
 
 ## Backups (read-only, safe)
 - Full device backup: `runtime-actions/lalady-backup-1787936146287.json`
@@ -83,18 +95,16 @@ with the pedal's USB passed through, captured by **USBPcap + Wireshark**.
    `bRequestType 0x21`/`bRequest 0x09` = SET_REPORT are the commands). If the
    chat can't take the paste, share `capture.pcapng` directly.
 
-## What I will do with the capture
-1. Parse the OUT / SET_REPORT payloads; identify the save command(s) and their
-   argument structure (likely `ACTIVE_SET` 0x77 to select, then an
-   `ACTIVE_WRITE` 0x6e / `FLASH_WRITE` 0x35 stream, then `ACTIVE_STORE` 0x76 to
-   commit — which should internally erase+program).
-2. Implement the discovered erase/commit in `erasePreset` and the write in
-   `writePreset` (`src/sourceAudio.js`), preserving the slot header
-   (`0x00..0x1f`) like the current code attempts.
-3. Heal slot `0x03c000` from the backup using the new erase.
-4. Validate `POST /api/write` and `POST /api/activate` end-to-end on a user
-   slot (e.g. `0x03f000`), using `checkScratch.js` to confirm no collateral
-   corruption.
+## What was done with the capture
+1. Parsed the OUT / SET_REPORT payloads on the save → identified ACTIVE_STORE +
+   ACTIVE_WRITE as the commit sequence (`scripts/decode_usbpcap.py`; direction
+   = `p[m-2]`, marker `26 00 00 00`).
+2. Implemented the discovered commit in `writePreset` and `setActivePreset`
+   (`src/sourceAudio.js`), preserving the slot header (`0x00..0x1f`).
+3. Healed slot `0x03c000` from the backup using the new write (`healSlot3c000.js`).
+4. Validated `POST /api/write` and `POST /api/activate` end-to-end on slot
+   `0x03f000` (`validateActiveWrite.js`), using `checkScratch.js` to confirm no
+   collateral corruption.
 
 ## Key files
 - `src/sourceAudioHid.js` — `CMD`/`RESP` table, `buildReport`, `findLalady`,
@@ -110,12 +120,10 @@ with the pedal's USB passed through, captured by **USBPcap + Wireshark**.
   params?}`) and `/api/activate` already stubbed.
 - `web/index.html` — per-slot Write/Activate UI.
 
-## Open risks
-- If the capture shows the save uses a command we can't safely replay (e.g. a
-  locked/unlock preamble), we may still need a second capture or careful
-  probing.
-- After finding the real erase, re-validate `flashWrite` address framing
-  (the `0xFF` test's odd `14c4…` result suggests the data offset or row size
-  in `flashWrite` may need revisiting — reads work, so address encoding is
-  fine, but the written payload offset should be re-confirmed once we can erase
-  and rewrite a slot cleanly).
+## Open risks (residual)
+- The ACTIVE_* commit is validated on the L.A. Lady's 6 on-board slots
+  (0x3c000..0x41000). Its behavior on the 0x080000 C4 preset bank is untested
+  but not relevant here.
+- `POST /api/write`/`/api/activate` HTTP endpoints are implemented and
+  unit-verified via the scripts, but a final device round-trip through the web
+  UI has not been run by the user (they run `server.js` themselves).
