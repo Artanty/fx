@@ -1,0 +1,53 @@
+<div class="lalady">
+  <header class="head">
+    <div>
+      <h1>L.A. Lady — Preset Import/Export</h1>
+      <span class="sub">Source Audio &middot; VID 0x29a4 / PID 0x0300</span>
+    </div>
+    <div class="head-actions">
+      <span *ngIf="deviceFound" class="badge ok">device online</span>
+      <span *ngIf="!deviceFound" class="badge bad">{{ deviceError }}</span>
+      <button class="refresh" (click)="refresh()" [disabled]="loading">Refresh</button>
+    </div>
+  </header>
+
+  <p *ngIf="loading" class="loading">Loading…</p>
+
+  <table *ngIf="!loading && rows.length" class="slots">
+    <thead>
+      <tr>
+        <th>slot</th>
+        <th>name</th>
+        <th>source</th>
+        <th>import</th>
+        <th>actions</th>
+        <th>status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of rows; let i = index">
+        <td class="mono">{{ row.slot.page.toString(16) }}</td>
+        <td>{{ row.slot.name || '—' }}</td>
+        <td class="muted">{{ row.slot.kind }}</td>
+        <td>
+          <input
+            #fileInput
+            type="file"
+            accept=".pre,application/xml,text/xml"
+            (change)="onFile(row, fileInput.files && fileInput.files[0])"
+          />
+        </td>
+        <td class="actions">
+          <button (click)="importSlot(row, fileInput)" [disabled]="isBusy(row)">Import</button>
+          <button (click)="exportSlot(row)" [disabled]="isBusy(row)">Export</button>
+          <button (click)="activateSlot(row)" [disabled]="isBusy(row)">Activate</button>
+        </td>
+        <td>
+          <span [class]="'st ' + stateClass(row)" [attr.title]="row.slot.name">{{ stateLabel(row) }}</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="!loading && !rows.length" class="empty">No slots available.</p>
+</div>

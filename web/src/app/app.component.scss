@@ -1,0 +1,46 @@
+.site-head {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #1a1a20;
+  border-bottom: 1px solid #2c2c35;
+  padding: 0 20px;
+  height: 52px;
+
+  .site-title {
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #8b8b98;
+    text-transform: uppercase;
+  }
+
+  .site-nav {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    height: 100%;
+
+    a {
+      color: #c9c9d4;
+      text-decoration: none;
+      padding: 0 14px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid transparent;
+
+      &:hover {
+        color: #fff;
+      }
+
+      &.active {
+        color: #fff;
+        border-bottom-color: #6fa8ff;
+      }
+    }
+  }
+}
+
+.site-body {
+  min-height: calc(100vh - 52px);
+}

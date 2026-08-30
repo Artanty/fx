@@ -1164,3 +1164,15 @@ update README/TODO and commit [pedal-app].
 - validation + heal scripts committed: scripts/validateActiveWrite.js,
   scripts/healSlot3c000.js, scripts/probeErase.js.
 NEXT: update README/TODO; optional git commit [pedal-app].
+
+## Plan - 2026-08-30 web: site shell + lazy `dist` module (la-lady import/export)
+
+- Add a global site header/nav to the h90-web Angular shell (app.component):
+  links `h90` and `dist`, above the router-outlet (persistent across routes).
+- Move h90 routes under `/h90` (`''` and `preset/:slug` -> `/h90` and
+  `/h90/preset/:slug`), with `/` and `**` redirecting to `/h90`.
+- Add a lazy-loaded `dist` module (route `/dist`) housing an initial L.A. Lady
+  preset import/export UI "like the Neuro app" (slots list, per-slot .pre
+  import/write, export, activate). Knobs/buttons come later.
+- dist UI calls the la-lady backend (pedal-app server.js, port 3111) directly;
+  add a small dev CORS middleware there (no new npm dep) so :4211 can reach it.

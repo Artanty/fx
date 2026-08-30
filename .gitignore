@@ -3,6 +3,10 @@ node_modules/
 dist/
 .angular/
 
+# ...but keep the Angular source module also named dist (web/src/app/dist)
+!web/src/app/dist/
+!web/src/app/dist/**
+
 # Tabs app
 tabs/*.db
 tabs/*.db-shm
