@@ -1192,3 +1192,8 @@ NEXT: update README/TODO; optional git commit [pedal-app].
 - .gitignore: un-ignored web/src/app/dist (collided with build dist/ rule).
 - Commits: [web] 493c736, [pedal-app] 146e874.
 NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/buttons later.
+
+## Progress - 2026-08-30 web: convenience run scripts
+- Added "start:lalady" script to web/package.json: `npm --prefix ../pedal-app start`
+  (launches the L.A. Lady backend on :3111 from the web project).
+- Usage: Terminal 1 `npm run start:lalady` (cwd web), Terminal 2 `npm start` (cwd web).

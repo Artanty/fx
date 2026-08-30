@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "server": "npm --prefix ../server start"
+    "server": "npm --prefix ../server start",
+    "start:lalady": "npm --prefix ../pedal-app start"
   },
   "private": true,
   "dependencies": {
