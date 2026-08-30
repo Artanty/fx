@@ -283,6 +283,27 @@ app.post('/api/activate', (req, res) => {
   }
 });
 
+app.post('/api/erase', (req, res) => {
+  const page = parseInt(req.body.slot, 16);
+  if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
+
+  const dev = findLalady();
+  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+
+  const p = new SourceAudioProtocol(dev);
+  p.open();
+  try {
+    const idx = (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    const want = p.eraseSlot(idx);
+    const after = p.readSlotRaw(page).toString('hex');
+    res.json({ ok: true, slot: page.toString(16), idx, erased: want.toString('hex'), after });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    p.close();
+  }
+});
+
 app.listen(PORT, () => {
   console.log('L.A. Lady inspector: http://localhost:' + PORT);
 });

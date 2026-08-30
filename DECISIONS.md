@@ -1214,3 +1214,16 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Added a "slot" display-number column (1..6) plus the physical page hex column.
 - Implementation: displayOrder = [3,4,5,0,1,2] reorders the backend's physical
   page order; per-user requirement "1 is 4, 2 is 5, 3 is 6, 4 is 1, 5 is 2, 6 is 3".
+
+## Progress - 2026-08-30 pedal-app+web: Erase button (Neuro-style)
+- Finding: no true sector erase on the L.A. Lady (0x38 inert; 0x35 clear-only
+  cannot reach 0xFF). Verified empirically on hardware that ACTIVE_WRITE keeps
+  an all-0xFF data+name region and rebuilds a valid header.
+- pedal-app: added SourceAudioProtocol.eraseSlot(idx) - stages all-0xFF
+  53-byte body + 32-byte name via ACTIVE_STORE/ACTIVE_WRITE + verify read-back.
+  New POST /api/erase { slot } endpoint (derives idx = (page-0x3c000)/0x1000).
+- web dist UI: added Erase button per slot (danger-styled), calls /api/erase,
+  refreshes the row after. Matches the Neuro editor visual (blank name/params).
+- Removed temp probe/restore scripts; fresh backup
+  runtime-actions/lalady-backup-1788122146966.json (slot 0x3e000 erased as the
+  user did; others intact).

@@ -261,6 +261,48 @@ class SourceAudioProtocol {
     }
     return null;
   }
+
+  // Erase a slot's preset content (data + name) to all-0xFF. There is no working
+  // sector erase on the L.A. Lady (0x38 is inert, 0x35 is clear-only), so this
+  // stages an all-0xFF body+name through ACTIVE_STORE/ACTIVE_WRITE and commits —
+  // the active-write verifies the data+name region reads back as 0xFF and leaves
+  // a valid (rebuilt) slot header. Matches the Neuro editor's visual "erased"
+  // slot (blank name + blanked parameters). `idx` is the raw preset slot index
+  // 0..5. Throws if read-back verification fails.
+  eraseSlot(idx) {
+    if (idx === undefined) throw new Error('eraseSlot needs idx (0..5)');
+    const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
+    const data = Buffer.alloc(LALADY_DATA_SIZE, 0xff);
+    const nameBuf = Buffer.alloc(LALADY_NAME_SIZE, 0xff);
+
+    // Stage the all-0xFF body in <=32-byte ACTIVE_STORE blocks.
+    const blocks = [];
+    for (let off = 0; off < data.length; off += PAYLOAD_LEN) {
+      const chunk = data.slice(off, off + PAYLOAD_LEN);
+      const last = off + chunk.length >= data.length ? 1 : 0;
+      blocks.push(buildReport(CMD.ACTIVE_STORE, last, off, chunk.length, ...chunk));
+    }
+    for (const b of blocks) {
+      this.dev.send(b);
+      waitMs(500);
+    }
+
+    // Commit the working preset + all-0xFF name to the flash slot.
+    const wr = buildReport(CMD.ACTIVE_WRITE, idx & 0x7f, 1);
+    for (let i = 0; i < nameBuf.length; i++) wr[3 + i] = nameBuf[i];
+    this.dev.send(wr);
+    waitMs(500);
+
+    // Verify: read back data+name and compare byte-for-byte to all-0xFF.
+    const want = Buffer.concat([data, nameBuf]);
+    const back = this.readSlotRaw(page);
+    if (!back.equals(want)) {
+      const diff = [];
+      for (let i = 0; i < want.length; i++) if (back[i] !== want[i]) diff.push(i);
+      throw new Error(`erase verify failed at bytes [${diff.join(', ')}]`);
+    }
+    return want;
+  }
 }
 
 function hex(bytes) {
