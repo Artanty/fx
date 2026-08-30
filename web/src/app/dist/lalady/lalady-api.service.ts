@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   ActivateResult,
+  EraseResult,
   LaladyDevice,
   LaladyPresets,
   WriteRequest,
@@ -33,5 +34,9 @@ export class LaladyApiService {
 
   activate(slot: string): Observable<ActivateResult> {
     return this.http.post<ActivateResult>(`${BASE}/api/activate`, { slot });
+  }
+
+  erase(slot: string): Observable<EraseResult> {
+    return this.http.post<EraseResult>(`${BASE}/api/erase`, { slot });
   }
 }

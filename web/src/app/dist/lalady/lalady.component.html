@@ -43,6 +43,7 @@
           <button (click)="importSlot(row, fileInput)" [disabled]="isBusy(row)">Import</button>
           <button (click)="exportSlot(row)" [disabled]="isBusy(row)">Export</button>
           <button (click)="activateSlot(row)" [disabled]="isBusy(row)">Activate</button>
+          <button class="danger" (click)="eraseSlot(row)" [disabled]="isBusy(row)" title="Erase preset (blank name + params)">Erase</button>
         </td>
         <td>
           <span [class]="'st ' + stateClass(row)" [attr.title]="row.slot.name">{{ stateLabel(row) }}</span>

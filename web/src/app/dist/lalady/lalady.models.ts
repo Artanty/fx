@@ -39,3 +39,12 @@ export interface ActivateResult {
   activeIndex: number;
   reply?: string | null;
 }
+
+export interface EraseResult {
+  ok: boolean;
+  slot: string;
+  idx: number;
+  erased: string;
+  after: string;
+  error?: string;
+}

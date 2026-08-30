@@ -120,6 +120,23 @@ export class LaladyComponent implements OnInit {
     });
   }
 
+  eraseSlot(row: RowModel): void {
+    row.state = { kind: 'busy', label: 'erasing…' };
+    this.api.erase(row.slot.page.toString(16)).subscribe({
+      next: (r) => {
+        if (!r.ok || r.error) {
+          row.state = { kind: 'err', label: r.error || 'erase failed' };
+        } else {
+          row.state = { kind: 'ok', label: 'erased ✓' };
+          this.afterChange(row);
+        }
+      },
+      error: (e) => {
+        row.state = { kind: 'err', label: e.message ?? 'erase error' };
+      },
+    });
+  }
+
   exportSlot(row: RowModel): void {
     window.open(this.api.exportUrl(row.slot.page.toString(16)), '_blank');
   }

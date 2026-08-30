@@ -60,6 +60,16 @@ button {
     opacity: 0.5;
     cursor: default;
   }
+
+  &.danger {
+    background: #3a1f22;
+    border-color: #5c3036;
+    color: #ff8f93;
+
+    &:hover:not(:disabled) {
+      background: #4d2a30;
+    }
+  }
 }
 
 .refresh {
