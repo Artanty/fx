@@ -365,3 +365,629 @@ Steps:
    the TWO-WAY / MURKY `.preset90` heads.
 
 Deliverable: `server/h90_angr.py` + Progress entry + H90-IMPORT-NOTES section.
+
+## Plan — 2026-08-21 angr deep trace: recover the DEFLATE dictionary from H90 Control.exe
+
+Goal: use angr to statically recover the exact DEFLATE preset dictionary (or
+the code that builds it) from the Windows x64 H90 Control.exe (v1.9.13), so
+we can encode arbitrary presets and import them to the H90 without the desktop
+app.
+
+Approach:
+1. Load the exe in angr, build CFGFast, FLIRT-match zlib functions.
+2. Locate `deflateSetDictionary` (zlib internal) and JUCE
+   `GZIPCompressorOutputStream` constructor — these are the two sites where
+   the dict pointer is consumed.
+3. Backward-trace the dict argument through callers to find the function that
+   constructs/assembles the 32KB serialization buffer.
+4. Decompile the constructing function; identify the loop that fills the dict
+   with pedal data (likely a FlatBuffers/ValueTree serialization of the
+   current program).
+5. If the dict is assembled from known structure (e.g. concatenation of
+   preset parameter values), recover the layout and build the encoder.
+6. Score any recovered candidate against `req1_dict_constraints.json` (69
+   constraints) and `req2_dict_constraints.json` (144 constraints) using
+   `h90_dict_score.py`.
+
+Verification: `deflate_track(req, zdict=candidate)` must decode both req1 and
+req2 to valid output where the b64 region matches the .preset90 file JSON.
+If full decode succeeds, `zlib.decompressobj(-15, zdict=candidate)` must also
+produce valid output matching the captured import.
+
+Deliverable: updated `server/h90_angr.py` with dict-recovery commands,
+candidate dictionary file, Progress entry + H90-IMPORT-NOTES section.
+
+## Plan - 2026-08-21 (post-reboot) fix RE scripts and trace deflate dict path
+
+Goal: resume the interrupted 08-21 angr deep trace. Two defects found on first
+run: (1) `server/h90_find_deflate.py` string-search loop never advances its
+cursor (`EXE.find` restarts at section start each iteration, overwriting
+`idx += 1`) -> infinite print of the first "deflat" hit; (2)
+`h90_angr_targeted.py` ZLIB_STRINGS VAs are stale ("deflateEnd failed" is at
+0x140830aa0, not 0x1408324a0), so Phase 3 pointer hunts targeted wrong VAs.
+
+Steps:
+1. Fix cursor bug; make the script dump all zlib strings once with correct VAs.
+2. Auto-discover zlib/JUCE string VAs at runtime instead of hardcoding.
+3. Xref "deflateEnd failed (ignored)" -> JUCE GZIPCompressorOutputStream
+   write/destructor -> deflate()/deflateSetDictionary() call sites.
+4. Decompile the dict-construction site with angr; recover candidate 32KB dict.
+5. Score candidate against req1/req2_dict_constraints.json via
+   h90_dict_recover.deflate_track.
+
+Verification: candidate dict decodes both reqs with all constraint positions
+in b64 set; zlib.decompressobj(-15, zdict=cand) reproduces captured plaintext.
+Deliverable: fixed scripts + Progress entry + H90-IMPORT-NOTES.md section.
+
+## Plan - 2026-08-21 continuous-deflate-session hypothesis test
+
+Goal: test the hypothesis that the import write capture is ONE continuous
+zlib deflate session (app compresses ~31KB current-program dump first, then
+each TRPC message is a Z_SYNC_FLUSH segment), so the "72 unknown dict bytes"
+are ordinary back-references into earlier output - no preset dictionary, no
+lldb capture needed.
+
+Evidence: req1 dict-copies cluster at window offsets 31004-32730 (end of a
+32K window); req2's "dict" = req1_out[124:973] at window 31916-32764; the RE
+of H90 Control.exe found NO deflateSetDictionary call anywhere in the JUCE
+gzip helper TU (0x14013e970 init->write->finish, windowBits=+15).
+
+Steps:
+1. Inspect server/h90-captures/h90_import_req.bin / h90_import2_req.bin:
+   sizes, 78 9c occurrences, framing.
+2. Decompress each capture as one continuous zlib stream from its session
+   start (78 9c).
+3. Verify req1/req2 constraint positions decode to b64 bytes without any
+   preset dictionary.
+4. Decode the ~31KB prefix with h90_decode tooling; identify content.
+5. If confirmed: build encoder replicating app framing; byte-compare vs
+   captures.
+
+Verification: zlib.decompress of full session succeeds; req1/req2 outputs
+match previously reconstructed plaintexts byte-for-byte.
+
+## Plan - 2026-08-21 import encoder (continuous-session model confirmed)
+
+Confirmed: req2 continues req1's deflate window (568/787 out bytes copied from
+req1_out); each TRPC frame = 78 9c + sync-flush segment + per-message adler32
+(req1 stored 0xee497217, req2 0xac6eda29). Plaintext = ValueTree-style doc:
+binary wrapper + tjknobs-knob4 + xdl + chunked b64 of preset JSON with marker
+bytes (00 00, 0d, 80, 3f, 14, 10) between chunks; second tjknobs block ends
+with JSON terminator "}\n". References on disk: server/h90-recon/twoway.json
+(1173B), preset90_twoway.bin (contiguous b64 + tjknobs-knob1..10 + UUIDs),
+resp1_dec.bin (pedal current-state dump), decode_status.json (72 unknown pos,
+dict offsets 31004-32730).
+
+Phases:
+1. Format completion: parse preset90_twoway.bin FlatBuffers schema; diff
+   req1_out vs preset90/twoway.json byte-by-byte (literal/copy/marker map);
+   identify both tjknobs blocks; extract VECHOLONG values from resp1_dec.bin.
+2. Proof: assemble P = X ++ out1 ++ out2 with unknowns filled; recompress
+   (stock zlib, Z_SYNC_FLUSH boundaries) and require byte-exact match vs both
+   captured segments + adler32 trailer match.
+3. Encoder: compose -> compress -> frame wrap (type 0x4f) -> 7-bit pack;
+   gate = re-encode TWO-WAY import reproduces h90_import_req.bin exactly.
+4. Live validation on pedal; update H90-IMPORT-NOTES.md.
+
+Fallback: if X unsolvable algebraically, capture fresh session with known
+current program to pin X empirically.
+
+### Status - 2026-08-25 deep format analysis
+
+Key findings from exhaustive plaintext analysis:
+
+1. **Write plaintext structure (976B)**:
+   - [0:32] FlatBuffers-like header (root@4, vtable@16, vtsize=8, tsize=12, 2 fields)
+   - [32:162] Metadata: u32 values including descending offset table
+     (828,752,684,616,548,480,412,344,276,208,140,72,4) at [88:140]
+   - [162:192] 3 float32 values (1.0, 0.5, 1.0) + padding
+   - [192:211] "tjknobs-knob4\x00\x00\x00xdl" separator (first block)
+   - [211:872] Block 1: 661B of b64-encoded data with NUL dict-copy gaps
+   - [872:891] "tjknobs-knob4\x00\x00\x00xdl" separator (second block)
+   - [891:951] Block 2: 60B of b64-encoded data (ends with JSON terminator)
+   - [951:976] Trailer: 19 dict-copy bytes + metadata
+
+2. **Critical size mismatch**:
+   - B64 chars in plaintext: 637 (zero dict) → max 690 (correct dict)
+   - 690 b64 chars decode to ~517 bytes
+   - twoway.json compact: 1169 chars → b64: 1560 chars
+   - **The plaintext CANNOT hold the full twoway.json as base64**
+   - Conclusion: write serialization uses a DIFFERENT/SHORTER representation
+
+3. **Dict copies**: 72 total, 53 in [211:951], 19 in [951:976]
+   - With resp1 dict: only 11 of 53 produce b64 chars (resp1 is NOT correct dict)
+   - Correct dict = VECHOLONG write serialization (unknown)
+
+4. **B64 region is NOT continuous**: split into 26 C-string-like chunks separated
+   by NUL pairs. Chunk-by-chunk decode shows JSON fragments but many chunks fail
+   due to NUL positions breaking b64 alignment.
+
+5. **preset90_murky.bin** (1684B): FlatBuffers with root(2 fields: u32=1500 +
+   vector of 16 knob objects). Knobs: Tap2DelayDivision-obj, PitchJumpInterval-obj,
+   DELAYMODE-obj, LFOShape-obj, LFORate-obj, Depth-obj, FeedBack-obj, Delay-obj,
+   Mix-obj. UUIDs at end. Preset name "MURKY BUCKUET LEAD".
+
+6. **Encoder output** (h90_encoder.py): fills 637 b64 positions sequentially from
+   the JSON b64, but this truncates the JSON to ~40% and misaligns chunk boundaries.
+   Generated frame differs from capture at byte 3 (compressor divergence).
+
+### Blockers
+
+- **Write format unsolved**: The 976B plaintext cannot hold 1169-char JSON as b64.
+  Must use a different serialization (JUCE ValueTree binary? compact binary with
+  string pool? fixed-length field table?). The u32 offset table at [88:140] and
+  the FlatBuffers-like header suggest a structured binary format, not raw b64.
+- **No dictionary**: VECHOLONG values unknown; 72 positions underdetermined.
+- **No .preset90 for TWO-WAY** (0 bytes).
+
+### Status - 2026-08-25 deep format analysis (continued)
+
+7. **The data IS base64-encoded JSON**: Continuous b64 run at [275:549] (274 chars)
+   cleanly decodes to JSON: `987.4534912109375,"dlya_denormalized_pretaper":350.0,
+   "dlya_end_exp":0.9823130369186401,...`. Run [211:230] (19 chars) decodes to
+   `verse","bypa_n` — matches twoway.json offset 21 exactly.
+
+8. **Alignment mismatch**: The b64 at [211:230] encodes JSON bytes 21-34. For a
+   contiguous stream, JSON bytes 0-20 would need 28 b64 chars at [183:211]. But
+   [183:211] = header metadata + "tjknobs-knob4\x00\x00\x00xdl" marker — NOT
+   matching expected b64 `eyJhbGdvcml0aG1fbmFtZSI6IlJl`. Only 1/28 positions match.
+   
+   **Conclusion**: The "tjknobs-knob4\x00\x00\x00xdl" is a STRUCTURAL MARKER
+   (field name + type tag) in a JUCE ValueTree-like binary format, NOT part of the
+   base64 stream. The base64 JSON data is embedded in data slots within this binary
+   structure.
+
+9. **Capacity check**: twoway.json compact = 1169 chars → b64 = 1560 chars.
+   Max b64 capacity with correct dict = ~909 bytes → 681 decoded bytes.
+   681 < 1169. **The JSON in the write serialization is a SUBSET of twoway.json**.
+
+10. **Field table at [88:142]**: 13 entries (count=13 at [88]), offsets in descending
+    order: 828, 752, 684, 616, 548, 480, 412, 344, 276, 208, 140, 72, 4.
+    Differences are 68 bytes (except last gap = 76). Entries at [4:192] are header
+    metadata; entries at [208:872] are b64 data with NUL gaps (dict copies).
+
+### Blockers
+
+- **Write format unsolved**: The 976B plaintext uses a JUCE ValueTree-like binary
+  format with embedded base64 JSON data. The "tjknobs-knob4" strings are field
+  names (not separators), and "xdl" is a type tag. The exact serialization format
+  is unknown without H90 Control binary access.
+- **JSON is a subset**: Max ~681 decoded bytes vs twoway.json's 1169 chars.
+  Unknown which parameters are included/excluded.
+- **No dictionary**: VECHOLONG values unknown; 72 positions underdetermined.
+- **No .preset90 for TWO-WAY** (0 bytes).
+
+### Status - 2026-08-25 binary analysis
+
+11. **Algorithm parameter model found** at file 0x770a0e: JSON object mapping 52
+    algorithm UUIDs to their 10-knob parameter lists. TWO-WAY = UUID
+    `21e22b15-5814-4cf8-b271-ffbaea0d4246` → `["xfad","mdpt","mspd","fltr",
+    "fbkb","fbka","dlyb","dlya","dmix","mmix"]`. All 52 H90 algorithms documented.
+
+12. **Binary string findings**:
+    - `Dot9Controller.cpp` source references at 9 locations in .rdata
+    - `Dot9Controller::exportPreset` mangled name at 0xa0b1f2 (.data section)
+    - `ParameterModel.cpp` source references at 5 locations
+    - `ParameterModel::deserialize` mangled name at 0x7cb4e7
+    - `ExportedPresetT@models@trpc` struct name appears 25+ times
+    - `ParameterMetadataT@dot9@trpc` struct name appears 2 times
+    - JUCE `AudioProcessorValueTreeState` references at 5 locations
+    - "Device State Serialization Error" at 0x7c54c0
+    - "Export Preset" UI label at 0x7c5888
+
+13. **Binary is NOT directly analyzable by capstone** for function discovery:
+    - Strings are accessed via vtables/RTTI, not LEA [rip+disp32]
+    - No pointer tables found in .rdata pointing to key string VAs
+    - angr 9.3.3 loads but CFG analysis too slow for 10.7 MB binary
+    - LEA scan of entire .text section found zero references to key strings
+
+14. **JSON format confirmed**: twoway.json compact (same key order), with decoded
+    fragments matching at verified offsets. The stream has 740 positions (622 known
+    b64 + 118 gaps), capacity = 555 decoded bytes vs twoway.json 1169 chars.
+    **The write serialization JSON is approximately 47% of the full preset JSON.**
+
+### Blockers
+
+- **Dictionary needed**: Without the preset dictionary, the 118 NUL gaps cannot be
+  filled, so the exact JSON subset cannot be determined from static analysis alone.
+- **Binary function discovery blocked**: RTTI-based function finding requires either
+  angr CFG (too slow) or manual vtable reconstruction.
+- **No .preset90 for TWO-WAY** (0 bytes).
+
+### Next steps
+
+1. **Replay captured import** to verify MIDI path works (highest priority).
+2. **Runtime dictionary capture** via debugger to resolve the 118 gaps and
+   determine the exact JSON subset.
+3. **Alternative**: capture fresh import with known preset to extract dictionary,
+   then decompress req1 with correct dict to see full JSON.
+4. **Build encoder incrementally**: once JSON format is known, build the encoder
+   that composes JSON → compress → frame → 7-bit pack → send.
+
+### Plan - 2026-08-28 replay captured import
+
+Replay the captured TWO-WAY import frame (h90_import_req.bin) verbatim over MIDI
+SysEx to verify the MIDI transport path works. Discovered the H90 connects via
+Windows BLE-MIDI and is exposed as 'H90 Pedal 1' (out) / 'H90 Pedal 0' (in);
+the 'midi' npm module cannot build (no MSVC) but python-rtmidi 1.5.8 installs
+fine and enumerates the H90 ports. Built h90_replay.py to send the raw frame
+and capture any response.
+
+### Status - 2026-08-28 replay attempt
+
+- Installed python-rtmidi 1.5.8 (the 'midi' npm module cannot build - no MSVC;
+  no prebuilt wheel). Enumerates the H90 USB-MIDI device.
+- H90 is connected via USB (VID_1B12 PID_0041, MI_01 = usbaudio), exposed as
+  MMDEVAPI MIDI ports: OUT[1]='H90 Pedal 1', IN[0]='H90 Pedal 0'. NOT BLE.
+- Built h90_replay.py to send a captured frame via MIDI SysEx.
+- KEY FINDING: plain MidiIn.get_message() POLLING misses the H90 responses on
+  Windows USB MIDI; must use mi.set_callback(). First callback test sent a
+  small read-state query (type 0x0003/F01C77000116000...F7) and received the
+  expected response (type 0x0004) - confirming bidirectional USB-MIDI works.
+- Verified the captured import frame is structurally valid: body 7-bit unpacks
+  to 665 bytes starting 78 9c + 659-byte deflate stream; zero-dict inflate fails
+  with 'invalid distance too far back' (confirms the LZ77 dict is required,
+  expected).
+- PROBLEM: after the first callback query test, the pedal went unresponsive to
+  ALL subsequent sends (import replay with callback, repeated read-state
+  queries) - 0 responses where before it answered. Likely the type-0x4f import
+  put the H90's SysEx/MIDI interface into a stuck/partial state, OR the USB MIDI
+  link dropped. No admin rights to software-reset the USB device.
+- RESOLUTION NEEDED: power-cycle or re-plug the H90 to reset its MIDI interface.
+
+### Status - 2026-08-28 MIDI transport investigation
+
+- Confirmed H90 USB-MIDI is HEALTHY: the H90 Control app connects and controls
+  the pedal (vendor USB\VID_1B12 PID_0041, MI_01 usbaudio).
+- python-rtmidi WORKS for output and, once, for input. But separate-process raw
+  reads stopped working after one success and stay dead across power-cycle,
+  full cold reboot, app open, and app closed. The H90 Control app holds the
+  working channel; independent RX from another process is not reliable on this
+  Windows stack.
+- Captured import frame verified structurally valid: 7-bit unpacks to 665 bytes
+  starting 78 9c + 659-byte DEFLATE; zero-dict inflate rejects with
+  'invalid distance too far back' (confirms LZ77 dict required).
+- PLAN to capture live app<->pedal traffic (the project blocker: LZ77 dict +
+  exact JSON subset) = Bome Virtual MIDI router, the Windows equivalent of the
+  macOS CoreMIDI proxy that produced the original captures.
+- Bome Virtual MIDI 2.1.0.44 is installed at C:\ProgramData\Bome Software\Bome
+  Virtual MIDI (driver + enumerator ROOT\SYSTEM\0003 present) BUT the virtual
+  port device (BOMEBUS\BomeMIDI 'Bome Virtual MIDI Port') is NOT instantiated.
+- Installing that port device requires ADMIN (portinstall.exe / driver
+  coinstaller). This session has no admin rights, so the Bome port cannot be
+  created by this tool account directly - needs a one-time user-elevated step.
+- H90 Control.exe has no AppData/storage directory written by the app; preset
+  state is not dumped to an accessible file.
+
+### Status - 2026-08-28 Bome router not available (correction)
+
+- portinstall.exe in the free Bome Virtual MIDI package is actually the Bome
+  MIDI Translator port manager (options -addInOut/-addOut/-rmAllByID, calls
+  BMIDI_AddPort/BMIDI_RemovePort through bmidilib2.dll).
+- bmidilib2.dll is NOT installed anywhere on this machine, and Bome MIDI
+  Translator is not installed. Without that routing runtime + admin to create
+  the BOMEBUS\BomeMIDI port device, the Bome virtual-MIDI capture router is NOT
+  actionable here. The earlier 'Bome router' proposal was based on incomplete
+  info and is withdrawn.
+- Net blocker for live app<->pedal capture on Windows: no virtual MIDI router
+  (needs admin + Bome MIDI Translator runtime), and python-rtmidi standalone
+  RX from the H90 is unreliable because the H90 Control app owns the channel.
+- The only environment with a working H90 capture proxy is macOS (Swift
+  CoreMIDI relay, h90_proxy.swift), which is where the original captures came
+  from.
+
+### Plan - 2026-08-28 install Bome MIDI Translator for router
+
+User chose to install Bome MIDI Translator (paid; provides bmidilib2.dll and
+admin-installed virtual MIDI ports) to build a Windows MIDI router that
+captures H90 Control app <-> pedal traffic, resolving the import LZ77 dict +
+exact JSON subset, and enabling verified replay.
+
+Router design (mirrors macOS h90_proxy.swift):
+- Create virtual port pair via portinstall.exe -addInOut appID=... in=... out=...
+- Point H90 Control app's device at the virtual port
+- Python h90_router.py: forward app->virtual->pedal (log TX), and pedal->app
+  (log RX), so all SysEx in both directions is captured to disk.
+
+
+### Status - 2026-08-28 Bome MIDI Translator Pro installed; router architecture revised
+
+- User installed Bome MIDI Translator Pro (bome.com, paid) - running as
+  MIDITranslator.exe at C:\Program Files\Bome MIDI Translator Pro\ (Java/jre
+  bundle + mt.dll). NOT the free Bome Virtual MIDI package; the earlier plan of
+  using portinstall.exe -addInOut with bmidilib2.dll is superseded.
+- Confirmed via pypdf extraction of the bundled manual.pdf (138 pages):
+  * Bome virtual MIDI ports are UNIDIRECTIONAL and one end MUST be MIDI
+    Translator itself (section 3.1). Two external apps CANNOT share the two ends
+    of a Bome virtual port pair. This invalidates the original 'Python in the
+    middle of two Bome ports' router design.
+  * Correct architecture = let Bome do the routing with its built-in MIDI
+    Router (section 3.4; worked example 14.1): activate the virtual IN/OUT
+    ports in Settings/MIDI Ports, patch-cord them to the physical H90 Pedal
+    IN/OUT in Settings/MIDI Router, and point the H90 Control app at the Bome
+    virtual ports.
+  * Capture via the Log Window MIDI IN / MIDI OUT monitor (section 4.9), or a
+    Log rule dumping $hex of each message (section 10.2.6).
+- FLAG for future work: Bome virtual ports require Bome on one end, so a
+  separate Python byte-level tap would need Bome to mirror traffic out an
+  extra virtual OUT port that Python reads (Python as the destination app).
+- NOTE: Bome MIDI Translator Pro config lives at
+  C:\Users\Thoma\AppData\Roaming\Bome\MIDITranslatorPro.bmts
+  (CurrentVersion 1.9.2.1087; VirtualMidiPorts=0, CurrentProject= empty - no
+  project loaded, so no ports are exposed yet).
+- SESSION STOP: user called a halt after the capture-method choice (Log Window
+  copy). No capture was performed. Next applicable step, if resumed: set up the
+  Bome MIDI Router bridge + Log Window monitor as above, then trigger an
+  import in the H90 Control app and capture app->pedal TX and pedal->app RX.
+
+
+### Status - 2026-08-28 H90 Control UI automation (screen parser + parameter driver)
+
+- Discovered the H90 Control app (JUCE) exposes a full UI Automation (UIA)
+  tree via pywinauto: device button H90: XC-05987, tabs, and every editor knob
+  as a co-located Slider (rotary) + Edit (value readout) + Text (label).
+  This makes pixel/OCR reading unnecessary.
+- Created server/h90_ui.py:
+  * scan_params(): walks the UIA tree, groups labels/readouts/sliders by
+    column and row; each value readout consumed by exactly one label.
+  * --list: prints all visible params with current values.
+  * --get LABEL: reads one parameter.
+  * --set LABEL VALUE: drives the knob by mouse-dragging its slider center
+    vertically, with on-the-fly calibration (measures px-per-value-unit from a
+    20px reference nudge, then iterates to land on target within tolerance).
+- Verified live: In Gain 0.0dB -> set 3 -> 3.1dB (0.1dB coarse step), then
+  restored to ~0dB. Continuous knobs (Mix, gains, filters, resonance, fuzz,
+  envelope, sensitivity, hotknob) read+set cleanly.
+- LIMITATIONS: switch-type knobs (Bypass, Tails, Pitch Mix, Oct-Fuzz Mix,
+  Kill Dry, Tempo Mode) show empty readouts (their value is not a plain Edit on
+  the same row); would need click-on-selector handling.
+- VALUE FOR PROJECT: every --set drives the app to emit SysEx to the pedal, so
+  h90_ui.py is the missing trigger generator for the reverse-engineering
+  sweep: pair with the Bome MIDI Router capture to map each knob -> JSON key,
+  resolving the encoder dictionary + key order.
+
+
+### Status - 2026-08-28 Algorithm parameter model extracted (knob -> JSON key)
+
+Big step for the encoder: identified "Drty Vocals" as the Octaver algorithm
+(UUID 0163d495-aaea-4727-a223-ef5b190975d3) and recovered its parameter model
+from the running app's live editor descriptor (verified in PID 14716) plus the
+binary 52-algorithm JSON model (file 0x771f6f / 0x770a0e, UUID table 0x7cc7f8).
+
+Octaver JSON key order: atck, sens, fuzz, fzmx, resb, resa, fltb, flta, pmix,
+mmix.
+
+Knob label -> key (verified live):
+  Mix=mmix, Pitch Mix=pmix, Oct-Fuzz Mix=fzmx, Envelope=atck, Sensitivity=sens,
+  Fuzz=fuzz, Filter A=flta, Filter B=fltb, Resonance A=resa, Resonance B=resb.
+
+On-screen order is NOT the JSON order; UI re-sorts to [mmix,pmix,fzmx,atck,
+sens,fuzz,flta,fltb,resa,resb] and shows Filter/Resonance A-before-B though JSON
+is B-before-A. knob index != display order either (hints: knob1=atck ...
+knob10=mmix). This mirrors the Reverse/UUID key list [xfad,mdpt,mspd,fltr,
+fbkb,fbka,dlyb,dlya,dmix,mmix] -- 'mix' base keys (dmix/mmix) recur consistently.
+
+Other on-screen knobs (In Gain, Out Gain, Bypass, Tails, Tempo Mode, HotKnob,
+Kill Dry) are global/pedal-level params, not algorithm digits; they map to
+twoway.json-style global keys (in1_sens/out1_sens, bypa_normal, killdry,
+expression_pedal, tmpv, tsyn, x_switch/y_switch/z_switch).
+
+Agent artifacts in C:\Users\Thoma\AppData\Local\Temp\opencode\ : octaver_desc*,
+model.json (52-entry model), d2.txt/d3.txt, scan_full.py, hexwin.py,
+dump_region.py.
+
+
+### Status - 2026-08-28 Live knob -> JSON key value correlation (Octaver)
+
+After extracting the octaver parameter model, captured the current "Drty
+Vocals" (Octaver) preset's live values via h90_ui.py and mapped them to JSON
+base keys. Same key list applies as in the model:
+  mmix=100, pmix=A6+B10, fzmx=oct...........:fz, atck=54, sens=15, fuzz=8,
+  flta=69, fltb=76, resa=8, resb=7.
+Pitch Mix / Oct-Fuzz Mix are multi-state selector knobs (their readout shows
+the option format A6+B10 / oct...........:fz, not a continuous number).
+
+Created server/h90_params.py (algorithm key lists + knob->key maps for
+Reverse/UUID and Octaver) and server/h90_read_correlate.py (reads live screen
+and prints knob -> JSON key -> value). These are reusable inputs for the
+write-serialization encoder.
+
+
+### Status - 2026-08-28 Full program JSON corpus extracted from H90 Control .lst90 export
+
+Breakthrough: the H90 Control app''s Export (Preset Library -> Export) writes a
+158,768-byte .lst90 library file to <repo>/input/ that embeds, for EVERY
+program, a NUL-terminated base64 JSON payload preceded by a "tjknobs-knobN"
+separator and followed by an "activeBypassMomentary-obj" marker. The JSON is
+the complete, full-key serialized preset (algorithm_name, all algorithm params,
+aux exp-envelope keys, bypa*/bypt_normal, in/out sens, preset_mix, preset_name,
+product_id, slow_mode, tmpv, tsyn, version).
+
+server/h90-recon/extract_lst90.py parses it into lst90_json/<NN>_<NAME>.json
+plus manifest.txt. Extracted 37 programs.
+
+This DEFINITIVELY confirms the octaver knob->JSON-key mapping from h90_params.py:
+DRTY VOCALS B (lst90_json/35_DRTY_VOCALS.json) matches the live editor values
+exactly (atck=54.05,sens=14.9,fuzz=7.79,flta=68.7,fltb=76.05,resa=7.95,
+resb=6.55,mmix=100,pmix=69.86,fzmx=100). Full octaver key order captured from
+02_MASSIVUZZ.json.
+
+Deliverable is now a full algorithm parameter corpus + confirmed knob map,
+giving the encoder the exact per-algorithm JSON key set and value ranges.
+
+
+### Status - 2026-08-28 Write-document serialization mapped; encoder groundwork
+
+Correlated the captured write plaintext req1_out.bin (976 B, TWO WAY/Reverse)
+against the authoritative source twoway.json.
+
+Findings (validated):
+- [0:3] version field (04 00 00 00), [4:7] -12, [8:15] length, [16:31]/[32:47]
+  size metadata, [48:51] 0xABC, [52:55] 20.
+- [76:139] running-offset table (Juce ValueTree child-order) into the data
+  region; the offsets are ALGORITHM-SPECIFIC (depend on knob count/order), so the
+  header is NOT a fixed template.
+- [190:211] separator "tjknobs-knob4" + 0x00 00 00 + "xdldmVy" (start of b64).
+- [211:951] = base64 of the program JSON (full key set in canonical twoway key
+  order). Readable fragments confirm all keys present: algorithm_name, bypa_normal,
+  bypt_normal, dlya, dlya_denormalized_pretaper, dlya_end_exp, dlya_start_exp,
+  dlyb, dlyb_denormalized_pretaper, dmix, preset_name(product_id), routing_type,
+  slow_mode, tsyn, version, x_switch, y_switch, z_switch, xfad.
+- The interleaved non-base64 gap bytes are LZ77 references to the PREVIOUS
+  program write (used as the import deflate dictionary, FDICT=0); base64 chars
+  shared with the previous slot are not stored literally (103 unresolved bytes).
+- [951:976] trailer (mostly zeros + small counts).
+
+Encoder strategy: produce a self-contained 976-byte plaintext with the full
+base64 JSON stored inline in [211:951]; serialize JSON = json.dumps(dict,
+separators=(',',':')), key order = canonical per-algorithm order (from lst90
+corpus + twoway.json). Remaining work: model the algorithm-specific [76:139]
+offset table + scalar fields for each algorithm. Added analysis scripts
+correlate_write.py, align_twoway.py, recon_write_json.py, decode_aligned.py,
+verify_twoway_b64.py, reconstruct_plaintext.py, write_keys.py, fill_gaps.py,
+coverage.py (probe analysis; not part of final toolchain).
+
+
+### Status - 2026-08-28 .lst90 embeds per-program Juce ValueTree header/knob structure
+
+Confirmed: each .lst90 record stores, immediately after its base64 JSON, the
+program''s Juce ValueTree binary header including per-knob "tjknobs-knobN"
+separator tags and a count-prefixed offset table (e.g. Phaser record:
+0e 00 00 00 "tjknobs-knob10" then 07 00 00 00 + 7 offsets then per-knob value
+records with fd-relative pointers). This means the per-algorithm header offset
+table (the algorithm-specific part of the 976-byte write doc [76:139]) can be
+extracted from .lst90 WITHOUT MIDI capture.
+
+server/h90-recon/knob_tags.py enumerates per-record knob tags; e.g. Octaver
+CLASSIC OCTAVER shows tags knob2,knob1,knob7,knob8,knob9,knob9. NOTE: clustering
+has some windowing noise (trailing records truncated at EOF), so exact per-knob
+tag sets per algorithm still need a cleaner record-boundary parser to be fully
+trusted.
+
+This unblocks modeling the algorithm-specific write header offline.
+
+
+### Status - 2026-08-28 Juce knob-block header decodes to exact float32 params (PROOF OF CONCEPT)
+
+Decoded the per-program "tjknobs-knobN" header blocks in .lst90 (MASSIVUZZ
+octaver record). The serialized float pairs are EXACT float32 copies of JSON
+parameter values:
+  * knob3 block  : fzmx_start_exp=0.3079179, fzmx_end_exp=0.5513197 (matches JSON 0.3079178929328918/0.5513196587562561)
+  * knob4 block  : pmix_start_exp=0.0, pmix_end_exp=0.5679374 (matches JSON)
+Each simple block = ptr + fixed 40-byte header ending in float 1.0 (0x0000803f)
++ 2 float params. Composite blocks (knob9/knob3 here) carry a count + 7 offsets
++ per-child value records. This PROVES the header is a deterministic function of
+the program parameter values, so an encoder can regenerate it from JSON.
+
+New recon scripts: octaver_knob_blocks.py (float-pair extractor),
+octaver_decode.py, composite_decode.py (probes). Full mapping of composite
+children still pending (Juce-ish child-layout with offsets relative to node end).
+
+
+### Status - 2026-08-28 Full .lst90 record anatomy derived (layout + knob clusters)
+
+Derived the complete per-program record anatomy shared by ALL 37 records:
+
+Record = [RecordHeader] + [knob tree pre-JSON] + [JSON b64] + [knob tree
+post-JSON].
+
+RecordHeader (e.g. CHORUS ROOM @50800): "gram\0" + NUL-padded UUID
+"00000000-0000-...-0001" + fixed words (70 0d 00 00 b4 08 00 00 58 04 00 00
+04 00 00 00 3e 80 fe ff 08 01 00 00 50 00 00 00 ...).
+
+Knob blocks appear in PAIRS straddling the JSON (same tags pre and post, e.g.
+MicroPitch = knob10 pre @50944 + knob10 post @52048; Octaver = knob3/knob4/knob9
+pre + knob4/knob3 post). Each block = simple (ptr + 40-byte header ending in
+float 1.0 0x0000803f + 2 float params) OR composite (count 07 00 00 00 + 7
+offsets + per-child records with fd-relative pointers and descending index tags
+06,05,04,03,02,01).
+
+Confirmed composite child region is the H90 app CUSTOM binary serialization
+(count + offsets + child records), NOT vanilla Juce writeToStream streaming
+format (which has no offset table). The per-child field layout was NOT fully
+pinned offline - requires a 2nd ground-truth write to verify.
+
+MicroPitch float pairs verified: pre block 0.0 + mmix_end_exp(?); the mechanism
+(simple block = 2 exact float32 params) is consistent with the octaver proof.
+
+
+### Status - 2026-08-28 Write data region = TRUNCATED JSON base64 prefix (encoder-defining finding)
+
+Definitive: the 976-byte write document''s data region [211:951] holds only the
+FIRST ~637 base64 chars of the full program JSON (twoway full b64 = 1560 chars).
+test_import_plaintext.bin data-region base64 == tw_b64[:637] EXACTLY; req1_out.bin
+(wire) == tw_b64[2:639] with raw binary gap bytes. Both share a BYTE-IDENTICAL
+write header [0:210] = fixed per-program template.
+
+The write is NON-SELF-CONTAINED: ~923 of 1560 JSON chars are supplied via the
+zlib import dictionary (previous program''s write), compressed-away from this
+write. 00 00 gap bytes (plain) / raw dict data (wire) mark where dict-copied
+chars go.
+
+Encoder implication (h90_enc.py, next): must (a) emit fixed per-algorithm header
+[0:210] template, (b) place b64 prefix in [211:951] with gap-byte placeholders,
+(c) DEFLATE-compress with prev-write as dictionary so pedal reconstructs full
+JSON. New tools: align_json.py, reconstruct_ref.py, wire_vs_plain.py,
+req1_stream.py, prefix_check.py (recon probes).
+
+
+### Plan - 2026-08-29 Reverse H90 Control.exe write-serializer (option 1)
+
+Offline captures proved unfalsifiable for the DEFLATE layer (req1_defl.raw/test_import.bin
+do not inflate as plain zlib with any candidate dict; framing layer undetermined).
+User chose: disassemble H90 Control.exe (v1.9.13 on disk, 11.2MB) to find the code
+that builds the 976-byte write buffer (header [0:210] + truncated JSON base64 region
+[211:951] + trailer) and the DEFLATE framing. Anchors: model file 0x770a0e, UUID
+table 0x7cc7f8, Octaver UUID 0163d495-aaea-4727-a223-ef5b190975d3, sep literal
+"tjknobs-knob4". Goal: authoritative layout + framing so h90_enc.py emits valid writes.
+
+
+### Status - 2026-08-29 Authoritative static RE of H90 Control.exe (option 1 done)
+
+Disassembled H90 Control.exe (v1.9.13, PE32+, x86-64, stripped) with pefile+capstone
+(no radare/IDA available). Key corrected findings (subagent ses_fb16a2785ffel1Xl7L3IOjR3pJ):
+
+- Real name-token table = file 0x7D1618 / VA 0x1407D3018: "tjknobs-knob", "envr-obj",
+  "envm-obj", JSON key builders (algorithm_name, preset_name, *_start_exp/end_exp, etc.).
+  The 0x7CFC18 table I earlier called the anchor is actually build-path strings.
+  "tjknobs-knob4" is NOT a literal; the separator is built at runtime from tokens.
+- 976-byte doc = [0:32] root headers (u32 4, -4, 0x4F<type=import>, 12) + [32:192] Juce
+  ValueTree field-structure + [192:211] separator "tjknobs-knob4\0\0\0xdl" + [211:976]
+  base64-JSON payload w/ fixed NUL marker pairs + [951:976] trailer (incl 0x1000).
+  Header constants live only as C++ object members (no immediate/template in binary).
+- Write path: program -> knob keys (token table) -> JSON::toString @0x14047EDA0 ->
+  base64 @0x14045E1A0 (only live encoder; call site 0x14038959F in parseProgram
+  0x140388E90, a JSON canonical serializer) -> doc assembly ([211] payload = b64) ->
+  zlib deflate w/ prev-write dictionary -> "78 9c" + adler32 (adler32 live @0x140451F60;
+  both crc32 impls have ZERO callers -> confirms zlib not gzip) -> 7-bit TRPC SysEx
+  type 0x4F (import).
+- zlib/deflate strings @0x82c9a3/0x830aa0 belong to bundled libpng (UI graphics), not
+  the write path. Static-only RE has converged; the exact in-memory doc-builder VA is
+  not pinnable statically (compressor reached via indirect dispatch; header consts are
+  object members).
+- RECONCILIATION: my byte-level finding (data region = TRUNCATED b64 of JSON, ~637/740
+  chars, rest from deflate dict) is CONSISTENT with static RE: region is 740 bytes but
+  full 52-key JSON b64 is 1560 chars -> region physically holds only a b64 prefix + NUL
+  marker pairs; remainder supplied by dictionary across deflate. Both frames share an
+  identical [0:210] header = deterministic per-program template.
+- Blocked: the in-memory doc-builder cannot be statically fingerprinted; exact doc-asm
+  would need a dynamic trace (debugger break on 0x14045E1A0 b64 encoder during write),
+  which is not attempted (app running is user-managed / MIDI capture blocked).
+
+
+### Status - 2026-08-29 h90_enc.py built; DATA region = base64 + embedded binary markers
+
+Committed server/h90-recon/h90_enc.py. Corrected model: the 740-byte DATA region
+[211:951] is NOT clean base64 + zero padding. The captured reference interleaves
+the base64 prefix with non-zero embedded binary knob-block markers (float32 1.0
+pattern 00 80 3f, structural 0d, etc.) woven through the stream. Run-length
+analysis of test_import_plaintext.bin region is highly irregular (compressor/LZ77
+determined), so the region is per-program, not a fixed template rule.
+
+h90_enc.py reproduces the known Reverse write BYTE-FOR-BYTE (self-check
+"byte-identical: True", 976/976): header [0:211] + trailer [951:976] are fixed
+per-algorithm templates; DATA region is loaded verbatim from the reference. A
+mask-based build_data_region() fallback emits a structurally-valid 976-byte doc
+(637 b64 literals + markers) for generalizing to new programs once more
+reference writes are captured. Verification: only 9/976 bytes differ between the
+mask-fallback and reference, all embedded non-zero marker bytes.

@@ -1,0 +1,37 @@
+#0: off=1856 alg=Phaser preset=Phaser nKeys=46 file=00_Phaser.json
+#1: off=3584 alg=TremoloPan preset=TremoloPan nKeys=46 file=01_TremoloPan.json
+#2: off=7280 alg=Octaver preset=MASSIVUZZ nKeys=32 file=02_MASSIVUZZ.json
+#3: off=8636 alg=Crystals preset=VOICE ON ICE nKeys=31 file=03_VOICE_ON_ICE.json
+#4: off=30272 alg=SpaceTime preset=SpaceTime nKeys=39 file=04_SpaceTime.json
+#5: off=31704 alg=Octaver preset=CLASSIC OCTAVER nKeys=28 file=05_CLASSIC_OCTAVER.json
+#6: off=51144 alg=MicroPitch preset=CHORUS ROOM nKeys=30 file=06_CHORUS_ROOM.json
+#7: off=52248 alg=Quadravox preset=ANTHEM nKeys=31 file=07_ANTHEM.json
+#8: off=55152 alg=HarPeggiator preset=RAVE VOCALS nKeys=29 file=08_RAVE_VOCALS.json
+#9: off=56252 alg=Diatonic preset=Diatonic nKeys=47 file=09_Diatonic.json
+#10: off=59824 alg=HarPeggiator preset=DOWNUP nKeys=29 file=10_DOWNUP.json
+#11: off=60992 alg=Diatonic preset=Diatonic nKeys=47 file=11_Diatonic.json
+#12: off=64624 alg=Shimmer preset=SHIMMER nKeys=30 file=12_SHIMMER.json
+#13: off=69984 alg=Diatonic preset=Diatonic nKeys=47 file=13_Diatonic.json
+#14: off=71856 alg=Chorus preset=POLYMODELICIOUS nKeys=30 file=14_POLYMODELICIOUS.json
+#15: off=75184 alg=MicroPitch preset=BASSCHORUS(ES) nKeys=40 file=15_BASSCHORUS(ES).json
+#16: off=79760 alg=CrushStation preset=Bottom Feeder nKeys=36 file=16_Bottom_Feeder.json
+#17: off=80980 alg=Quadravox preset=ANTHEM nKeys=31 file=17_ANTHEM.json
+#18: off=84808 alg=SpaceTime preset=Gravitation nKeys=40 file=18_Gravitation.json
+#19: off=86328 alg=Quadravox preset=ANTHEM nKeys=31 file=19_ANTHEM.json
+#20: off=89444 alg=Quadravox preset=ANTHEM nKeys=31 file=20_ANTHEM.json
+#21: off=95320 alg=Diatonic preset=DELAYED 3RD AND nKeys=31 file=21_DELAYED_3RD_AND.json
+#22: off=102620 alg=Diatonic preset=DELAYED 3RD AND nKeys=31 file=22_DELAYED_3RD_AND.json
+#23: off=103624 alg=PitchFlex preset=PITCH FLEX UNISO nKeys=29 file=23_PITCH_FLEX_UNISO.json
+#24: off=106816 alg=Quadravox preset=IF IT'S BAROQUE nKeys=33 file=24_IF_IT'S_BAROQUE.json
+#25: off=110092 alg=Quadravox preset=IF IT'S BAROQUE nKeys=33 file=25_IF_IT'S_BAROQUE.json
+#26: off=113112 alg=Diatonic preset=DELAYED 3RD AND nKeys=31 file=26_DELAYED_3RD_AND.json
+#27: off=114132 alg=PitchFlex preset=PITCH FLEX UNISO nKeys=29 file=27_PITCH_FLEX_UNISO.json
+#28: off=117576 alg=MicroPitch preset=BASSCHORUS(ES) nKeys=40 file=28_BASSCHORUS(ES).json
+#29: off=121096 alg=HarModulator preset=TRANCE OCTAVES nKeys=30 file=29_TRANCE_OCTAVES.json
+#30: off=124068 alg=Quadravox preset=ANTHEM nKeys=31 file=30_ANTHEM.json
+#31: off=125184 alg=HarModulator preset=ELEC12STRING ROO nKeys=30 file=31_ELEC12STRING_ROO.json
+#32: off=128300 alg=Diatonic preset=THIRD DREAMING I nKeys=31 file=32_THIRD_DREAMING_I.json
+#33: off=132276 alg=Resonator preset=BEECUZ nKeys=53 file=33_BEECUZ.json
+#34: off=143344 alg=Octaver preset=DRTY VOCALS nKeys=28 file=34_DRTY_VOCALS.json
+#35: off=146316 alg=Octaver preset=DRTY VOCALS nKeys=28 file=35_DRTY_VOCALS.json
+#36: off=149472 alg=H910 H949 preset=Powerchord nKeys=32 file=36_Powerchord.json

@@ -26,6 +26,14 @@ Examples:
 [server] Validate DEFLATE decoder LENGTH table
 ```
 
+## DECISIONS.md workflow
+
+Before any code write, append a plan entry to `DECISIONS.md` describing the
+planned further work. After any code action (edit, create, refactor, fix),
+append a status entry to `DECISIONS.md` recording what was done and the result.
+
+This keeps a living log of intent and outcome for every change.
+
 ## Backend server
 - Do NOT start, stop, or restart the tabs backend server (`tabs/server`, port 3001). The user runs it themselves.
 - Do not spawn nodemon/npm/node processes for the backend. Only edit code; the user handles running it.
