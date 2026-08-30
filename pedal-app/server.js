@@ -110,6 +110,15 @@ function snapshot(fresh) {
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+// Allow the Angular dev app (h90-web on :4211) and any local tooling to call this
+// API cross-origin (http://localhost:3111 directly). Dev-only enablement.
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use(express.static(path.join(__dirname, 'web')));
 
 app.get('/api/device', (req, res) => {
