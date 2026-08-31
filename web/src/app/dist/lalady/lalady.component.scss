@@ -297,10 +297,6 @@ table.knobs {
         border-color: #2f7a9e;
         color: #d7f1ff;
       }
-
-      &.phys-active {
-        box-shadow: 0 0 0 2px #3fae6a;
-      }
     }
 
     .picker-divider {
@@ -314,31 +310,6 @@ table.knobs {
       height: 30px;
       font-weight: 600;
       padding: 0 12px;
-    }
-  }
-
-  .active-slot {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: #e8e8ec;
-    margin: 2px 0 6px;
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #3fae6a;
-      flex: 0 0 auto;
-    }
-
-    &.unknown .dot {
-      background: #5a5a68;
-    }
-
-    .muted {
-      color: #8b8b98;
     }
   }
 
