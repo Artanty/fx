@@ -27,7 +27,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   @ViewChild('restoreFileInput') restoreFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
 
-  activeTab: 'slots' | 'workbench' | 'monitor' = 'slots';
+  activeTab: 'slots' | 'workbench' | 'monitor' = 'workbench';
   private pendingImportRow: RowModel | null = null;
 
   rows: RowModel[] = [];

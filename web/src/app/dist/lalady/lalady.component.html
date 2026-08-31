@@ -14,8 +14,8 @@
 
   <div *ngIf="!loading && deviceFound">
     <nav class="tabs">
-      <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
       <button [class.active]="activeTab === 'workbench'" (click)="activeTab = 'workbench'">Workbench</button>
+      <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
       <button [class.active]="activeTab === 'monitor'" (click)="activeTab = 'monitor'">Monitor</button>
     </nav>
 
