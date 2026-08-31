@@ -1383,3 +1383,11 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Dial geometry: value 0..255 → 270° sweep from lower-left to lower-right (screen coords, Y down); pointer via (x=20+13cos, y=20+13sin), arc via dasharray + fixed 135° start rotation. Edited knobs highlighted amber (`modified` when value != snapshot).
 - Knob interaction: vertical drag (up=up, down=down) at 4px/value step (full range ≈64px vs old 255px), plus mouse wheel; reuses `onParamInput` realtime throttle + Save overrides. Added `knobRows` getter, `knobDown/Move/Up/Wheel`, pointer/wheel geometry helpers.
 - Checks: ng build passes. No backend changes this step.
+
+## Progress - 2026-08-31 web: show currently-active pedal slot in workbench
+- Before, the workbench only showed the slot the user CLICKED; there was no indication of which physical slot the pedal actually had active (set externally via footswitch / Neuro).
+- Added `activeSlotInfo { rawIdx, display, name }` to the component, sourced from GET /api/controls (`activeIndex` raw 0..5, `presetName`). Display number via existing `displaySlotNum(rawIdx)` (SLOT_DISPLAY_ORDER inverse → 1..6).
+- Polling: a `workbenchTimer` polls /api/controls every 5s ONLY while the Workbench tab is active (cheap read-only; same pattern the monitor proved safe). Also polls once on ngOnInit, and updates `activeSlotInfo` immediately after `selectSlot(idx)` activates a slot.
+- Tab switching now goes through `setActiveTab()` → `syncActiveSlotPolling()` to start/stop the workbench poll (also used for the tab buttons). Cleaned up timer in ngOnDestroy.
+- UI: workbench shows a "Active: slot N — name" indicator (green dot) and rings the corresponding slot button green (`.phys-active`) to distinguish the pedal-active slot from the merely-selected one (`selectedSlotIdx` blue) — they can differ before you click.
+- Checks: ng build passes. No backend changes.

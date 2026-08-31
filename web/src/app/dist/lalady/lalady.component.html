@@ -14,9 +14,9 @@
 
   <div *ngIf="!loading && deviceFound">
     <nav class="tabs">
-      <button [class.active]="activeTab === 'workbench'" (click)="activeTab = 'workbench'">Workbench</button>
-      <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
-      <button [class.active]="activeTab === 'monitor'" (click)="activeTab = 'monitor'">Monitor</button>
+      <button [class.active]="activeTab === 'workbench'" (click)="setActiveTab('workbench')">Workbench</button>
+      <button [class.active]="activeTab === 'slots'" (click)="setActiveTab('slots')">Slots</button>
+      <button [class.active]="activeTab === 'monitor'" (click)="setActiveTab('monitor')">Monitor</button>
     </nav>
 
     <section *ngIf="activeTab === 'slots'" class="panel">
@@ -105,14 +105,25 @@
     <section *ngIf="activeTab === 'workbench'" class="panel workbench">
       <p class="muted" style="margin:0 0 8px;">Pick a slot to activate it and load its params. Edit (hears live), then Save to persist.</p>
 
+      <div class="active-slot" *ngIf="activeSlotInfo">
+        <span class="dot"></span>
+        Active: <strong>slot {{ activeSlotInfo.display }}</strong>
+        <span *ngIf="activeSlotInfo.name">— {{ activeSlotInfo.name }}</span>
+      </div>
+      <div class="active-slot unknown" *ngIf="!activeSlotInfo">
+        <span class="dot"></span>
+        Active slot: <span class="muted">unknown</span>
+      </div>
+
       <div class="slot-picker">
         <button
           *ngFor="let label of SLOT_LABELS; let i = index"
           class="slot-btn"
           [class.active]="selectedSlotIdx === SLOT_DISPLAY_ORDER[i]"
+          [class.phys-active]="activeSlotInfo && activeSlotInfo.rawIdx === SLOT_DISPLAY_ORDER[i]"
           [disabled]="slotBusy"
           (click)="selectSlot(SLOT_DISPLAY_ORDER[i])"
-          [attr.title]="'Slot ' + label"
+          [attr.title]="'Slot ' + label + (activeSlotInfo && activeSlotInfo.rawIdx === SLOT_DISPLAY_ORDER[i] ? ' (active)' : '')"
         >{{ label }}</button>
         <span class="picker-divider"></span>
         <button

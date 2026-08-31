@@ -52,6 +52,47 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private monitorTimer: ReturnType<typeof setInterval> | null = null;
   private readonly MONITOR_POLL_MS = 5000;
 
+  // Currently-active physical slot on the pedal (raw index + display number +
+  // preset name), derived from GET /api/controls. Kept fresh while the Workbench
+  // tab is active so external slot changes (footswitch / Neuro) are reflected.
+  activeSlotInfo: { rawIdx: number; display: number; name: string } | null = null;
+  private workbenchTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly WORKBENCH_POLL_MS = 5000;
+
+  setActiveTab(tab: 'slots' | 'workbench' | 'monitor'): void {
+    this.activeTab = tab;
+    this.syncActiveSlotPolling();
+  }
+
+  private syncActiveSlotPolling(): void {
+    if (this.activeTab === 'workbench') {
+      if (!this.workbenchTimer) {
+        this.pollActiveSlot();
+        this.workbenchTimer = setInterval(() => this.pollActiveSlot(), this.WORKBENCH_POLL_MS);
+      }
+    } else if (this.workbenchTimer) {
+      clearInterval(this.workbenchTimer);
+      this.workbenchTimer = null;
+    }
+  }
+
+  private pollActiveSlot(): void {
+    this.api.controls().subscribe({
+      next: (m) => {
+        if (m && typeof m.activeIndex === 'number') {
+          this.activeSlotInfo = {
+            rawIdx: m.activeIndex,
+            display: this.displaySlotNum(m.activeIndex),
+            name: m.presetName || '',
+          };
+        }
+      },
+      error: () => {
+        /* keep last known active slot on transient errors */
+      },
+    });
+  }
+
   // Offline workbench (no Neuro): select one of 6 slots, edit any param, then
   // persist the whole state to the active slot. Params are read from the slot's
   // flash body (what's actually saved/recalled), independent of the live table.
@@ -103,10 +144,15 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.refresh();
+    this.syncActiveSlotPolling();
   }
 
   ngOnDestroy(): void {
     this.stopMonitor();
+    if (this.workbenchTimer) {
+      clearInterval(this.workbenchTimer);
+      this.workbenchTimer = null;
+    }
   }
 
   refresh(): void {
@@ -292,7 +338,15 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.slotBusy = true;
     this.slotError = null;
     this.api.activateSlot(idx).subscribe({
-      next: () => this.loadSlotParams(idx),
+      next: () => {
+        // After activating, this slot is now the pedal's active preset.
+        this.activeSlotInfo = {
+          rawIdx: idx,
+          display: this.displaySlotNum(idx),
+          name: this.slotParams?.name || '',
+        };
+        this.loadSlotParams(idx);
+      },
       error: (e) => {
         this.slotBusy = false;
         this.slotError = 'Activate failed: ' + (e.message ?? e);
