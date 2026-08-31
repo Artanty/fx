@@ -150,6 +150,9 @@
                   <div
                     class="kbody"
                     [class.modified]="p.value !== initialValue(p)"
+                    [class.scrolling]="hoveredParam === p"
+                    (pointerenter)="onKnobEnter(p)"
+                    (pointerleave)="onKnobLeave()"
                     (pointerdown)="knobDown($event, p)"
                     (pointermove)="knobMove($event, p)"
                     (pointerup)="knobUp($event, p)"

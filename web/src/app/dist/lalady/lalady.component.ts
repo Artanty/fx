@@ -386,15 +386,33 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // A circular knob drags vertically: drag up = increase, down = decrease. The
   // sensitivity (~4 px per value step) makes the full 0..255 range reachable in
   // a much shorter movement than the old 255px slider. Wheel also works.
+  //
+  // Scroll/drag mode is only "armed" while the pointer is inside the knob:
+  // entering the knob shows the scroll cursor and enables dragging; leaving it
+  // (or releasing) ends the drag so the knob never stays in a captured state.
   private activeKnob: { p: SlotParam; lastY: number } | null = null;
+  hoveredParam: SlotParam | null = null;
+
+  onKnobEnter(p: SlotParam): void {
+    this.hoveredParam = p;
+  }
+
+  onKnobLeave(): void {
+    this.hoveredParam = null;
+    this.activeKnob = null;
+  }
 
   knobDown(e: PointerEvent, p: SlotParam): void {
+    this.hoveredParam = p;
+    // Only start a drag if the pointer is inside the knob (armed via enter).
+    if (this.hoveredParam !== p) return;
     this.activeKnob = { p, lastY: e.clientY };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
   }
 
   knobMove(e: PointerEvent, p: SlotParam): void {
+    // No pointer capture: pointermove only fires while the cursor is over the
+    // knob, so leaving the knob naturally stops the drag.
     if (!this.activeKnob || this.activeKnob.p !== p) return;
     const dy = this.activeKnob.lastY - e.clientY;
     this.activeKnob.lastY = e.clientY;
@@ -406,7 +424,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   knobUp(e: PointerEvent, p: SlotParam): void {
     if (!this.activeKnob || this.activeKnob.p !== p) return;
     this.activeKnob = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    e.preventDefault();
   }
 
   knobWheel(e: WheelEvent, p: SlotParam): void {
