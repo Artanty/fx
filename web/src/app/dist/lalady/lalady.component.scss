@@ -1,6 +1,38 @@
 .lalady {
-  padding: 20px;
+  padding: 12px 16px;
   max-width: 1100px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #26262e;
+
+  button {
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: #8b8b98;
+    font-weight: 600;
+
+    &.active {
+      background: #1b1b22;
+      border-color: #26262e;
+      color: #e8e8ec;
+    }
+  }
+}
+
+.panel {
+  background: #1b1b22;
+  border: 1px solid #26262e;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
 }
 
 .head {
@@ -125,14 +157,15 @@ table.slots {
   th,
   td {
     text-align: left;
-    padding: 10px 12px;
+    padding: 6px 8px;
     border-bottom: 1px solid #26262e;
     vertical-align: middle;
+    font-size: 13px;
   }
 
   th {
     color: #8b8b98;
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -181,31 +214,19 @@ table.slots {
 }
 
 .monitor {
-  background: #1b1b22;
-  border: 1px solid #26262e;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 18px;
-
   .monitor-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
-  }
+    margin-bottom: 6px;
 
-  h2 {
-    margin: 0;
-    font-size: 14px;
-    color: #8b8b98;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .muted {
-    color: #8b8b98;
-    font-size: 13px;
-    margin: 6px 0;
+    h2 {
+      margin: 0;
+      font-size: 14px;
+      color: #8b8b98;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
   }
 }
 
@@ -216,9 +237,9 @@ table.knobs {
   th,
   td {
     text-align: left;
-    padding: 6px 12px;
+    padding: 3px 8px;
     border-bottom: 1px solid #22222a;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   th {
@@ -248,11 +269,7 @@ table.knobs {
 }
 
 .workbench {
-  background: #1b1b22;
-  border: 1px solid #26262e;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 18px;
+  padding: 10px 12px;
 
   h2 {
     font-size: 14px;
@@ -263,16 +280,17 @@ table.knobs {
 
   .slot-picker {
     display: flex;
-    gap: 8px;
-    margin: 10px 0;
+    gap: 6px;
+    margin: 6px 0;
     align-items: center;
     flex-wrap: wrap;
 
     .slot-btn {
-      width: 40px;
-      height: 40px;
-      font-size: 16px;
+      width: 30px;
+      height: 30px;
+      font-size: 14px;
       font-weight: 700;
+      padding: 0;
 
       &.active {
         background: #1d5572;
@@ -285,43 +303,181 @@ table.knobs {
       width: 1px;
       align-self: stretch;
       background: #2a2a34;
-      margin: 0 4px;
+      margin: 0 2px;
     }
 
     .action-btn {
-      height: 40px;
+      height: 30px;
       font-weight: 600;
+      padding: 0 12px;
     }
+  }
+
+  .param-actions {
+    margin: 4px 0;
   }
 
   .err {
     color: #ff8f93;
-    margin: 8px 0;
+    margin: 6px 0;
+    font-size: 13px;
   }
 
   .dirty {
     color: #ffd27a;
   }
 
-  table.params {
-    .set {
-      width: 40%;
+  .knob-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
-      input {
-        width: 100%;
-      }
+  .knob-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .knob-group {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 1px solid #2a2a34;
+    border-radius: 8px;
+    padding: 8px 10px;
+
+    &.flex3 {
+      flex: 3 3 0;
+    }
+
+    h3 {
+      margin: 0 0 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #8b8b98;
+      border-bottom: 1px solid #26262e;
+      padding-bottom: 4px;
     }
   }
 
-  .actions {
-    margin-top: 12px;
+  .knobs {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .knob {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 66px;
+    cursor: ns-resize;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .kbody {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid #35353f;
+    background: #1b1b22;
+
+    &.modified .arc {
+      stroke: #ffd27a;
+    }
+
+    &:hover {
+      border-color: #4a4a58;
+    }
+  }
+
+  .dial {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .track {
+    fill: none;
+    stroke: #2e2e39;
+    stroke-width: 3;
+  }
+
+  .arc {
+    fill: none;
+    stroke: #4da3ff;
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  .pointer {
+    stroke: #e8e8ec;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .kvalue {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: #c9c9d4;
+    pointer-events: none;
+  }
+
+  .kname {
+    margin-top: 4px;
+    font-size: 10px;
+    color: #8b8b98;
+    text-align: center;
+    line-height: 1.2;
+    min-height: 2.4em;
+  }
+
+}
+
+.ok-text {
+  color: #7be3a0;
+}
+
+.backup-block {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #26262e;
+
+  h2 {
+    font-size: 14px;
+    color: #8b8b98;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 6px;
+  }
+
+  .slot-picker {
+    display: flex;
+    gap: 6px;
+    margin: 6px 0;
+
+    .action-btn {
+      height: 30px;
+      font-weight: 600;
+      padding: 0 14px;
+    }
   }
 
   .restore-result {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid #26262e;
 
     .ok-text {
@@ -329,9 +485,5 @@ table.knobs {
       margin: 6px 0;
     }
   }
-}
-
-.ok-text {
-  color: #7be3a0;
 }
 

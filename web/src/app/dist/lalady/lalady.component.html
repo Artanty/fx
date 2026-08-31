@@ -1,8 +1,7 @@
 <div class="lalady">
   <header class="head">
     <div>
-      <h1>L.A. Lady — Preset Import/Export</h1>
-      <span class="sub">Source Audio &middot; VID 0x29a4 / PID 0x0300</span>
+      <h1>L.A. Lady <span class="sub">Source Audio &middot; VID 0x29a4 / PID 0x0300</span></h1>
     </div>
     <div class="head-actions">
       <span *ngIf="deviceFound" class="badge ok">device online</span>
@@ -13,190 +12,200 @@
 
   <p *ngIf="loading" class="loading">Loading…</p>
 
-  <section *ngIf="!loading && deviceFound" class="live">
-    <h2>Live control</h2>
-    <label class="knob">
-      <span>Left Drive</span>
-      <input
-        type="range"
-        min="0"
-        max="255"
-        [(ngModel)]="leftDrive"
-        (change)="onLeftDrive()"
-      />
-      <span class="val">{{ leftDrive }}</span>
-    </label>
-    <span class="rb" *ngIf="leftDriveReadback !== null">pedal readback: {{ leftDriveReadback }}</span>
-  </section>
+  <div *ngIf="!loading && deviceFound">
+    <nav class="tabs">
+      <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
+      <button [class.active]="activeTab === 'workbench'" (click)="activeTab = 'workbench'">Workbench</button>
+      <button [class.active]="activeTab === 'monitor'" (click)="activeTab = 'monitor'">Monitor</button>
+    </nav>
 
-  <section *ngIf="!loading && deviceFound" class="monitor">
-    <div class="monitor-head">
-      <h2>Realtime knob monitor</h2>
-      <button class="refresh" (click)="toggleMonitor()">
-        {{ monitorOn ? 'Stop' : 'Start' }}
-      </button>
-    </div>
-    <p class="muted" *ngIf="!monitorOn">Start to watch the pedal's live knob values (reflects external changes, e.g. in the Neuro editor). Read-only.</p>
-    <p *ngIf="monitorOn && !monitor" class="loading">Polling…</p>
-    <div *ngIf="monitorOn && monitor">
-      <p class="muted">
-        preset <strong>{{ monitor.presetName || '—' }}</strong>
-        (page 0x{{ monitor.activePage.toString(16) }}, idx {{ monitor.activeIndex }})
-        &middot; live
-      </p>
-      <table class="knobs">
+    <section *ngIf="activeTab === 'slots'" class="panel">
+      <table *ngIf="rows.length" class="slots">
         <thead>
-          <tr><th>#</th><th>knob</th><th>value</th></tr>
+          <tr>
+            <th>slot</th>
+            <th>name</th>
+            <th>actions</th>
+            <th>status</th>
+          </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let c of monitor.controls" [class.hot]="c.index === LEFT_DRIVE_CTRL">
-            <td class="muted">{{ c.index }}</td>
-            <td>{{ c.name }}</td>
-            <td class="mono">{{ c.value }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section *ngIf="!loading && deviceFound" class="workbench">
-    <h2 style="margin:0 0 10px;">Offline workbench <span class="muted">(no Neuro)</span></h2>
-    <p class="muted" style="margin:0 0 12px;">Pick a slot to activate it on the pedal and load its full parameter set. Edit values in the UI or on the pedal, then press Save to persist to the active slot.</p>
-
-    <div class="slot-picker">
-      <button
-        *ngFor="let label of SLOT_LABELS; let i = index"
-        class="slot-btn"
-        [class.active]="selectedSlotIdx === SLOT_DISPLAY_ORDER[i]"
-        [disabled]="slotBusy"
-        (click)="selectSlot(SLOT_DISPLAY_ORDER[i])"
-        [attr.title]="'Slot ' + label"
-      >{{ label }}</button>
-      <span class="picker-divider"></span>
-      <button
-        class="refresh action-btn"
-        [disabled]="slotBusy || !slotParams"
-        (click)="saveSlot()"
-        title="Save current state to the selected slot and recall it"
-      >Save</button>
-      <button
-        class="danger action-btn"
-        [disabled]="slotBusy || !slotParams"
-        (click)="allParamsZero()"
-        title="Set all knobs of the selected slot to 0 (live)"
-      >all 0</button>
-      <span class="picker-divider"></span>
-      <button
-        class="action-btn"
-        [disabled]="slotBusy"
-        (click)="exportAll()"
-        title="Download the full pedal state as a .osbf backup file"
-      >Export all</button>
-      <button
-        class="danger action-btn"
-        [disabled]="slotBusy"
-        (click)="restoreBackup()"
-        title="Restore all 6 preset slots from a .osbf backup file"
-      >Restore from backup</button>
-    </div>
-
-    <input
-      #restoreFileInput
-      type="file"
-      accept=".osbf"
-      style="display:none"
-      (change)="onRestoreFileSelected($event)"
-    />
-
-    <div *ngIf="restoreResult && !slotBusy" class="restore-result">
-      <p [class]="restoreResult.ok ? 'ok-text' : 'err'">
-        {{ restoreResult.ok ? 'Restore complete (' + (restoreResult.slots?.length || 0) + ' slots)' : 'Restore failed' }}
-      </p>
-      <table *ngIf="restoreResult.slots?.length" class="knobs restore-table">
-        <thead><tr><th>slot</th><th>page</th><th>name</th></tr></thead>
-        <tbody>
-          <tr *ngFor="let s of restoreResult.slots">
-            <td class="muted">{{ s.slot }}</td>
-            <td class="mono">{{ s.page }}</td>
-            <td>{{ s.readbackName || s.name }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p class="muted" *ngIf="slotBusy">Working…</p>
-    <p class="err" *ngIf="slotError">{{ slotError }}</p>
-
-    <div *ngIf="slotParams && !slotBusy">
-      <p class="muted">
-        slot {{ displaySlotNum(slotParams.idx) }} &middot; preset <strong>{{ slotParams.name || '—' }}</strong>
-        (page 0x{{ slotParams.page }}) &middot; <span class="dirty" *ngIf="slotsDirty">unsaved changes</span>
-      </p>
-      <table class="knobs params">
-        <thead>
-          <tr><th>#</th><th>param</th><th>value</th><th>set</th></tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let p of slotParams.params">
-            <td class="muted">{{ p.index }}</td>
-            <td>{{ p.name }}</td>
-            <td class="mono">{{ p.value }}</td>
-            <td class="set">
-              <input
-                type="range"
-                min="0"
-                max="255"
-                [ngModel]="p.value"
-                (ngModelChange)="p.value = $event"
-                (input)="onParamInput(p, p.value)"
-                (change)="onParamChange(p, p.value)"
-              />
+          <tr *ngFor="let row of rows; let i = index">
+            <td class="slotnum">{{ i + 1 }}</td>
+            <td>{{ row.slot.name || '—' }}</td>
+            <td class="actions">
+              <button (click)="activateSlot(row)" [disabled]="isBusy(row)">Activate</button>
+              <button (click)="importSlot(row)" [disabled]="isBusy(row)">Import</button>
+              <button (click)="exportSlot(row)" [disabled]="isBusy(row)">Export</button>
+              <button class="danger" (click)="eraseSlot(row)" [disabled]="isBusy(row)" title="Reset preset (blank name, all params at 50%)">Erase</button>
+            </td>
+            <td>
+              <span [class]="'st ' + stateClass(row)" [attr.title]="row.slot.name">{{ stateLabel(row) }}</span>
             </td>
           </tr>
         </tbody>
       </table>
-      <div class="actions">
-        <button (click)="revertSlot()" [disabled]="slotBusy || !slotsDirty">Revert</button>
+      <p *ngIf="!rows.length" class="empty">No slots available.</p>
+
+      <input
+        #importFileInput
+        type="file"
+        accept=".pre,application/xml,text/xml"
+        style="display:none"
+        (change)="onImportFileSelected($event)"
+      />
+
+      <div class="backup-block">
+        <h2>Full backup</h2>
+        <p class="muted" style="margin:0 0 8px;">Export the entire pedal state (all 6 slots + EEPROM) as a .osbf file, or restore all 6 slots from a .osbf backup. Restore overwrites every slot — it's destructive.</p>
+
+        <div class="slot-picker">
+          <button
+            class="action-btn"
+            [disabled]="slotBusy"
+            (click)="exportAll()"
+            title="Download the full pedal state as a .osbf backup file"
+          >Export all</button>
+          <button
+            class="danger action-btn"
+            [disabled]="slotBusy"
+            (click)="restoreBackup()"
+            title="Restore all 6 preset slots from a .osbf backup file (destructive)"
+          >Restore from backup…</button>
+        </div>
+
+        <input
+          #restoreFileInput
+          type="file"
+          accept=".osbf"
+          style="display:none"
+          (change)="onRestoreFileSelected($event)"
+        />
+
+        <p class="muted" *ngIf="slotBusy">Working…</p>
+        <p class="err" *ngIf="slotError">{{ slotError }}</p>
+
+        <div *ngIf="restoreResult && !slotBusy" class="restore-result">
+          <p [class]="restoreResult.ok ? 'ok-text' : 'err'">
+            {{ restoreResult.ok ? 'Restore complete (' + restoreResult.slots.length + ' slots)' : 'Restore failed' }}
+          </p>
+          <table *ngIf="restoreResult.slots?.length" class="knobs restore-table">
+            <thead><tr><th>slot</th><th>name</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let s of restoreResult.slots">
+                <td class="muted">{{ s.slot }}</td>
+                <td>{{ s.readbackName || s.name }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <table *ngIf="!loading && rows.length" class="slots">
-    <thead>
-      <tr>
-        <th>slot</th>
-        <th>page</th>
-        <th>name</th>
-        <th>import</th>
-        <th>actions</th>
-        <th>status</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let row of rows; let i = index">
-        <td class="slotnum">{{ i + 1 }}</td>
-        <td class="mono">{{ row.slot.page.toString(16) }}</td>
-        <td>{{ row.slot.name || '—' }}</td>
-        <td>
-          <input
-            #fileInput
-            type="file"
-            accept=".pre,application/xml,text/xml"
-            (change)="onFile(row, fileInput.files && fileInput.files[0])"
-          />
-        </td>
-        <td class="actions">
-          <button (click)="importSlot(row, fileInput)" [disabled]="isBusy(row)">Import</button>
-          <button (click)="exportSlot(row)" [disabled]="isBusy(row)">Export</button>
-          <button (click)="activateSlot(row)" [disabled]="isBusy(row)">Activate</button>
-          <button class="danger" (click)="eraseSlot(row)" [disabled]="isBusy(row)" title="Reset preset (blank name, all params at 50%)">Erase</button>
-        </td>
-        <td>
-          <span [class]="'st ' + stateClass(row)" [attr.title]="row.slot.name">{{ stateLabel(row) }}</span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+    <section *ngIf="activeTab === 'workbench'" class="panel workbench">
+      <p class="muted" style="margin:0 0 8px;">Pick a slot to activate it and load its params. Edit (hears live), then Save to persist.</p>
 
-  <p *ngIf="!loading && !rows.length" class="empty">No slots available.</p>
+      <div class="slot-picker">
+        <button
+          *ngFor="let label of SLOT_LABELS; let i = index"
+          class="slot-btn"
+          [class.active]="selectedSlotIdx === SLOT_DISPLAY_ORDER[i]"
+          [disabled]="slotBusy"
+          (click)="selectSlot(SLOT_DISPLAY_ORDER[i])"
+          [attr.title]="'Slot ' + label"
+        >{{ label }}</button>
+        <span class="picker-divider"></span>
+        <button
+          class="refresh action-btn"
+          [disabled]="slotBusy || !slotParams"
+          (click)="saveSlot()"
+          title="Save current state to the selected slot and recall it"
+        >Save</button>
+        <button
+          class="danger action-btn"
+          [disabled]="slotBusy || !slotParams"
+          (click)="allParamsZero()"
+          title="Set all knobs of the selected slot to 0 (live)"
+        >all 0</button>
+      </div>
+
+      <p class="muted" *ngIf="slotBusy">Working…</p>
+      <p class="err" *ngIf="slotError">{{ slotError }}</p>
+
+      <div *ngIf="slotParams && !slotBusy">
+        <p class="muted">
+          slot {{ displaySlotNum(slotParams.idx) }} &middot; preset <strong>{{ slotParams.name || '—' }}</strong>
+          (page 0x{{ slotParams.page }}) &middot; <span class="dirty" *ngIf="slotsDirty">unsaved</span>
+        </p>
+        <div class="param-actions">
+          <button (click)="revertSlot()" [disabled]="slotBusy || !slotsDirty">Revert</button>
+        </div>
+
+        <div class="knob-rows">
+          <div class="knob-row" *ngFor="let row of knobRows">
+            <div class="knob-group" *ngFor="let g of row" [class.flex3]="g.title === 'Parametric EQ'">
+              <h3>{{ g.title }}</h3>
+              <div class="knobs">
+                <div class="knob" *ngFor="let p of g.params">
+                  <div
+                    class="kbody"
+                    [class.modified]="p.value !== initialValue(p)"
+                    (pointerdown)="knobDown($event, p)"
+                    (pointermove)="knobMove($event, p)"
+                    (pointerup)="knobUp($event, p)"
+                    (wheel)="knobWheel($event, p)"
+                  >
+                    <svg viewBox="0 0 40 40" class="dial">
+                      <circle class="track" cx="20" cy="20" r="16" />
+                      <circle
+                        class="arc"
+                        cx="20"
+                        cy="20"
+                        r="16"
+                        [attr.stroke-dasharray]="arcDash(p)"
+                        [attr.transform]="'rotate(' + arcRotate(p) + ' 20 20)'"
+                      />
+                      <line class="pointer" x1="20" y1="20" [attr.x2]="pointerX(p)" [attr.y2]="pointerY(p)" />
+                    </svg>
+                    <div class="kvalue">{{ p.value }}</div>
+                  </div>
+                  <div class="kname">{{ p.name }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'monitor'" class="panel monitor">
+      <div class="monitor-head">
+        <h2>Realtime knob monitor</h2>
+        <button class="refresh" (click)="toggleMonitor()">
+          {{ monitorOn ? 'Stop' : 'Start' }}
+        </button>
+      </div>
+      <p class="muted" *ngIf="!monitorOn">Start to watch the pedal's live knob values (reflects external changes, e.g. in the Neuro editor). Read-only.</p>
+      <p *ngIf="monitorOn && !monitor" class="loading">Polling…</p>
+      <div *ngIf="monitorOn && monitor">
+        <p class="muted">
+          preset <strong>{{ monitor.presetName || '—' }}</strong>
+          (page 0x{{ monitor.activePage.toString(16) }}, idx {{ monitor.activeIndex }})
+          &middot; live
+        </p>
+        <table class="knobs">
+          <thead>
+            <tr><th>#</th><th>knob</th><th>value</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of monitor.controls" [class.hot]="c.index === LEFT_DRIVE_CTRL">
+              <td class="muted">{{ c.index }}</td>
+              <td>{{ c.name }}</td>
+              <td class="mono">{{ c.value }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 </div>

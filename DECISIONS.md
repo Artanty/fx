@@ -1375,3 +1375,11 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Write-side sanitize: `commitRawPreset` + `writePreset` now strip all non-printable bytes ([^\x20-\x7e]) from names before writing to flash, so no null padding ever lands on the device.
 - Diagnostics: added a console.log per restored slot (wrote name vs readback name + data match).
 - Checks: node -c (server, sourceAudio) + ng build pass. Backend restart required to load: LALADY_NAME_SIZE import, write-side strips, /api/restore {text}, readbackName response.
+
+## Progress - 2026-08-31 web: workbench consolidated to Slots tab + circular knob UI
+- Restructured the page into subtabs (Slots / Workbench / Monitor); later moved workbench + backup content around per user request.
+- Slots tab now: removed the page column and the redundant standalone import column; Import button opens a shared hidden file picker (`importSlot(row)` clicks `#importFileInput`, `onImportFileSelected` writes into the originating row); Activate moved before Import. Backup section (Export all / Restore from backup + restore result table) folded into the bottom of the Slots tab; Backup tab removed.
+- Workbench: replaced the long 255px slider rows (uncomfortable — whole range = 255px drag) with compact circular SVG dials. Knobs are grouped into bordered sections laid out in rows: row 1 = Dist 1 | Dist 2, row 2 = Parametric EQ (flex3), row 3 = Noise gate. Param→group mapping by control index: Dist1=[0..12 minus 6], Dist2=[13..25 minus 19], EQ=[27..36 minus 29,31], Gate=[26,37,38,39].
+- Dial geometry: value 0..255 → 270° sweep from lower-left to lower-right (screen coords, Y down); pointer via (x=20+13cos, y=20+13sin), arc via dasharray + fixed 135° start rotation. Edited knobs highlighted amber (`modified` when value != snapshot).
+- Knob interaction: vertical drag (up=up, down=down) at 4px/value step (full range ≈64px vs old 255px), plus mouse wheel; reuses `onParamInput` realtime throttle + Save overrides. Added `knobRows` getter, `knobDown/Move/Up/Wheel`, pointer/wheel geometry helpers.
+- Checks: ng build passes. No backend changes this step.

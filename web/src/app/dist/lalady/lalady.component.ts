@@ -25,6 +25,10 @@ interface RowModel {
 })
 export class LaladyComponent implements OnInit, OnDestroy {
   @ViewChild('restoreFileInput') restoreFileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
+
+  activeTab: 'slots' | 'workbench' | 'monitor' = 'slots';
+  private pendingImportRow: RowModel | null = null;
 
   rows: RowModel[] = [];
   deviceFound = false;
@@ -63,6 +67,35 @@ export class LaladyComponent implements OnInit, OnDestroy {
   slotsDirty = false;
   private paramsSnapshot: SlotParam[] = [];
   private editedOverrides: Record<number, number> = {};
+
+  // Workbench param grouping for the knob panel. Each group is a titled,
+  // bordered section; the first two groups share a row (Dist 1 | Dist 2), the
+  // Param EQ shares a row, and Noise gate sits alone. Indices follow CONTROL_NAMES.
+  private readonly KNOB_GROUPS = [
+    { title: 'Dist 1', indices: [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12] },
+    { title: 'Dist 2', indices: [13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25] },
+    { title: 'Parametric EQ', indices: [27, 28, 30, 32, 33, 34, 35, 36] },
+    { title: 'Noise gate', indices: [26, 37, 38, 39] },
+  ];
+
+  // Rows of groups (each row rendered on its own line).
+  readonly KNOB_ROWS = [
+    [0, 1],
+    [2],
+    [3],
+  ];
+
+  get knobRows(): { title: string; params: SlotParam[] }[][] {
+    const groups = this.KNOB_GROUPS.map((g) => ({
+      title: g.title,
+      params: this.slotParams
+        ? g.indices
+            .map((i) => this.slotParams!.params.find((p) => p.index === i))
+            .filter((p): p is SlotParam => !!p)
+        : [],
+    }));
+    return this.KNOB_ROWS.map((rowIdx) => rowIdx.map((gi) => groups[gi]));
+  }
 
   restoreResult: RestoreResult | null = null;
 
@@ -117,17 +150,18 @@ export class LaladyComponent implements OnInit, OnDestroy {
     });
   }
 
-  onFile(row: RowModel, file: File | null): void {
-    row.hasFile = !!file;
-    if (row.state.kind === 'err') row.state = { kind: 'idle' };
+  importSlot(row: RowModel): void {
+    this.pendingImportRow = row;
+    const input = this.importFileInput.nativeElement;
+    input.value = '';
+    input.click();
   }
 
-  importSlot(row: RowModel, fileInput: HTMLInputElement): void {
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) {
-      row.state = { kind: 'err', label: 'choose a .pre file first' };
-      return;
-    }
+  onImportFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    const row = this.pendingImportRow;
+    if (!file || !row) return;
+    this.pendingImportRow = null;
     row.state = { kind: 'busy', label: 'writing…' };
     file.text().then((text) => {
       this.api
@@ -312,6 +346,73 @@ export class LaladyComponent implements OnInit, OnDestroy {
         error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
       });
     }, 40);
+  }
+
+  // Original (snapshot) value for a param, used to highlight edited knobs.
+  initialValue(p: SlotParam): number {
+    const snap = this.paramsSnapshot.find((s) => s.index === p.index);
+    return snap ? snap.value : p.value;
+  }
+
+  // Circular dial geometry: value 0..255 maps to a 270° sweep starting at the
+  // lower-left (135° in screen coords, where Y is down and clockwise is positive)
+  // and sweeping clockwise through the bottom to the lower-right at 255.
+  private knobAngle(v: number): number {
+    return 135 + (v / 255) * 270;
+  }
+
+  pointerX(p: SlotParam): number {
+    return 20 + 13 * Math.cos((this.knobAngle(p.value) * Math.PI) / 180);
+  }
+
+  pointerY(p: SlotParam): number {
+    return 20 + 13 * Math.sin((this.knobAngle(p.value) * Math.PI) / 180);
+  }
+
+  // Arc length: 0..100% of the track circumference (circumference = 2*pi*16).
+  arcDash(p: SlotParam): string {
+    const frac = p.value / 255;
+    const C = 2 * Math.PI * 16;
+    return `${(C * frac).toFixed(2)} ${C.toFixed(2)}`;
+  }
+
+  // Rotation that places the SVG arc's start at the lower-left (135°), matching
+  // the value-0 pointer. The arc then sweeps clockwise as value rises.
+  arcRotate(p: SlotParam): number {
+    return 135;
+  }
+
+  // --- Knob interaction -------------------------------------------------------
+  // A circular knob drags vertically: drag up = increase, down = decrease. The
+  // sensitivity (~4 px per value step) makes the full 0..255 range reachable in
+  // a much shorter movement than the old 255px slider. Wheel also works.
+  private activeKnob: { p: SlotParam; lastY: number } | null = null;
+
+  knobDown(e: PointerEvent, p: SlotParam): void {
+    this.activeKnob = { p, lastY: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  knobMove(e: PointerEvent, p: SlotParam): void {
+    if (!this.activeKnob || this.activeKnob.p !== p) return;
+    const dy = this.activeKnob.lastY - e.clientY;
+    this.activeKnob.lastY = e.clientY;
+    const v = Math.max(0, Math.min(255, Math.round(p.value + dy * 4)));
+    this.onParamInput(p, v);
+    e.preventDefault();
+  }
+
+  knobUp(e: PointerEvent, p: SlotParam): void {
+    if (!this.activeKnob || this.activeKnob.p !== p) return;
+    this.activeKnob = null;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+  }
+
+  knobWheel(e: WheelEvent, p: SlotParam): void {
+    e.preventDefault();
+    const v = Math.max(0, Math.min(255, Math.round(p.value + (e.deltaY < 0 ? 8 : -8))));
+    this.onParamInput(p, v);
   }
 
   // Persist the current state to the SELECTED slot, then recall it (via the
