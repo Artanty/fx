@@ -123,6 +123,36 @@ class SourceAudioProtocol {
     return payload[0];
   }
 
+  // CTRL_SET (0x70): live 16-bit control write. Framing from Neuro's
+  // Write16BitControl.bytes() = [0x70, controlIndex, value>>8, value&0xff].
+  // `value` is the raw preset byte (0..255); for continuous knobs like Left
+  // Drive (controlIndex 2) the high byte is 0, so frame = [0x70, idx, 0, value].
+  setControlValue(ctrl, value) {
+    const v = Math.max(0, Math.min(0xffff, value & 0xff));
+    this.dev.send(buildReport(CMD.CTRL_SET, ctrl & 0xff, (v >> 8) & 0xff, v & 0xff));
+  }
+
+  // Read the live control block back after a write. CTRL_GET replies with the
+  // pedal's control table as [0x75, block0, block1, ...] (block[i] = reply[i+1],
+  // 38-byte report). Note: HID input reports broadcast to every open handle, so
+  // while Neuro Desktop is polling (~130 Hz) the reply to OUR offset-0 read is
+  // indistinguishable from Neuro's; both carry the same live block, so any
+  // 0x75-head reply reflects the current pedal state. Best-effort.
+  readControlBlock() {
+    this.dev.send(buildReport(CMD.CTRL_GET, 0, 0, 0x10));
+    const deadline = Date.now() + 1200;
+    while (Date.now() < deadline) {
+      let r;
+      try {
+        r = this.dev.receive(Math.max(deadline - Date.now(), 1));
+      } catch (e) {
+        break;
+      }
+      if (r && r.length >= 1 + 32 && r[0] === CMD.CTRL_GET) return Buffer.from(r.slice(1));
+    }
+    return null;
+  }
+
   // FLASH_WRITE (0x35): report = [0x35, addrHi, addrMid, addrLo, ...data].
   // Writes one 16-byte row at `address` (matches probeWrite.js framing).
   flashWrite(address, chunk) {
@@ -197,7 +227,10 @@ class SourceAudioProtocol {
   buildSlotBody({ name, params }) {
     const data = encodeBinary53(params);
     const nameBuf = Buffer.alloc(LALADY_NAME_SIZE, 0);
-    if (name) Buffer.from(String(name).slice(0, LALADY_NAME_SIZE), 'ascii').copy(nameBuf);
+    if (name) {
+      const clean = String(name).replace(/[^\x20-\x7e]/g, '').slice(0, LALADY_NAME_SIZE);
+      Buffer.from(clean, 'ascii').copy(nameBuf);
+    }
     return Buffer.concat([data, nameBuf]);
   }
 
@@ -243,6 +276,70 @@ class SourceAudioProtocol {
     return want;
   }
 
+  // Commit a raw 53-byte body + name to a slot (ACTIVE_STORE + ACTIVE_WRITE),
+  // then select it as active so the pedal/Neuro load the committed value.
+  // Unlike writePreset (which re-encodes params), this is a lossless in-place
+  // patch of an existing preset body — only the given bytes change; unmapped
+  // fields and the 5-byte footer are preserved verbatim. Used to change a
+  // single control (e.g. Left Drive = byte 2) in the active preset without
+  // corrupting the rest. Throws if read-back verification fails.
+  commitRawPreset(idx, data, name) {
+    const dataBuf = Buffer.from(data);
+    if (dataBuf.length !== LALADY_DATA_SIZE) throw new Error(`commitRawPreset needs ${LALADY_DATA_SIZE} data bytes, got ${dataBuf.length}`);
+    const nameBuf = Buffer.alloc(LALADY_NAME_SIZE, 0);
+    if (name) {
+      const clean = String(name).replace(/[^\x20-\x7e]/g, '').slice(0, LALADY_NAME_SIZE);
+      Buffer.from(clean, 'ascii').copy(nameBuf);
+    }
+    const body = Buffer.concat([dataBuf, nameBuf]);
+
+    // Stage the 53-byte body in <=32-byte ACTIVE_STORE blocks.
+    const blocks = [];
+    for (let off = 0; off < dataBuf.length; off += PAYLOAD_LEN) {
+      const chunk = dataBuf.slice(off, off + PAYLOAD_LEN);
+      const last = off + chunk.length >= dataBuf.length ? 1 : 0;
+      blocks.push(buildReport(CMD.ACTIVE_STORE, last, off, chunk.length, ...chunk));
+    }
+    for (const b of blocks) {
+      this.dev.send(b);
+      waitMs(500);
+    }
+
+    // Commit the working preset + name to the flash slot.
+    const wr = buildReport(CMD.ACTIVE_WRITE, idx & 0x7f, 1);
+    for (let i = 0; i < nameBuf.length; i++) wr[3 + i] = nameBuf[i];
+    this.dev.send(wr);
+    waitMs(500);
+
+    // Verify the data region read-back byte-for-byte.
+    const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
+    const back = this.readRegion(page, LALADY_DATA_OFF, LALADY_DATA_SIZE);
+    if (!back.equals(dataBuf)) {
+      const diff = [];
+      for (let i = 0; i < dataBuf.length; i++) if (back[i] !== dataBuf[i]) diff.push(i);
+      throw new Error(`commitRawPreset verify failed at bytes [${diff.join(', ')}]`);
+    }
+
+    // Re-select the slot as active so Neuro/pedal reload the committed body.
+    this.setActivePreset(idx);
+    return dataBuf;
+  }
+
+  // Read this slot's current 53-byte data body (for lossless in-place patching).
+  readSlotBody(idx) {
+    const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
+    return this.readRegion(page, LALADY_DATA_OFF, LALADY_DATA_SIZE);
+  }
+
+  // Read this slot's name (for lossless in-place patching).
+  readSlotName(idx) {
+    const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
+    const block = this.flashRead(page + LALADY_NAME_OFF);
+    let end = block.indexOf(0);
+    if (end === -1) end = block.length;
+    return Buffer.from(block.slice(0, end)).toString('ascii');
+  }
+
   // Select a slot as the active/live preset. idx is the raw preset slot index
   // (0..5, (page - 0x3c000)/0x1000). Framing per sa_c4.h: [0x77, presetIdx, 0].
   setActivePreset(idx) {
@@ -262,20 +359,94 @@ class SourceAudioProtocol {
     return null;
   }
 
-  // Erase a slot's preset content (data + name) to all-0xFF. There is no working
-  // sector erase on the L.A. Lady (0x38 is inert, 0x35 is clear-only), so this
-  // stages an all-0xFF body+name through ACTIVE_STORE/ACTIVE_WRITE and commits —
-  // the active-write verifies the data+name region reads back as 0xFF and leaves
-  // a valid (rebuilt) slot header. Matches the Neuro editor's visual "erased"
-  // slot (blank name + blanked parameters). `idx` is the raw preset slot index
-  // 0..5. Throws if read-back verification fails.
+  // Neutral "50%" preset: every continuous knob level on the 0-255 scale sits at
+  // 128 (50%), matching the Neuro editor's mid positions; selectors/bitfields use
+  // the factory-style defaults observed in shipped presets (valid voice/engine
+  // models, gate on, mono in/out). Erasing with this yields a silent-but-playable
+  // preset instead of the all-0xFF (maxed/last-variant static) body the old erase
+  // produced.
+  static DEFAULT_PARAMS_50() {
+    const P = (v) => v;
+    return {
+      left_voice: 153,
+      left_voice_frequency: 128,
+      left_drive: 128,
+      left_output: 128,
+      left_distortion_engine: 36,
+      left_clean_mix: 128,
+      left_drive_balance: 128,
+      left_drive_maximum: 128,
+      left_treble_level: 128,
+      left_bass_level: 128,
+      left_mid_a_level: 128,
+      left_mid_b_level: 128,
+      right_voice: 153,
+      right_voice_frequency: 128,
+      right_drive: 128,
+      right_output: 128,
+      right_distortion_engine: 10,
+      right_clean_mix: 128,
+      right_drive_balance: 128,
+      right_drive_maximum: 128,
+      right_treble_level: 128,
+      right_bass_level: 128,
+      right_mid_a_level: 128,
+      right_mid_b_level: 128,
+      noise_gate: 1,
+      filter_gate_mode: 3,
+      noise_gate_threshold: 0,
+      clean_high_cut_filter: 0,
+      treble_shelf_frequency: 128,
+      treble_cut_filter_type: 0,
+      treble_shelf_slope: 1,
+      treble_boost_rolloff: 0,
+      treble_boost_maximum: 4,
+      bass_shelf_frequency: 128,
+      bass_cut_filter_type: 0,
+      bass_shelf_slope: 1,
+      bass_boost_rolloff: 0,
+      mid_a_frequency: 128,
+      mid_a_q: 128,
+      mid_b_frequency: 128,
+      mid_b_q: 128,
+      low_cut_filter: 0,
+      bass_clean_knob_assign: 0,
+      treble_knob_assign: 1,
+      io_routing_option: 0,
+      external_switch_mode: 0,
+      external_switch_control_option: 0,
+      ext_control_enable: 0,
+      ext_control_source: 0,
+      ext_control_destination: 0,
+      control_range: 200,
+      control_min: 410,
+      extmin_0: 0,
+      extmax_0: 0,
+      extmin_1: 0,
+      extmax_1: 0,
+      extmin_2: 0,
+      extmax_2: 0,
+      extmin_3: 0,
+      extmax_3: 0,
+      link_channels: 0
+    };
+  }
+
+  // Erase a slot by writing the neutral 50% preset (blank name) through the
+  // ACTIVE_STORE/ACTIVE_WRITE path and verifying read-back. There is no working
+  // sector erase on the L.A. Lady (0x38 is inert, 0x35 is clear-only), so this is
+  // an atomic clear+program of a neutral body instead of a raw blank — the slot
+  // ends up playable at 50% params with an empty name (not the last/all-0xFF
+  // variant the old erase produced). `idx` is the raw preset slot index 0..5.
+  // Throws if read-back verification fails.
   eraseSlot(idx) {
     if (idx === undefined) throw new Error('eraseSlot needs idx (0..5)');
     const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
-    const data = Buffer.alloc(LALADY_DATA_SIZE, 0xff);
-    const nameBuf = Buffer.alloc(LALADY_NAME_SIZE, 0xff);
+    const params = SourceAudioProtocol.DEFAULT_PARAMS_50();
+    const data = encodeBinary53(params);
+    const nameBuf = Buffer.alloc(LALADY_NAME_SIZE, 0); // blank name
 
-    // Stage the all-0xFF body in <=32-byte ACTIVE_STORE blocks.
+    // Stage the 50% body in <=32-byte ACTIVE_STORE blocks.
     const blocks = [];
     for (let off = 0; off < data.length; off += PAYLOAD_LEN) {
       const chunk = data.slice(off, off + PAYLOAD_LEN);
@@ -287,13 +458,13 @@ class SourceAudioProtocol {
       waitMs(500);
     }
 
-    // Commit the working preset + all-0xFF name to the flash slot.
+    // Commit the working preset + blank name to the flash slot.
     const wr = buildReport(CMD.ACTIVE_WRITE, idx & 0x7f, 1);
     for (let i = 0; i < nameBuf.length; i++) wr[3 + i] = nameBuf[i];
     this.dev.send(wr);
     waitMs(500);
 
-    // Verify: read back data+name and compare byte-for-byte to all-0xFF.
+    // Verify: read back data+name and compare byte-for-byte to the intended body.
     const want = Buffer.concat([data, nameBuf]);
     const back = this.readSlotRaw(page);
     if (!back.equals(want)) {

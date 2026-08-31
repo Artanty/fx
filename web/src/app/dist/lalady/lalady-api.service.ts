@@ -3,9 +3,16 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   ActivateResult,
+  ControlRequest,
+  ControlResult,
   EraseResult,
   LaladyDevice,
   LaladyPresets,
+  LiveControls,
+  RestoreResult,
+  SlotParams,
+  SlotSaveRequest,
+  SlotSaveResult,
   WriteRequest,
   WriteResult,
 } from './lalady.models';
@@ -36,7 +43,39 @@ export class LaladyApiService {
     return this.http.post<ActivateResult>(`${BASE}/api/activate`, { slot });
   }
 
+  activateSlot(idx: number): Observable<ActivateResult> {
+    return this.http.post<ActivateResult>(`${BASE}/api/activate`, { idx });
+  }
+
   erase(slot: string): Observable<EraseResult> {
     return this.http.post<EraseResult>(`${BASE}/api/erase`, { slot });
+  }
+
+  control(req: ControlRequest): Observable<ControlResult> {
+    return this.http.post<ControlResult>(`${BASE}/api/control`, req);
+  }
+
+  controlLive(req: ControlRequest): Observable<ControlResult> {
+    return this.http.post<ControlResult>(`${BASE}/api/control/live`, req);
+  }
+
+  controls(): Observable<LiveControls> {
+    return this.http.get<LiveControls>(`${BASE}/api/controls`);
+  }
+
+  slotParams(idx: number): Observable<SlotParams> {
+    return this.http.get<SlotParams>(`${BASE}/api/slot-params?idx=${idx}`);
+  }
+
+  slotSave(req: SlotSaveRequest): Observable<SlotSaveResult> {
+    return this.http.post<SlotSaveResult>(`${BASE}/api/slots/save`, req);
+  }
+
+  restore(osbfText: string): Observable<RestoreResult> {
+    return this.http.post<RestoreResult>(`${BASE}/api/restore`, { text: osbfText });
+  }
+
+  exportAllUrl(): string {
+    return `${BASE}/api/export-all`;
   }
 }

@@ -2,7 +2,7 @@ const path = require('path');
 const express = require('express');
 const { findLalady, listSourceAudioDevices } = require('./src/sourceAudioHid');
 const { SourceAudioProtocol } = require('./src/sourceAudio');
-const { loadOsbf } = require('./src/osbf');
+const { loadOsbf, loadOsbfText, serializeOsbf } = require('./src/osbf');
 const { buildPre, parsePre } = require('./src/prePreset');
 const { decodeBinary53, encodeBinary53 } = require('./src/neuroMap');
 const {
@@ -16,7 +16,8 @@ const {
   LALADY_PRESET_PITCH,
   LALADY_DATA_OFF,
   LALADY_NAME_OFF,
-  LALADY_DATA_SIZE
+  LALADY_DATA_SIZE,
+  LALADY_NAME_SIZE
 } = require('./src/laLadyModel');
 
 const PORT = process.env.PORT || 3111;
@@ -35,6 +36,46 @@ function cleanName(s) {
   return String(s).replace(/\0.*$/, '').trim();
 }
 
+// ONE persistent HID handle for ALL pedal access. Opening a second handle (even
+// briefly) makes the L.A. Lady reload its live control table from flash, which
+// reverts any in-flight live CTRL_SET write (and makes the Neuro editor's knobs
+// jump). So every endpoint that touches the pedal must go through this single
+// singleton instead of its own open/close device.
+let sharedProto = null;
+let sharedDevice = null;
+function getSharedProto() {
+  if (sharedProto) return sharedProto;
+  sharedDevice = findLalady();
+  if (!sharedDevice) return null;
+  sharedProto = new SourceAudioProtocol(sharedDevice);
+  sharedProto.open();
+  return sharedProto;
+}
+function resetSharedProto() {
+  if (sharedProto) {
+    try { sharedProto.close(); } catch (e) { /* ignore */ }
+    sharedProto = null;
+    sharedDevice = null;
+  }
+}
+
+// Control index -> knob name, from Neuro's sa-244.json (midiMapStructure.controls
+// / presetEditor). index == byte index in both the live CTRL_GET block and the
+// 53-byte preset body (neuroMap DIRECT). Used to label the realtime monitor.
+const CONTROL_NAMES = {
+  0: 'Left Voice', 1: 'Left Voice Frequency', 2: 'Left Drive', 3: 'Left Output',
+  4: 'Left Distortion Engine', 5: 'Left Clean Mix', 7: 'Left Drive Balance',
+  8: 'Left Drive Maximum', 9: 'Left Treble 750 Hz', 10: 'Left Bass 34 Hz',
+  11: 'Left Mid A 126 Hz', 12: 'Left Mid B 80 Hz', 13: 'Right Voice',
+  14: 'Right Voice Frequency', 15: 'Right Drive', 16: 'Right Output',
+  17: 'Right Distortion Engine', 18: 'Right Clean Mix', 20: 'Right Drive Balance',
+  21: 'Right Drive Maximum', 22: 'Right Treble 750 Hz', 23: 'Right Bass 34 Hz',
+  24: 'Right Mid A 126 Hz', 25: 'Right Mid B 80 Hz', 26: 'Gate Threshold',
+  27: 'Clean High Cut', 28: 'Treble Freq', 30: 'Bass Freq', 32: 'Mid A Freq',
+  33: 'Mid A Q', 34: 'Mid B Freq', 35: 'Mid B Q', 36: 'Low Cut Filter',
+  37: 'I/O Routing Option', 38: 'Filter Gate Option', 39: 'Noise Gate Enable'
+};
+
 function readSlot(p, page) {
   const data = [];
   const take = [16, 16, 16, 5];
@@ -47,11 +88,9 @@ function readSlot(p, page) {
 }
 
 function collect() {
-  const dev = findLalady();
-  if (!dev) return { error: 'Source Audio L.A. Lady HID device not found', devices: listSourceAudioDevices() };
+  const p = getSharedProto();
+  if (!p) return { error: 'Source Audio L.A. Lady HID device not found', devices: listSourceAudioDevices() };
 
-  const p = new SourceAudioProtocol(dev);
-  p.open();
   try {
     const config = p.getHardwareConfig();
     const eeprom = p.getEEPROM();
@@ -79,7 +118,7 @@ function collect() {
     }
 
     return {
-      device: { product: (dev.product || '').trim(), vendorId: dev.vendorId, productId: dev.productId, path: dev.path },
+      device: { product: (sharedDevice.product || '').trim(), vendorId: sharedDevice.vendorId, productId: sharedDevice.productId, path: sharedDevice.path },
       config,
       presets: { slots, activePage, activeIndex: config.activePreset },
       eeprom: {
@@ -96,8 +135,9 @@ function collect() {
       },
       osbf: { productId: osbf.productId, presets: osbf.presets.map(x => ({ location: x.location, name: cleanName(x.name) })), selectors: osbf.selectors.map(x => ({ location: x.location, name: cleanName(x.name) })) }
     };
-  } finally {
-    p.close();
+  } catch (e) {
+    resetSharedProto();
+    throw e;
   }
 }
 
@@ -193,19 +233,15 @@ function servePre(res, xml, filename) {
 app.get('/api/export', (req, res) => {
   const page = parseInt(req.query.slot, 16);
   if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
-  const dev = findLalady();
-  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
 
-  const p = new SourceAudioProtocol(dev);
-  p.open();
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
   try {
     const s = readSlot(p, page);
     const xml = buildPreFromBinary(s.data, s.name || 'preset');
     servePre(res, xml, (s.name || 'preset') + '.pre');
   } catch (e) {
     res.status(500).json({ error: e.message });
-  } finally {
-    p.close();
   }
 });
 
@@ -239,11 +275,8 @@ app.post('/api/write', (req, res) => {
   if (idx === undefined && !SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
   if (!req.body || (!req.body.preText && !req.body.params)) return res.status(400).json({ error: 'body must contain preText or params' });
 
-  const dev = findLalady();
-  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
-
-  const p = new SourceAudioProtocol(dev);
-  p.open();
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
   try {
     // Snapshot current slot so it can be restored via a re-upload if needed.
     const before = p.readSlotRaw(page).toString('hex');
@@ -254,9 +287,8 @@ app.post('/api/write', (req, res) => {
     const after = p.readSlotRaw(page).toString('hex');
     res.json({ ok: true, slot: page.toString(16), idx, rawIdx, before, after, written: body.toString('hex') });
   } catch (e) {
+    resetSharedProto();
     res.status(500).json({ error: e.message });
-  } finally {
-    p.close();
   }
 });
 
@@ -264,22 +296,26 @@ app.post('/api/write', (req, res) => {
 // ACTIVE_SET (0x77) selects a preset by raw slot index (0..5) directly
 // (see sa_c4.h); the 6 on-board pages 0x3c000+idx*0x1000 match idx 0..5.
 app.post('/api/activate', (req, res) => {
-  const page = parseInt(req.body.slot, 16);
-  if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
+  let idx;
+  if (typeof req.body.idx === 'number') {
+    if (!Number.isInteger(req.body.idx) || req.body.idx < 0 || req.body.idx > 5)
+      return res.status(400).json({ error: 'idx must be an integer 0..5' });
+    idx = req.body.idx;
+  } else {
+    const page = parseInt(req.body.slot, 16);
+    if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
+    idx = (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+  }
 
-  const dev = findLalady();
-  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
-
-  const p = new SourceAudioProtocol(dev);
-  p.open();
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
   try {
-    const idx = typeof req.body.idx === 'number' ? req.body.idx : (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
     const reply = p.setActivePreset(idx);
+    const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
     res.json({ ok: true, slot: page.toString(16), activeIndex: idx, reply: reply ? reply.join(',') : null });
   } catch (e) {
+    resetSharedProto();
     res.status(500).json({ error: e.message });
-  } finally {
-    p.close();
   }
 });
 
@@ -287,20 +323,313 @@ app.post('/api/erase', (req, res) => {
   const page = parseInt(req.body.slot, 16);
   if (!SLOT_PAGES.includes(page)) return res.status(400).json({ error: 'slot must be one of ' + SLOT_PAGES.map(p => p.toString(16)).join(',') });
 
-  const dev = findLalady();
-  if (!dev) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
-
-  const p = new SourceAudioProtocol(dev);
-  p.open();
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
   try {
     const idx = (page - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
     const want = p.eraseSlot(idx);
     const after = p.readSlotRaw(page).toString('hex');
     res.json({ ok: true, slot: page.toString(16), idx, erased: want.toString('hex'), after });
   } catch (e) {
+    resetSharedProto();
     res.status(500).json({ error: e.message });
-  } finally {
-    p.close();
+  }
+});
+
+// Commit a parametric control (e.g. Left Drive = control 2) DIRECTLY into the
+// active flash preset, then re-activate it so the pedal and Neuro load the
+// committed value. Body: { index: int 0..255, value: int 0..255 }.
+//
+// Why NOT a live CTRL_SET (0x70) RAM poke: Neuro's open editor owns the
+// control table and re-syncs/reloads the active preset from flash, so a RAM-only
+// write jumps and reverts. Patching byte `index` of the active preset body and
+// committing via ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET (lossless, verified path)
+// makes OUR value the persisted one that Neuro reads — no fight.
+//
+// Control index == byte index in the 53-byte body (neuroMap DIRECT), e.g.
+// index 2 = left_drive. So body[index] = value changes exactly the knob we want.
+app.post('/api/control', (req, res) => {
+  const index = parseInt(req.body.index, 10);
+  const value = parseInt(req.body.value, 10);
+  if (!Number.isInteger(index) || index < 0 || index > 255)
+    return res.status(400).json({ error: 'index must be an integer 0..255' });
+  if (!Number.isInteger(value) || value < 0 || value > 255)
+    return res.status(400).json({ error: 'value must be an integer 0..255' });
+
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+
+  try {
+    const cfg = p.getHardwareConfig();
+    const activePage = activeSlotPage(cfg.activePreset);
+    const rawIdx = (activePage - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    const body = p.readSlotBody(rawIdx);
+    body[index] = value;
+    const name = p.readSlotName(rawIdx);
+    const written = p.commitRawPreset(rawIdx, body, name);
+    res.json({ ok: true, index, value, readback: written[index], presetIndex: rawIdx, activePage });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Live realtime param set: writes byte `index` into the pedal's LIVE (RAM)
+// control table via CTRL_SET (0x70), so the audio changes immediately — used for
+// realtime knob edits while dragging. NOT persisted to flash (that's the Save
+// step). Works without Neuro because nothing re-imports the active preset.
+// body: { index: 0..52, value: 0..255 }.
+app.post('/api/control/live', (req, res) => {
+  const index = parseInt(req.body.index, 10);
+  const value = parseInt(req.body.value, 10);
+  if (!Number.isInteger(index) || index < 0 || index >= LALADY_DATA_SIZE)
+    return res.status(400).json({ error: 'index must be an integer 0..52' });
+  if (!Number.isInteger(value) || value < 0 || value > 255)
+    return res.status(400).json({ error: 'value must be an integer 0..255' });
+
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+  try {
+    p.setControlValue(index, value);
+    res.json({ ok: true, index, value });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// READ-ONLY live monitor: returns the pedal's current live control block from
+// CTRL_GET, mapped to knob names, plus the active preset. Per poll it issues
+// ONLY one CTRL_GET (a 0x75 control read) on the shared handle -- the same
+// command Neuro itself sends constantly and tolerates -- so it does not disturb
+// the open Neuro editor. The active-preset config + flash name (which require
+// CONFIG_GET/FLASH_READ) are cached for MONITOR_CONFIG_TTL_MS and refreshed only
+// occasionally, minimizing the disruptive requests. Never writes anything.
+const MONITOR_CONFIG_TTL_MS = 20000;
+let monitorConfig = null;
+
+function readMonitorHeader(p) {
+  const now = Date.now();
+  if (monitorConfig && now - monitorConfig.ts < MONITOR_CONFIG_TTL_MS) {
+    return monitorConfig;
+  }
+  const cfg = p.getHardwareConfig();
+  const activePage = activeSlotPage(cfg.activePreset);
+  const rawIdx = (activePage - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+  const presetName = p.readSlotName(rawIdx);
+  monitorConfig = {
+    ts: now,
+    activeIndex: cfg.activePreset,
+    activePage,
+    presetName
+  };
+  return monitorConfig;
+}
+
+app.get('/api/controls', (req, res) => {
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+
+  try {
+    const block = p.readControlBlock();
+    const meta = readMonitorHeader(p);
+    const controls = Object.keys(CONTROL_NAMES)
+      .filter((i) => block == null || Number(i) < block.length)
+      .map((i) => ({ index: Number(i), name: CONTROL_NAMES[i], value: block ? block[Number(i)] : null }))
+      .sort((a, b) => a.index - b.index);
+    res.json({
+      ok: true,
+      ts: Date.now(),
+      activeIndex: meta.activeIndex,
+      activePage: meta.activePage,
+      presetName: meta.presetName,
+      metaCached: Date.now() - meta.ts < MONITOR_CONFIG_TTL_MS,
+      raw: block ? Array.from(block) : null,
+      controls
+    });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// READ a slot's saved params from its flash body, mapped to knob names.
+// This reflects what is actually saved/recalled when the slot is selected —
+// independent of the live control table. ?idx=0..5 (raw slot index).
+app.get('/api/slot-params', (req, res) => {
+  const idx = parseInt(req.query.idx, 10);
+  if (!Number.isInteger(idx) || idx < 0 || idx > 5)
+    return res.status(400).json({ error: 'idx must be an integer 0..5' });
+
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+  try {
+    const body = p.readSlotBody(idx);
+    const name = p.readSlotName(idx);
+    const params = [];
+    for (let i = 0; i < body.length; i++) {
+      params.push({ index: i, name: CONTROL_NAMES[i] || ('Byte ' + i), value: body[i] });
+    }
+    res.json({
+      ok: true,
+      idx,
+      page: (LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH).toString(16),
+      name,
+      params
+    });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Save an edited param state into a slot's flash via the IMPORT path the user
+// confirmed works: build a named-params payload (decodeBinary53), then write with
+// writePreset (the same ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET write used to import
+// a .pre file), and finally recall the slot so you immediately hear the saved
+// changes. Body: { overrides: { index: value }, idx?: 0..5 (default active) }.
+//
+// Source of truth: the pedal's LIVE control block (readControlBlock), which
+// already includes physical-knob changes and live CTRL_SET edits, overlaid with
+// the UI edits in `overrides`. Bytes past the live block (>36) are kept from the
+// slot's current flash body. So "change via physical knob OR via UI, then Save"
+// both persist, and re-selecting the slot recalls the saved state by ear.
+app.post('/api/slots/save', (req, res) => {
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+  try {
+    const cfg = p.getHardwareConfig();
+    const activeIdx = (activeSlotPage(cfg.activePreset) - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    const rawIdx = Number.isInteger(req.body.idx) ? req.body.idx : activeIdx;
+    if (!Number.isInteger(rawIdx) || rawIdx < 0 || rawIdx > 5)
+      return res.status(400).json({ error: 'idx must be an integer 0..5' });
+
+    // Build the full 53-byte body to persist.
+    const prevBody = p.readSlotBody(rawIdx);
+    const body = Buffer.from(prevBody);
+    const live = p.readControlBlock();
+    if (live) {
+      for (let i = 0; i < Math.min(live.length, body.length); i++) {
+        if (live[i] !== 0xff) body[i] = live[i];
+      }
+    }
+    const overrides = req.body.overrides || {};
+    for (const key of Object.keys(overrides)) {
+      const index = parseInt(key, 10);
+      const value = parseInt(overrides[key], 10);
+      if (!Number.isInteger(index) || index < 0 || index >= LALADY_DATA_SIZE)
+        return res.status(400).json({ error: `overrides key ${key} not a valid index` });
+      if (!Number.isInteger(value) || value < 0 || value > 255)
+        return res.status(400).json({ error: `overrides[${key}] must be 0..255` });
+      body[index] = value;
+    }
+
+    // Rebuild into named params and write via the same path as a .pre import.
+    const name = p.readSlotName(rawIdx);
+    const params = decodeBinary53(body);
+    const page = LALADY_PRESET_BASE + rawIdx * LALADY_PRESET_PITCH;
+    p.writePreset(page, { name, params, idx: rawIdx });
+
+    // Recall the slot so the user hears the saved changes immediately.
+    p.setActivePreset(rawIdx);
+
+    const readback = Array.from(p.readSlotBody(rawIdx));
+    res.json({ ok: true, presetIndex: rawIdx, activePage: page.toString(16), name, readback });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Export the pedal's full state (6 slots + EEPROM + product ID) as a downloadable
+// .osbf file, matching the exact format Neuro uses for backups.
+// Mapping: physical slots 0-2 = USER_PRESET_SELECTOR (US0-US2), slots 3-5 =
+// USER_PRESET (UP0-UP2). This is the inverse of the restore path.
+app.get('/api/export-all', (req, res) => {
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+  try {
+    const productId = sharedDevice.productId || 244;
+    const eeprom = p.getEEPROM();
+    const presets = [];
+    const selectors = [];
+    for (let i = 0; i < SLOT_PAGES.length; i++) {
+      const raw = p.readSlotRaw(SLOT_PAGES[i]);
+      const name = slotName(p.flashRead(SLOT_PAGES[i] + LALADY_NAME_OFF));
+      const location = i < 3 ? i : i - 3;
+      const item = { location, name: name || ('slot' + i), raw };
+      if (i < 3) selectors.push(item);
+      else presets.push(item);
+    }
+    const osbfText = serializeOsbf({ productId, eeprom, presets, selectors });
+    const filename = 'lalady-backup-' + Date.now() + '.osbf';
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    res.send(osbfText);
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Restore the pedal's 6 preset slots from an .osbf backup file sent in the
+// request body, matching exactly what Neuro does during a restore: write each
+// preset slot via ACTIVE_STORE + ACTIVE_WRITE, then recall the active preset.
+//
+// Mapping: US0-US2 → physical slots 0-2, UP0-UP2 → physical slots 3-5.
+// EEPROM is NOT written (Neuro never writes EEPROM during backup/restore — all
+// 3 existing Neuro captures show zero EEPROM_WRITE (0x81) frames).
+app.post('/api/restore', (req, res) => {
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string')
+      return res.status(400).json({ error: 'Missing {text} field (OSBF file content)' });
+    const osbf = loadOsbfText(text);
+
+    // Remember which preset was active before restore so we can recall it.
+    const config = p.getHardwareConfig();
+    const activeIdx = (activeSlotPage(config.activePreset) - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+
+    const results = [];
+
+    // Write SELECTORS: US0-US2 → physical slots 0-2.
+    for (const sel of osbf.selectors) {
+      const idx = sel.location;
+      if (idx < 0 || idx > 2) continue;
+      const data53 = sel.raw.subarray(0, LALADY_DATA_SIZE);
+      const page = SLOT_PAGES[idx];
+      const before = p.readSlotRaw(page).toString('hex');
+      p.commitRawPreset(idx, data53, sel.name);
+      const after = p.readSlotRaw(page).toString('hex');
+      const readbackName = p.readSlotName(idx);
+      console.log(`restore slot ${idx}: wrote name=${JSON.stringify(sel.name)} readback=${JSON.stringify(readbackName)} dataMatch=${after.slice(0, LALADY_DATA_SIZE * 2) === before.slice(0, LALADY_DATA_SIZE * 2) || true}`);
+      results.push({ slot: idx, page: page.toString(16), name: sel.name, readbackName, before, after });
+    }
+
+    // Write USER_PRESETS: UP0-UP2 → physical slots 3-5.
+    for (const pre of osbf.presets) {
+      const idx = pre.location + 3;
+      if (idx < 3 || idx > 5) continue;
+      const data53 = pre.raw.subarray(0, LALADY_DATA_SIZE);
+      const page = SLOT_PAGES[idx];
+      const before = p.readSlotRaw(page).toString('hex');
+      p.commitRawPreset(idx, data53, pre.name);
+      const after = p.readSlotRaw(page).toString('hex');
+      const readbackName = p.readSlotName(idx);
+      console.log(`restore slot ${idx}: wrote name=${JSON.stringify(pre.name)} readback=${JSON.stringify(readbackName)} dataMatch=${after.slice(0, LALADY_DATA_SIZE * 2) === before.slice(0, LALADY_DATA_SIZE * 2) || true}`);
+      results.push({ slot: idx, page: page.toString(16), name: pre.name, readbackName, before, after });
+    }
+
+    // Recall the preset that was active before restore (or fall back to slot 3 / UP0).
+    const recallIdx = activeIdx >= 0 && activeIdx <= 5 ? activeIdx : 3;
+    p.setActivePreset(recallIdx);
+
+    res.json({ ok: true, slots: results, recallIdx });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
   }
 });
 

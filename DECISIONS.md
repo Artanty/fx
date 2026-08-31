@@ -1227,3 +1227,151 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Removed temp probe/restore scripts; fresh backup
   runtime-actions/lalady-backup-1788122146966.json (slot 0x3e000 erased as the
   user did; others intact).
+
+## Progress - 2026-08-30 pedal-app+web: Erase = neutral 50% preset (was all-0xFF)
+- User: "i dont like that all the knobs and params are in last variant. lets make
+  all the params at 50% on erase" - erasing should yield a silent-but-playable
+  preset, not the all-0xFF (maxed/last-variant static) body.
+- pedal-app: SourceAudioProtocol.DEFAULT_PARAMS_50() = every continuous knob
+  level at 128 (0x80, 50% of the 0-255 scale); selectors/bitfields at valid
+  factory-style defaults (voice 153/153, engines 36/10, noise_gate 1, gate_mode 3,
+  treble_boost_maximum 4, control_range 200, control_min 410). encodeBinary53
+  round-trips cleanly (verified). eraseSlot now stages this body with a BLANK
+  (0x00, not 0xFF) name and ACTIVE_STORE/ACTIVE_WRITE + byte-exact verify.
+- Hardware-verified on disposable slot idx 2 (page 0x3e000, the user-erased
+  empty slot): read-back data = 99808080248000808080... (knobs 0x80, none 0xFF),
+  name all-0x00; decodeBinary53 shows left_drive/output/right_drive/output and
+  freq all = 128. No user preset overwritten.
+- web dist UI: Erase button tooltip updated to "Reset preset (blank name, all
+  params at 50%)". /api/erase endpoint unchanged structurally.
+- Checks: node -c (server.js, sourceAudio.js) and `ng build` (web) both pass.
+  NOT committed.
+
+## Progress - 2026-08-31 pedal-app+web: live Left Drive knob (planned + done)
+- Goal: turning a live "Left Drive" knob in the dist web UI moves the "Left
+  Drive" value in the Neuro Desktop 3 editor via a real-time CTRL_SET write.
+- Protocol nailed down from Neuro app bytecode (shared-jvm jar, bundled javap):
+  PedalApiImpl.setControlValue(desc, rawValue, productId) passes the RAW preset
+  byte straight into getParametricSendCommand(info, value, 0). For SA-244 (L.A.
+  Lady) sendType="16bit" -> GetParametricSendCommand's tableswitch ordinal 5 ->
+  plain Write16BitControl(controlIndex, value), whose bytes() = [0x70,
+  controlIndex, value>>8, value&0xff]. Left Drive = controlIndex 2 (sa-244.json
+  midiMapStructure.controls). So live write frame = [0x70, 0x02, 0x00, value]
+  for value 0..255.
+- This supersedes/explains the old probe: "type 0x03/0x02" were really
+  controlIndex 3 (Left Output) / 2 (Left Drive). Mapping is now authoritative
+  from app source, not guessed from read-backs.
+- Implemented setControlValue(idx, value) in pedal-app SourceAudioProtocol and
+  POST /api/control in server.js; dist UI Left Drive knob wired to it with
+  read-back. Checks: node -c + ng build pass. NOT committed.
+
+## Progress - 2026-08-31 pedal-app+web: fix Live Left Drive knob "chaos"
+- User: dragging the dist Left Drive slider made ALL knobs in the Neuro editor
+  jump and the final value could be wrong ("if not to stop some server, mb it
+  helps").
+- Diagnosis via USBPcap1 capture of the running editor: Neuro polls the pedal
+  control table ~130 Hz (CTRL_GET2 offset 0x10/0x20/0x30 + CONFIG_GET), and the
+  pedal broadcasts HID input reports to every open handle.
+- Root causes:
+  1. POST /api/control opened+closed the HID device per request; each reopen
+     makes the pedal reload its live control table -> Neuro sees all knobs jump.
+  2. Ctrl-set read-back returned payload[0] (block[0]=0xff) not the written
+     byte, because the reply is [0x75, block0, block1, ...], block[i]=reply[i+1].
+  3. UI fired one unbuffered CTRL_SET per ngModelChange (burst during drag).
+- Fixes (verified live, hardware on pedal):
+  - server.js: persistent SourceAudioProtocol across /api/control requests
+    (getControlProto singleton); only reopen on error.
+  - sourceAudio.js: readControlBlock() asks offset-0 CTRL_GET and accepts any
+    0x75-head >=32-byte reply (broadcast makes our reply indistinguishable from
+    Neuro's; both carry the live block). Endpoint returns block[index].
+  - dist UI: debounced/throttled write - remember latest value, one in-flight at
+    a time, send via setTimeout(0).
+  - Verify script (throwaway) did 6 writes 128/180/200/160/220/128 on one open
+    handle: every readback matched exactly. Checks: node -c + ng build pass.
+  - NOTE: backend (server.js, PID 11772) still runs OLD code; user must restart
+    it for the persistent connection + readback fix to go live.
+
+## Plan - 2026-08-31 pedal-app+web: share persistent HID handle to stop control-table reload revert
+- Root cause (from USBPcap wire trace): the live CTRL_SET write sticks on the wire (read-back stayed 0xde=222), but opening a SECOND HID handle makes the pedal reload its active preset body from flash, reverting the live control table (block[2]=0x7f=127 for active oct2+octFuzz). Every server.js endpoint that does its own open/close (collect for status/presets, export, write, activate, erase) is that second handle while the persistent /api/control handle is open -> reverts both our writes and Neuro's own knob drags.
+- Fix: route ALL pedal accesses through one shared persistent SourceAudioProtocol singleton (getControlProto), removing the other 5 open/close sites so no second handle ever opens on the control path. Keep readControlBlock accepting broadcast replies.
+- Verify: node -c + ng build; on hardware, write Left Drive then call /api/status fresh and confirm the read-back no longer reverts; USBPcap shows a single open handle.
+
+## Progress - 2026-08-31 pedal-app+web: share persistent HID handle (revert fix)
+- Confirmed root cause on the wire: a live CTRL_SET write (Left Drive=222) STAYS at 0xde on the pedal while Neuro polls it; the revert to 127 came from opening a SECOND HID handle, which forces the pedal to reload its active preset body from flash (block[2]=0x7f for active oct2+octFuzz). Every in-process endpoint that did its own open/close (collect for /api/status+presets+eeprom, /api/export, /api/write, /api/activate, /api/erase) was that second handle while /api/control held its persistent handle open -> reverted both our writes and Neuro's own knob drags.
+- Fix in server.js: introduced a single shared persistent SourceAudioProtocol singleton (getSharedProto / resetSharedProto) and routed ALL pedal access through it; removed the other 5 open/close sites and the old getControlProto/controlProto/controlDev pair. Now only one HID handle ever exists on the control path, so a status/presets refresh no longer reloads the live control table.
+- Kept readControlBlock logic (accept any 0x75-head >=32-byte reply) unchanged.
+- Checks: node -c + ng build both pass. NOT committed.
+- NOTE: backend currently DOWN (user must restart it to pick up the new shared-handle code). Pending hardware re-verify: write Left Drive then call /api/status fresh and confirm read-back no longer reverts; USBPcap should show a single open handle across both.
+
+## Progress - 2026-08-31 pedal-app+web: definitive wire diagnosis of Neuro 'knob jumping'
+- Re-tested with the shared-handle fix live (server restarted, PID 11772 on 3111): web Ctrl write -> correct stable readback (222 then 200), even with /api/status?fresh=1 called in between. No more reload-induced revert.
+- USBPcap over several scenarios (Neuro editor open, idle; knob focused; web drag): Neuro sends ONLY CTRL_GET2 (~130 Hz, offsets 0x10/0x20/0x30) + CONFIG_GET(0x45). ZERO counter-writes, zero re-init/re-download, zero ACTIVE_* when idle. Our CTRL_SET is the only write.
+- CTRL_GET2 offset sub-reads: only offset 0x10's byte-2 carries the live Left Drive (stable 200 = our write, every poll); offsets 0x20/0x30 return 0xff for byte-2 as expected (different table region). Data is clean and stable on the wire.
+- CONCLUSION: the USB write path is now correct and non-destructive. The user's remaining 'knobs jump' is 100% a Neuro-Desktop-side rendering artifact: when its editor is open and a displayed control changes under it (our write), Neuro repaints its panel each poll tick / on each external change. That cannot be prevented from the web/server side (we can't patch Neuro); it only shows while the web slider is actively dragged (one write+repaint per tick).
+- Options for the user: (a) accept it - write works, settles after each change; (b) write on release (single value per drag gesture, minimum repaints); (c) only drive Left Drive when Neuro editor is closed/minimized; (d) drive Neuro via its own automation (touch-controls-urself) instead of parallel writes. NOT committed.
+
+## Plan - 2026-08-31 pedal-app+web: commit control to active flash preset (viable Left Drive)
+- User rejected the parallel live-RAM CTRL_SET path: Neuro's open editor owns/repaints the control table, so a RAM-only write jumps and reverts. Chose: commit to the active flash preset instead.
+- Mapping confirmed: control index 2 = Left Drive = byte 2 of the 53-byte preset body (neuroMap DIRECT) = the same value Neuro's offset-0x10 CTRL_GET2 returns. So patching byte 2 of the active preset body and re-activating makes Neuro load OUR committed value with no fight.
+- Approach: lossless in-place byte patch (NOT decode/re-encode, which corrupts unmapped/footer bytes). Add SourceAudioProtocol.commitRawPreset(idx, data53, name) (ACTIVE_STORE+ACTIVE_WRITE+ACTIVE_SET, verified path) + server helper. Repurpose /api/control to patch byte[index] of the active preset body, commit, re-activate, return new value.
+- UI: send on release (single commit per drag gesture) instead of per-tick, so Neuro repaints once and settles.
+- Verify: node -c + ng build; on hardware drag Left Drive slider -> value persists in flash (survives Neuro reload), Neuro shows it steadily, readback matches. Update DECISIONS after.
+
+## Progress - 2026-08-31 pedal-app+web: commit-to-active-preset Left Drive (v2)
+- Implemented the chosen approach: web Left Drive slider now commits the value DIRECTLY into the active flash preset instead of a live RAM CTRL_SET.
+- sourceAudio.js: added commitRawPreset(idx, data53, name) (lossless in-place: ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET, read-back verify) + readSlotBody(idx)/readSlotName(idx) helpers.
+- server.js /api/control: reads getHardwareConfig().activePreset -> activeSlotPage -> rawIdx=(page-0x3c000)/0x1000, reads the 53-byte body, sets body[index]=value (index==byte index per neuroMap DIRECT, e.g. 2=left_drive), commits, re-activates, returns readback+presetIndex+activePage.
+- dist UI: slider fires on (change) [release] not per-tick; commitLeftDrive guards against overlapping slow flash commits (queues latest).
+- Read-only sanity check on hardware (standalone script): active preset oct2+octFuzz at rawIdx 4 (0x40000), byte2=127 matches flash default; getHardwareConfig/readSlotBody/readSlotName verified working.
+- Checks: node -c (server, sourceAudio) + ng build pass. NOT committed.
+- NOTE: backend holds OLD code; user must restart node (3111) to load the new /api/control + commitRawPreset. Then drag Left Drive slider -> awaits flash commit (~2s) -> value persists in flash across Neuro reload (no revert).
+
+## Plan + Progress - 2026-08-31 web: realtime read-only knob monitor
+- User asked to SEE (not change) the pedal's knob state in realtime, reflecting external changes (e.g. Neuro editor).
+- Backend: added GET /api/controls on the shared persistent handle. Reads getHardwareConfig (active preset idx), readControlBlock (live CTRL_GET block), readSlotName (preset name); maps control index->name from Neuro's sa-244.json (midiMapStructure.controls) via new CONTROL_NAMES const; returns controls[{index,name,value}], activePage/presetName, ts, raw. Read-only. Guarded to skip out-of-block-range indices (block is 37 bytes => 0..36).
+- Verified composition standalone (read-only, no writes): active oct2+octFuzz at rawIdx 4; live block gives Left Drive=90, Right Drive=90, Mid A Freq=1, Mid A Q=3 (90 != flash 127 => live table, not flash). 5 consecutive polls stable on same handle.
+- Web UI: added Zhealtime knob monitor section (toggle Start/Stop, poll /api/controls every 700ms via setInterval, OnDestroy cleanup). Shows all mapped knobs with current value, highlights Left Drive (idx 2). Controls if present; error auto-stops polling. Added LiveControls/LiveControl models + api.controls().
+- Checks: node -c (server, sourceAudio) + ng build pass. NOT committed.
+- NOTE: backend on 3111 still runs old code; user must restart node to serve /api/controls. Monitoring is read-only and never opens a second handle.
+
+## Progress - 2026-08-31 web: monitor poll disrupted Neuro knobs - minimal-read fix
+- User: with Neuro editor open, every GET /api/controls made Neuro's knobs jump/reinit.
+- USBPcap proof: each old /api/controls request sent CONFIG_GET (0x45) + FLASH_READ (0x36 for the preset name) + CTRL_GET on the shared handle; those extra vendor requests (esp. CONFIG_GET/flash read) are what Neuro's open editor reacts to, re-syncing/reinitializing knobs.
+- Fix in server.js: /api/controls now issues ONLY one CTRL_GET (0x75 control read, same family Neuro polls constantly and tolerates) per request; the active-preset config + flash name (which need CONFIG_GET/FLASH_READ) are cached in module-level monitorConfig for MONITOR_CONFIG_TTL_MS=20000ms and refreshed occasionally.
+- Checks: node -c passes. Backend must be restarted by user to load. If user finds even the single CTRL_GET still jumps, next step is a fully passive monitor (background drain of Neuro's own 0x75 replies on the shared handle => zero HID commands per request).
+
+## Plan + Progress - 2026-08-31 pedal-app+web: offline (no Neuro) workbench
+## Plan
+- User wants to work without Neuro: (1) pick 1 of 6 preset slots (activates it on pedal), (2) get all param values, (3) change one param via physical knob or our UI, (4) save that state to the active slot.
+- Decisions from clarifying: params read from the SELECTED slot's FLASH BODY (what's saved/recalled), selecting a slot also ACTIVATES it on the pedal, and save is manual (persist live state to active slot flash).
+- Backend: GET /api/slot-params?idx=0..5 reads readSlotBody(idx)+readSlotName(idx), maps all 53 bytes to names (CONTROL_NAMES fallback 'Byte N'). POST /api/slots/save takes {overrides:{index:value}}: source of truth = pedal LIVE control block (captures physical knob changes), bytes beyond live block (<37) kept from flash body, UI overrides layered on top, then commitRawPreset to the active slot.
+- Web: Offline workbench panel - 6 slot buttons (activate+load flash params), params table with sliders, Save (overrides) / Revert; Save reloads slot body after commit.
+- Checks: node -c + ng build pass. Backend NOT restarted (AGENTS.md: user runs it). Not committed.
+## Progress
+- Verified standalone (read-only, device direct): active rawIdx 4 'oct2+octFuzz'; flash body leftDrive(idx2)=99/idx0=153/idx3=255 vs live leftDrive=106 -> confirms live-vs-flash distinction and that Save must source from live to capture physical knob changes.
+- Reads (readSlotBody=53, readSlotName, readControlBlock=37) all work; merge logic validated. Still needs backend restart (user) + a hardware save to confirm persistence, then commit with [pedal-app]/[web] prefixes.
+
+## Progress - 2026-08-31 pedal-app+web: realtime edits + save-via-import
+- User clarified: (a) want REAL-TIME (hear) knob changes, (b) after Save, re-select the slot and hear the saved changes, (c) for Save, build a payload like an import file and import it (that path was confirmed working).
+- Added backend POST /api/control/live {index,value}: live CTRL_SET (0x70) into the RAM control table via setControlValue -> immediate audible change, no flash write. This works because the user is now working WITHOUT Neuuro (the earlier live path was only reverted due to Neuuro re-importing the active preset).
+- Rewrote POST /api/slots/save to use the IMPORT path the user confirmed: source = live control block (physical knobs + realtime edits) padded with the slot flash body past byte 36, overlaid with UI overrides; then decodeBinary53(body) -> named params; writePreset(page,{name,params,idx}) (the same ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET used to import a .pre); then setActivePreset(rawIdx) to recall it so the user hears the saved changes. Accepts optional idx (default active).
+- Also fixed POST /api/activate to accept {idx:0..5} (workbench select) - was returning 400 when only idx was sent (no slot).
+- Web: workbench slider now sends live CTRL_SET on (input) (throttled 40ms) for realtime sound; (change) marks edit for save. Save sends {overrides, idx:selectedSlotIdx}.
+- Checks: node -c + ng build pass. Verified decodeBinary53->encodeBinary53 round-trip is lossless on an actual slot body (left drive byte reflects current value).
+- BLOCKED: running backend (PID 15904) returns 404 on /api/control/live = still old code. User must restart node backend (3111) to load all new endpoints, then hardware-verify: drag slider hears change live; Save then re-select slot hears saved state. Then commit [pedal-app]/[web].
+
+## Progress - 2026-08-31 pedal-app+web: OSBF backup restore + export-all
+- Added `serializeOsbf({productId, eeprom, presets, selectors})` in `pedal-app/src/osbf.js`: mirrors `parseOsbf` text format exactly (START_DATA/END_DATA blocks, same field layout, same hex encoding). Verified lossless round-trip: parsed the original OSBF → serialized → re-parsed → all 6 binary payloads (85 bytes each) match byte-for-byte.
+- Backend `GET /api/export-all`: reads all 6 slots via `readSlotRaw` + `getEEPROM` + productId, serializes via `serializeOsbf`, returns as a downloadable `.osbf` file (Content-Disposition attachment). Mapping: physical slots 0-2 (US0-US2, SELECTORs), slots 3-5 (UP0-UP2, USER_PRESETs).
+- Backend `POST /api/restore`: loads OSBF from `input/2026-07-31_labackup.osbf`, writes all 6 slots via `commitRawPreset(idx, data53, name)`. SELECTORS (US0-US2) → physical slots 0-2, USER_PRESETs (UP0-UP2) → physical slots 3-5. EEPROM NOT written (confirmed: all 3 existing Neuro captures show zero EEPROM_WRITE (0x81) frames). Returns verify results per slot (before/after hex, match flag). Recalls previously-active preset after restore.
+- Web: added Restore (with confirm dialog) + Export All buttons in the workbench slot-picker row. Restore shows a per-slot verify table (slot#, page, name, ok/MISMATCH). Added `restoreBackup()`, `exportAll()`, `RestoreResult`/`RestoreSlotResult` models, `api.restore()`, `api.exportAllUrl()`.
+- Checks: `node -c` (server, osbf) + `ng build` pass. Backend must be restarted by user to load `/api/restore` and `/api/export-all`. Not committed.
+- NOTE: `commitRawPreset` is ~2s per slot (2x ACTIVE_STORE blocks + ACTIVE_WRITE + recall, each 500ms wait) → full restore ~12s. Acceptable for a restore operation.
+
+## Progress - 2026-08-31 pedal-app+web: restore file-picker + name sanitize
+- Restore now picks the .osbf file on the machine instead of a fixed path: added `loadOsbfText(text)` in osbf.js (refactored block collection from `loadOsbf`) and POST /api/restore accepts `{text}` (OSBF file content). Web: hidden `<input type=file accept=".osbf">` opened by the Restore button, read via FileReader('latin1'), sent to /api/restore.
+- Fixed 500 "LALADY_NAME_SIZE is not defined": the `expect` helper referenced a constant not imported in server.js → added LALADY_NAME_SIZE to the laLadyModel destructure.
+- Fixed the verify column: it compared before-vs-after restore (meaningless — restore is supposed to change the slot). Removed the bogus match; now returns `readbackName` (clean name read back from flash) per slot, UI shows it instead of the raw OSBF name (which carries \u0000 null padding that rendered as squares).
+- Write-side sanitize: `commitRawPreset` + `writePreset` now strip all non-printable bytes ([^\x20-\x7e]) from names before writing to flash, so no null padding ever lands on the device.
+- Diagnostics: added a console.log per restored slot (wrote name vs readback name + data match).
+- Checks: node -c (server, sourceAudio) + ng build pass. Backend restart required to load: LALADY_NAME_SIZE import, write-side strips, /api/restore {text}, readbackName response.

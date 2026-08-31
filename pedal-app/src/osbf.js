@@ -25,10 +25,7 @@ function decodeHex(payload) {
   return Buffer.from(payload, 'hex');
 }
 
-function loadOsbf(path) {
-  const text = fs.readFileSync(path, 'latin1');
-  const blocks = parseOsbf(text);
-
+function collectBlocks(blocks) {
   const result = { productId: null, eeprom: null, presets: [], selectors: [] };
 
   for (const b of blocks) {
@@ -59,4 +56,59 @@ function loadOsbf(path) {
   return result;
 }
 
-module.exports = { parseOsbf, loadOsbf };
+function loadOsbf(path) {
+  const text = fs.readFileSync(path, 'latin1');
+  return collectBlocks(parseOsbf(text));
+}
+
+function loadOsbfText(text) {
+  return collectBlocks(parseOsbf(text));
+}
+
+// --- Serializer: mirror the parseOsbf text format exactly ---
+
+function padName(name) {
+  const s = String(name || '').slice(0, 32);
+  return s + ' '.repeat(32 - s.length);
+}
+
+function block(type, lines) {
+  return 'START_DATA\n' + type + ';\n' + lines.join(';\n') + ';\nEND_DATA';
+}
+
+function serializeOsbf({ productId, eeprom, presets, selectors }) {
+  const parts = [];
+
+  parts.push(block('BACKUP_INFO', ['PRODUCT_ID=' + (productId || 244)]));
+
+  if (eeprom) {
+    parts.push(block('USER_EEPROM', [
+      'SIZE=256',
+      Buffer.from(eeprom).toString('hex').toUpperCase()
+    ]));
+  }
+
+  for (const p of presets) {
+    const raw = Buffer.isBuffer(p.raw) ? p.raw : Buffer.from(p.raw);
+    parts.push(block('USER_PRESET', [
+      'LOCATION=' + p.location,
+      'SIZE=53',
+      'NAME=' + padName(p.name),
+      raw.toString('hex').toUpperCase()
+    ]));
+  }
+
+  for (const s of selectors) {
+    const raw = Buffer.isBuffer(s.raw) ? s.raw : Buffer.from(s.raw);
+    parts.push(block('USER_PRESET_SELECTOR', [
+      'LOCATION=' + s.location,
+      'SIZE=53',
+      'NAME=' + padName(s.name),
+      raw.toString('hex').toUpperCase()
+    ]));
+  }
+
+  return parts.join('\n') + '\n';
+}
+
+module.exports = { parseOsbf, loadOsbf, loadOsbfText, serializeOsbf };
