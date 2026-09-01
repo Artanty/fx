@@ -8,6 +8,7 @@ import {
   EraseResult,
   LaladyDevice,
   LaladyPresets,
+  LaladyStatus,
   LiveControls,
   RestoreResult,
   SlotParams,
@@ -29,6 +30,10 @@ export class LaladyApiService {
 
   presets(): Observable<LaladyPresets> {
     return this.http.get<LaladyPresets>(`${BASE}/api/presets`);
+  }
+
+  status(): Observable<LaladyStatus> {
+    return this.http.get<LaladyStatus>(`${BASE}/api/status`);
   }
 
   exportUrl(slot: string): string {

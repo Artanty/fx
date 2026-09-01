@@ -311,6 +311,18 @@ table.knobs {
       font-weight: 600;
       padding: 0 12px;
     }
+
+    .midi-chip {
+      margin-left: auto;
+      padding: 4px 10px;
+      border: 1px solid #35353f;
+      border-radius: 12px;
+      background: #1d1d24;
+      color: #c9c9d4;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
   }
 
   .param-actions {

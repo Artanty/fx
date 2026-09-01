@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LaladyApiService } from './lalady-api.service';
-import { LaladyPresets, LaladySlot, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult } from './lalady.models';
+import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult } from './lalady.models';
 
 type RowState =
   | { kind: 'idle' }
@@ -99,10 +99,24 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   restoreResult: RestoreResult | null = null;
 
+  // Pedal hardware config (MIDI channel etc.) from GET /api/status.
+  deviceInfo: LaladyStatus | null = null;
+
   constructor(private api: LaladyApiService) {}
 
   ngOnInit(): void {
     this.refresh();
+    this.refreshDeviceInfo();
+  }
+
+  // Fetches hardware config (firmware, MIDI channel, bypass mode) so the MIDI
+  // channel — needed to send CC messages like the engage/bypass bind — is shown
+  // in the Workbench. MIDI channel is 0-based on the backend; display 1-based.
+  refreshDeviceInfo(): void {
+    this.api.status().subscribe({
+      next: (s) => (this.deviceInfo = s),
+      error: () => (this.deviceInfo = null),
+    });
   }
 
   ngOnDestroy(): void {

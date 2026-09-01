@@ -17,6 +17,23 @@ export interface LaladyDevice {
   device?: unknown;
 }
 
+export interface LaladyConfig {
+  firmwareVersion: number;
+  deviceModel: number;
+  field3?: number;
+  activePreset: number;
+  hardwareBypassMode: number;
+  midiChannel: number; // 0-based (payload[7] of the hardware config report)
+  raw?: string;
+}
+
+export interface LaladyStatus {
+  config: LaladyConfig;
+  device?: unknown;
+  activePage: number;
+  error?: string;
+}
+
 export interface WriteRequest {
   slot: string;
   preText: string;
