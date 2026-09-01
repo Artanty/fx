@@ -87,6 +87,46 @@ function readSlot(p, page) {
   return { page, name, data: Buffer.from(data) };
 }
 
+// Direct-mapped controls present in the 37/38-byte live CTRL block (skips the
+// unmapped body bytes 6, 19, 29, 31). Used to identify which physical slot the
+// pedal currently has active: ACTIVE_SET/ACTIVE_WRITE args ARE the physical slot
+// index, and the config's "activePreset" byte can't express it (only the phys
+// 0-2 vs 3-5 group), so we match the LIVE control table against the stored slot
+// bodies. Ties are returned when two slots hold identical content (e.g. phys 1
+// and phys 5 share the same preset).
+const ACTIVE_COMPARE = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32, 33, 34, 35, 36];
+
+function resolveActiveSlot(p, slotDataByIndex) {
+  const live = p.readControlBlock();
+  const data = slotDataByIndex || [];
+  let bestRaw = -1;
+  let bestScore = -1;
+  let ties = [];
+  if (live) {
+    for (let i = 0; i < 6; i++) {
+      const body = data[i] || p.readSlotBody(i);
+      let score = 0;
+      for (const k of ACTIVE_COMPARE) {
+        if (k < live.length && live[k] === body[k]) score++;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestRaw = i;
+        ties = [i];
+      } else if (score === bestScore) {
+        ties.push(i);
+      }
+    }
+  }
+  return {
+    rawIdx: bestRaw,
+    activePage: bestRaw >= 0 ? LALADY_PRESET_BASE + bestRaw * LALADY_PRESET_PITCH : null,
+    presetName: bestRaw >= 0 ? p.readSlotName(bestRaw) : null,
+    score: bestScore,
+    ties
+  };
+}
+
 function collect() {
   const p = getSharedProto();
   if (!p) return { error: 'Source Audio L.A. Lady HID device not found', devices: listSourceAudioDevices() };
@@ -109,7 +149,7 @@ function collect() {
       };
     });
 
-    const activePage = activeSlotPage(config.activePreset);
+    const active = resolveActiveSlot(p, slots.map(s => s.data));
     let eepromDiff = [];
     if (osbf.eeprom) {
       for (let i = 0; i < eeprom.length; i++) {
@@ -120,7 +160,7 @@ function collect() {
     return {
       device: { product: (sharedDevice.product || '').trim(), vendorId: sharedDevice.vendorId, productId: sharedDevice.productId, path: sharedDevice.path },
       config,
-      presets: { slots, activePage, activeIndex: config.activePreset },
+      presets: { slots, activePage: active ? active.activePage : null, activeIndex: active ? active.rawIdx : -1, activeScore: active ? active.score : null },
       eeprom: {
         hex: Buffer.from(eeprom).toString('hex'),
         midiMap: decodeMidiMap(eeprom),
@@ -360,9 +400,10 @@ app.post('/api/control', (req, res) => {
   if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
 
   try {
-    const cfg = p.getHardwareConfig();
-    const activePage = activeSlotPage(cfg.activePreset);
-    const rawIdx = (activePage - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    const active = resolveActiveSlot(p);
+    if (active.rawIdx < 0) return res.status(503).json({ error: 'could not resolve active slot (live block read failed)' });
+    const rawIdx = active.rawIdx;
+    const activePage = active.activePage;
     const body = p.readSlotBody(rawIdx);
     body[index] = value;
     const name = p.readSlotName(rawIdx);
@@ -413,15 +454,13 @@ function readMonitorHeader(p) {
   if (monitorConfig && now - monitorConfig.ts < MONITOR_CONFIG_TTL_MS) {
     return monitorConfig;
   }
-  const cfg = p.getHardwareConfig();
-  const activePage = activeSlotPage(cfg.activePreset);
-  const rawIdx = (activePage - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
-  const presetName = p.readSlotName(rawIdx);
+  const active = resolveActiveSlot(p);
   monitorConfig = {
     ts: now,
-    activeIndex: cfg.activePreset,
-    activePage,
-    presetName
+    activeIndex: active.rawIdx,
+    activePage: active.activePage,
+    presetName: active.presetName,
+    activeScore: active.score
   };
   return monitorConfig;
 }
@@ -498,8 +537,7 @@ app.post('/api/slots/save', (req, res) => {
   const p = getSharedProto();
   if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
   try {
-    const cfg = p.getHardwareConfig();
-    const activeIdx = (activeSlotPage(cfg.activePreset) - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    const activeIdx = resolveActiveSlot(p).rawIdx;
     const rawIdx = Number.isInteger(req.body.idx) ? req.body.idx : activeIdx;
     if (!Number.isInteger(rawIdx) || rawIdx < 0 || rawIdx > 5)
       return res.status(400).json({ error: 'idx must be an integer 0..5' });
@@ -589,8 +627,7 @@ app.post('/api/restore', (req, res) => {
     const osbf = loadOsbfText(text);
 
     // Remember which preset was active before restore so we can recall it.
-    const config = p.getHardwareConfig();
-    const activeIdx = (activeSlotPage(config.activePreset) - LALADY_PRESET_BASE) / LALADY_PRESET_PITCH;
+    const activeIdx = resolveActiveSlot(p).rawIdx;
 
     const results = [];
 

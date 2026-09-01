@@ -15,7 +15,13 @@ const SLOT_PAGES = [
   0x041000
 ];
 
-// user-facing preset index (config.activePreset) -> flash page
+// DEPRECATED / WRONG: this +3 formula only coincides with reality at physical
+// slot 3. Empirically (live HID probe 2026-09-01), ACTIVE_SET/ACTIVE_WRITE args
+// ARE the physical slot index (0..5 -> page 0x3c000+idx*0x1000), and the config
+// report's byte 4 ("activePreset") only distinguishes the group phys 0-2 (0) vs
+// phys 3-5 (1) — it cannot pin down the active slot. Determine the active slot
+// by matching the pedal's LIVE control table against the stored slot bodies
+// (server.js resolveActiveSlot). Kept only for reference/dev scripts.
 function activeSlotPage(activePreset) {
   return LALADY_PRESET_BASE + (3 + (activePreset & 0x7f)) * LALADY_PRESET_PITCH;
 }

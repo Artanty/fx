@@ -46,7 +46,16 @@ hardware. The write primitive is the **ACTIVE_** family, not a raw erase:
   `[0x6e, presetIdx, 1, name(32), 0, 0, 0]`. This is the **erase+program**
   primitive Neuro uses; no separate erase is required.
 - **ACTIVE_SET (0x77)** selects the active preset: `[0x77, presetIdx, 0]`.
-- `presetIdx = (page - 0x03c000)/0x1000` (slots 0..5; confirmed: idx 3 → 0x3f000).
+- `presetIdx = (page - 0x03c000)/0x1000` (slots 0..5; ACTIVE_WRITE verified).
+
+> **CORRIGENDUM (2026-09-01, live HID probe):** the ACTIVE_SET/ACTIVE_WRITE
+> argument IS the physical slot index `0..5` (`0x03c000 + idx*0x1000`). The old
+> note "idx 3 → 0x3f000" was a misread seeded by the config report: its byte 4
+> ("activePreset") reports `0` for physical 0–2 and `1` for physical 3–5, so the
+> `activeSlotPage()` `+3` formula only agreed with reality at physical slot 3.
+> To know the *exact* active slot, match the LIVE control table against the six
+> stored slot bodies (`server.js` `resolveActiveSlot`) — do **not** derive it
+> from the config byte.
 - A 500 ms settle is required after each ACTIVE_* command.
 
 Implemented in `src/sourceAudio.js`. `erasePreset(idx)` stays as
