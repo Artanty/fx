@@ -127,6 +127,12 @@
           (click)="allParamsZero()"
           title="Set all knobs of the selected slot to 0 (live)"
         >all 0</button>
+        <button
+          class="action-btn"
+          [disabled]="slotBusy || selectedSlotIdx === null"
+          (click)="engageSlot()"
+          title="Engage the selected slot on the pedal (recall it into the signal chain)"
+        >Engage</button>
       </div>
 
       <p class="muted" *ngIf="slotBusy">Working…</p>

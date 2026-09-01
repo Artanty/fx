@@ -300,6 +300,24 @@ export class LaladyComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Engage the currently-selected slot on the pedal (recall it into the signal
+  // chain via ACTIVE_SET) without reloading/editing params. Useful after live
+  // knob tweaks to re-engage the preset.
+  engageSlot(): void {
+    if (this.selectedSlotIdx === null) return;
+    this.slotBusy = true;
+    this.slotError = null;
+    this.api.activateSlot(this.selectedSlotIdx).subscribe({
+      next: () => {
+        this.slotBusy = false;
+      },
+      error: (e) => {
+        this.slotBusy = false;
+        this.slotError = 'Engage failed: ' + (e.message ?? e);
+      },
+    });
+  }
+
   // Display number (1..6) for a raw physical slot index (inverse of SLOT_DISPLAY_ORDER).
   displaySlotNum(rawIdx: number): number {
     return this.SLOT_DISPLAY_ORDER.indexOf(rawIdx) + 1;
