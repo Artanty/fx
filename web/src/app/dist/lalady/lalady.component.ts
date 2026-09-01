@@ -107,6 +107,23 @@ export class LaladyComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.refresh();
     this.refreshDeviceInfo();
+    this.autoSelectActive();
+  }
+
+  // On a fresh session nothing is selected, so Save / all-0 / Engage are all
+  // disabled. Auto-select the pedal's currently-active slot so the workbench is
+  // immediately usable (loads its params + enables the buttons).
+  private autoSelectActive(): void {
+    this.api.controls().subscribe({
+      next: (m) => {
+        if (m && typeof m.activeIndex === 'number' && this.selectedSlotIdx === null) {
+          this.selectSlot(m.activeIndex);
+        }
+      },
+      error: () => {
+        /* device offline; leave buttons disabled, user can click a slot */
+      },
+    });
   }
 
   // Fetches hardware config (firmware, MIDI channel, bypass mode) so the MIDI

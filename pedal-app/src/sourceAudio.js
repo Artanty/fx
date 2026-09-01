@@ -42,16 +42,19 @@ function waitMs(ms) {
 }
 
 // L.A. Lady config report (0x45 -> 0x32): [fw u16][model][b3][activePreset][...]
-// Offsets after activePreset are NOT verified against C4's as_hw_config_t, so the
-// tail is exposed raw.
+// Offsets after activePreset are NOT fully verified against C4's as_hw_config_t,
+// but byte 6 (0-based) == 0x02 on this pedal whose Neuro MIDI channel is 3, and
+// the live EEPROM is byte-identical to a backup taken before the channel change,
+// so the MIDI channel lives in this config report at payload[6] (0-based -> +1).
 function decodeConfig(payload) {
   return {
     firmwareVersion: u16(payload, 0),
     deviceModel: payload[2],
     field3: payload[3],
     activePreset: payload[4],
-    hardwareBypassMode: payload[6],
-    midiChannel: payload[7],
+    midiChannel: payload[6],
+    // Best-effort/unverified: moved off byte 6 (now midiChannel) to a neighbour.
+    hardwareBypassMode: payload[7],
     raw: hex(payload)
   };
 }

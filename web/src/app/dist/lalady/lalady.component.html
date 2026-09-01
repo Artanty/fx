@@ -137,8 +137,7 @@
           class="midi-chip"
           *ngIf="deviceInfo"
           [title]="'Raw (0-based) MIDI channel: ' + deviceInfo.config.midiChannel
-            + '\nfirmware 0x' + deviceInfo.config.firmwareVersion.toString(16)
-            + ' · bypass mode ' + deviceInfo.config.hardwareBypassMode"
+            + '\nfirmware 0x' + deviceInfo.config.firmwareVersion.toString(16)"
         >MIDI ch {{ deviceInfo.config.midiChannel + 1 }}</span>
       </div>
 
