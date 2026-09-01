@@ -1399,3 +1399,25 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Workbench top row: replaced the "Engage" (ACTIVE_SET recall) button with "Recall" (still backend recall), and added a "Bypassed/Engaged" toggle button driven by Web MIDI CC 102. Shows red/green state; disabled if requestMIDIAccess unsupported (needs Chrome/Edge on http://localhost:4211).
 - Note: initial toggle state is local ("Bypassed"); no readback of the actual bypass state yet.
 - Checks: ng build passes. No backend changes.
+
+## Progress - 2026-09-01 web: refresh no longer changes the active effect (read-only auto-select)
+- Bug: refreshing the app page switched the active pedal preset/effect.
+- Root cause found and confirmed live: ngOnInit -> autoSelectActive() -> selectSlot(m.activeIndex) -> api.activateSlot() issued ACTIVE_SET on every page load, using /api/controls activeIndex (= config.activePreset, the pedal's own 0-based number) as if it were a physical slot index 0..5.
+- Empirical mapping sweep (backend :3111): ACTIVE_SET arg 0,1,2 -> config.activePreset 0 (page 0x3f000, phys 3); arg 3,4,5 -> activePreset 1 (page 0x40000, phys 4). So the arg != physical slot directly, contradicting the earlier write-plan note "idx 3 -> 0x3f000". The config report name bytes (10..31) are constant across activations - not usable as ground truth.
+- Fix: autoSelectActive is now READ-ONLY - computes the physical raw slot from monitor.activePage ((page-0x3c000)/0x1000) and loads its params via loadSlotParams() (FLASH_READ only). It never calls activateSlot/selectSlot. Added module constants LALADY_PRESET_BASE/PITCH in lalady.component.ts.
+- Explicit user actions still engage the pedal: clicking a slot button (selectSlot -> /api/activate) and the Recall button (engageSlot). Monitor/refresh/all-0/Save untouched.
+- Residual open question (NOT fixed): ACTIVE_SET arg semantics for engaging a given physical slot remain unclear (sweep only ever produced activePreset 0 or 1 from args 0..5; slots 0..2 (SELECTORs) and 5 were never reachable in the sweep). If the user reports slot-button clicks landing on the wrong effect, a controlled experiment is next.
+- Checks: ng build passes. No backend changes.
+
+## Progress - 2026-09-01 pedal-app: ACTIVE_SET/active-slot mapping resolved (live-block readback)
+- Controlled HID probe (C:\Users\Thoma\AppData\Local\Temp\opencode\lalady_engage_probe.js) drove ACTIVE_SET args 0..18/21/24/63/126/127 and ACTIVE_STORE+ACTIVE_WRITE engages directly, using the pedal's LIVE control table matched against the 6 stored slot bodies as independent ground truth.
+- FINDING 1: ACTIVE_SET arg n == physical slot index (arg 0..5 -> live block matches phys 0..5 respectively). ACTIVE_WRITE idx == physical slot index (0,1,2 confirmed). The original setActivePreset(idx) semantics were correct all along.
+- FINDING 2: config.report byte 4 (decodeConfig 'activePreset') is NOT the active physical slot - it reports 0 for phys 0-2 and 1 for phys 3-5. So activeSlotPage()'s +3 formula only coincided with reality at physical slot 3 (the seed of the old "idx 3 -> 0x3f000 confirmed" note); the '/api/controls activeIndex', monitor header, /api/status activePage, the Left-Drive /api/control commit target, /api/slots/save default and /api/restore recall were ALL computing the wrong slot.
+- FIX: added server.js resolveActiveSlot(p) - matches the live CTRL block against the 6 stored bodies (directly-mapped indices only, skips unmapped 6/19/29/31). Wired it into collect()/api/all + status, readMonitorHeader (/api/controls activeIndex/activePage/presetName now truth), /api/control (Left-Drive commit now patches+re-activates the TRUE active slot), /api/slots/save default idx, /api/restore recall. activeIndex now means physical slot 0..5.
+- Docs corrected: laLadyModel.js activeSlotPage marked DEPRECATED/WRONG as an active-page mapping (kept for the /api/write user-preset-number override which is deliberate).
+- Frontend: autoSelectActive stays READ-ONLY (never ACTIVE_SET on load) and now loads m.activeIndex (true physical slot) directly; dropped the temporary page-derivation constants.
+- Pedal left restored to ACTIVE_SET 0 (phys 0 'goodtone fixed mids').
+- Checks: node -c (server + sourceAudio + laLadyModel) + ng build pass. Backend restart required to load server.js changes.
+
+## Status - 2026-09-01 pedal-app: remove Recall button
+- Removed the workbench 'Recall' button (lalady.component.html) and its engageSlot() handler (lalady.component.ts) - selecting a slot via the slot-picker already ACTIVATE_SETs it, and Save re-activates after persisting, so the button was redundant. ng build passes.
