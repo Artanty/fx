@@ -1421,3 +1421,6 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 
 ## Status - 2026-09-01 pedal-app: remove Recall button
 - Removed the workbench 'Recall' button (lalady.component.html) and its engageSlot() handler (lalady.component.ts) - selecting a slot via the slot-picker already ACTIVATE_SETs it, and Save re-activates after persisting, so the button was redundant. ng build passes.
+
+## Status - 2026-09-01 pedal-app: REVERT dist-engines feature
+- After adding the distortion-engine dropdown the app became unresponsive for the user. Reverted all uncommitted dist-engines work (server.js /api/engines + parser, models/api/component/html/scss engine-select changes, debug logs) back to the last committed state (912220e / ff9893d). input/dist-engines left in place as a reference (currently unused). ng build + node -c pass.
