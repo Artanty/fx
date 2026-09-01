@@ -119,13 +119,19 @@ export class LaladyComponent implements OnInit, OnDestroy {
   }
 
   // On a fresh session nothing is selected, so Save / all-0 / Engage are all
-  // disabled. Auto-select the pedal's currently-active slot so the workbench is
-  // immediately usable (loads its params + enables the buttons).
+  // disabled. Read the pedal's currently-active slot and load its params for
+  // display so the workbench is immediately usable. READ-ONLY: a page refresh
+  // must never issue ACTIVE_SET — re-selecting here would silently switch the
+  // active effect. activeIndex is the true physical slot (0..5), resolved by the
+  // backend from the live control block.
   private autoSelectActive(): void {
     this.api.controls().subscribe({
       next: (m) => {
         if (m && typeof m.activeIndex === 'number' && this.selectedSlotIdx === null) {
-          this.selectSlot(m.activeIndex);
+          const idx = m.activeIndex;
+          if (Number.isInteger(idx) && idx >= 0 && idx <= 5) {
+            this.loadSlotParams(idx);
+          }
         }
       },
       error: () => {
@@ -353,24 +359,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
       error: (e) => {
         this.slotBusy = false;
         this.slotError = 'Activate failed: ' + (e.message ?? e);
-      },
-    });
-  }
-
-  // Engage the currently-selected slot on the pedal (recall it into the signal
-  // chain via ACTIVE_SET) without reloading/editing params. Useful after live
-  // knob tweaks to re-engage the preset.
-  engageSlot(): void {
-    if (this.selectedSlotIdx === null) return;
-    this.slotBusy = true;
-    this.slotError = null;
-    this.api.activateSlot(this.selectedSlotIdx).subscribe({
-      next: () => {
-        this.slotBusy = false;
-      },
-      error: (e) => {
-        this.slotBusy = false;
-        this.slotError = 'Engage failed: ' + (e.message ?? e);
       },
     });
   }

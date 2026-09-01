@@ -128,12 +128,6 @@
           title="Set all knobs of the selected slot to 0 (live)"
         >all 0</button>
         <button
-          class="action-btn"
-          [disabled]="slotBusy || selectedSlotIdx === null"
-          (click)="engageSlot()"
-          title="Recall the selected slot into the signal chain (ACTIVE_SET; re-applies after live param edits)"
-        >Recall</button>
-        <button
           class="midi-engage-btn"
           [class.on]="!midiBypassed"
           [disabled]="!midiEngageSupported"
