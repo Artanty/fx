@@ -1391,3 +1391,11 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Tab switching now goes through `setActiveTab()` → `syncActiveSlotPolling()` to start/stop the workbench poll (also used for the tab buttons). Cleaned up timer in ngOnDestroy.
 - UI: workbench shows a "Active: slot N — name" indicator (green dot) and rings the corresponding slot button green (`.phys-active`) to distinguish the pedal-active slot from the merely-selected one (`selectedSlotIdx` blue) — they can differ before you click.
 - Checks: ng build passes. No backend changes.
+
+## Progress - 2026-09-01 web: browser-native MIDI engage/bypass (CC 102)
+- User bound engage/bypass to MIDI CC 102 in Neuro (channel 3; 0=off, 127=on) and wants the app to drive it from the browser instead of the backend/Python.
+- Probed WinMM midiOut devices 1-3 to find the Source Audio One Series port: index 3 toggled the pedal (index 1/2 did not). Device names come back empty from midiOutGetDevCaps so index can't be auto-detected reliably there.
+- Implemented `web/src/app/dist/lalady/lalady-midi.service.ts`: browser-oriented Web MIDI API (no backend). Finds the "Source Audio One Series" MIDI output by name (falls back to first output), sends CC 102 on the pedal's channel (from /api/status config.midiChannel+1). MIDI access is requested lazily on first click (browser permission gesture).
+- Workbench top row: replaced the "Engage" (ACTIVE_SET recall) button with "Recall" (still backend recall), and added a "Bypassed/Engaged" toggle button driven by Web MIDI CC 102. Shows red/green state; disabled if requestMIDIAccess unsupported (needs Chrome/Edge on http://localhost:4211).
+- Note: initial toggle state is local ("Bypassed"); no readback of the actual bypass state yet.
+- Checks: ng build passes. No backend changes.

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LaladyApiService } from './lalady-api.service';
+import { LaladyMidiService } from './lalady-midi.service';
 import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult } from './lalady.models';
 
 type RowState =
@@ -102,12 +103,19 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // Pedal hardware config (MIDI channel etc.) from GET /api/status.
   deviceInfo: LaladyStatus | null = null;
 
-  constructor(private api: LaladyApiService) {}
+  // Browser-native MIDI engage/bypass (CC 102 on the pedal's MIDI channel):
+  // midiBypassed = pedal is currently bypassed (off); clicking toggles it.
+  midiEngageSupported = false;
+  midiBypassed = true;
+  midiEngageMsg: string | null = null;
+
+  constructor(private api: LaladyApiService, private midi: LaladyMidiService) {}
 
   ngOnInit(): void {
     this.refresh();
     this.refreshDeviceInfo();
     this.autoSelectActive();
+    this.midiEngageSupported = this.midi.isSupported();
   }
 
   // On a fresh session nothing is selected, so Save / all-0 / Engage are all
@@ -131,9 +139,27 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // in the Workbench. MIDI channel is 0-based on the backend; display 1-based.
   refreshDeviceInfo(): void {
     this.api.status().subscribe({
-      next: (s) => (this.deviceInfo = s),
+      next: (s) => {
+        this.deviceInfo = s;
+        // Drive the browser MIDI service on the pedal's real channel.
+        this.midi.channel = s.config.midiChannel + 1;
+      },
       error: () => (this.deviceInfo = null),
     });
+  }
+
+  // Toggle the pedal's engage/bypass via Web MIDI (CC 102 on the configured
+  // channel): sends 127 (on/engage) when bypassed, 0 (off) otherwise.
+  async toggleMidiEngage(): Promise<void> {
+    this.midi.channel = this.deviceInfo ? this.deviceInfo.config.midiChannel + 1 : 3;
+    const value = this.midiBypassed ? 127 : 0;
+    const ok = await this.midi.send(value);
+    if (ok) {
+      this.midiBypassed = value === 0;
+      this.midiEngageMsg = null;
+    } else {
+      this.midiEngageMsg = 'Web MIDI unavailable — open in Chrome/Edge on http://localhost';
+    }
   }
 
   ngOnDestroy(): void {

@@ -131,8 +131,16 @@
           class="action-btn"
           [disabled]="slotBusy || selectedSlotIdx === null"
           (click)="engageSlot()"
-          title="Engage the selected slot on the pedal (recall it into the signal chain)"
-        >Engage</button>
+          title="Recall the selected slot into the signal chain (ACTIVE_SET; re-applies after live param edits)"
+        >Recall</button>
+        <button
+          class="midi-engage-btn"
+          [class.on]="!midiBypassed"
+          [disabled]="!midiEngageSupported"
+          (click)="toggleMidiEngage()"
+          [attr.title]="(midiEngageSupported ? 'Toggle pedal engage/bypass via MIDI (CC 102, ch ' + (deviceInfo ? deviceInfo.config.midiChannel + 1 : 3) + ')' : 'Web MIDI not supported — use Chrome/Edge on http://localhost')"
+        >{{ midiBypassed ? 'Bypassed' : 'Engaged' }}</button>
+        <p class="err" *ngIf="midiEngageMsg" style="font-size:12px;">{{ midiEngageMsg }}</p>
         <span
           class="midi-chip"
           *ngIf="deviceInfo"
