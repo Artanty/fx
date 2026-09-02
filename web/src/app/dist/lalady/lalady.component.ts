@@ -89,6 +89,10 @@ export class LaladyComponent implements OnInit, OnDestroy {
   slotsDirty = false;
   private paramsSnapshot: SlotParam[] = [];
   private editedOverrides: Record<number, number> = {};
+  // The mirror's first pass after a slot load reconciles displayed values to the
+  // pedal's LIVE table and adopts them as the baseline WITHOUT flagging edits,
+  // so freshly-loaded live-vs-body differences don't show as yellow "modified".
+  private mirrorBaselineSet = false;
 
   // Workbench param grouping. Each group lists body indices rendered in that
   // section; every control-map spec whose byte index is in a group is shown
@@ -441,9 +445,18 @@ export class LaladyComponent implements OnInit, OnDestroy {
           const uiField = this.toUI(s, nativeField);
           if (this.fieldValue(s, p) === uiField) continue;
           p.value = (p.value & ~s.mask) | ((nativeField << s.shift) & s.mask);
-          this.editedOverrides[p.index] = p.value;
-          this.slotsDirty = true;
+          // First reconciliation after a slot load: adopt the pedal's live value
+          // as the baseline (update the display + snapshot) without flagging it
+          // as a user edit, so entering a slot doesn't show spurious yellow.
+          if (!this.mirrorBaselineSet) {
+            const snap = this.paramsSnapshot.find((sp) => sp.index === p.index);
+            if (snap) snap.value = p.value;
+          } else {
+            this.editedOverrides[p.index] = p.value;
+            this.slotsDirty = true;
+          }
         }
+        this.mirrorBaselineSet = true;
       },
       error: () => {
         /* device offline; workbench keeps last-known values */
@@ -489,6 +502,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
         this.paramsSnapshot = s.params.map((p) => ({ ...p }));
         this.slotsDirty = false;
         this.editedOverrides = {};
+        this.mirrorBaselineSet = false;
       },
       error: (e) => {
         this.slotBusy = false;

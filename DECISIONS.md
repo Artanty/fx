@@ -1503,3 +1503,9 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Fix: toNative/toUI for knobs are now identity (clamped). knob UI 0..127 == flash byte 0..127 == CC 0..127. No halving/doubling. Field write, CC send, HID send, mirror compare, overrides/Save all consistent.
 - Verified by reason + line 1469 plan: 'send field value directly (0..127 for CC)'.
 - Files: web/src/app/dist/lalady/lalady.component.ts. ng build passes.
+
+## Progress - 2026-09-02 pedal-app+web: stop spurious yellow on slot load
+- Bug: entering a slot, some controls showed changed values AND yellow 'modified' highlight even though nothing was touched. Cause: on load, paramsSnapshot captured the flash preset body, but the 2s mirror immediately reconciled against the pedal's LIVE control table (which can differ from flash - physical knob moved / prior live edits), rewriting p.value AND setting editedOverrides+slotsDirty -> initialValue(current)? mismatch -> yellow.
+- Fix: added mirrorBaselineSet flag. Reset false in loadSlotParams. On the mirror's FIRST pass after load, adopt the pedal's live value as the baseline (update p.value display + paramsSnapshot for that param index) WITHOUT flagging editedOverrides/slotsDirty. Subsequent mirror passes flag genuine live deltas as before. So entering a slot now shows the pedal's live state cleanly (no yellow for initial live-vs-body differences).
+- NOTE: values still re-sync to the pedal's live table on load (by design); only the false-edited/yellow marking is suppressed. If user wants entering a slot to pin to the saved flash body instead, revisit.
+- Files: web/src/app/dist/lalady/lalady.component.ts. ng build passes.
