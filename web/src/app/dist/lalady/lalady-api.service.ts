@@ -3,8 +3,10 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   ActivateResult,
+  ControlMap,
   ControlRequest,
   ControlResult,
+  EngineList,
   EraseResult,
   LaladyDevice,
   LaladyPresets,
@@ -34,6 +36,14 @@ export class LaladyApiService {
 
   status(): Observable<LaladyStatus> {
     return this.http.get<LaladyStatus>(`${BASE}/api/status`);
+  }
+
+  engines(): Observable<EngineList> {
+    return this.http.get<EngineList>(`${BASE}/api/engines`);
+  }
+
+  controlMap(): Observable<ControlMap> {
+    return this.http.get<ControlMap>(`${BASE}/api/control-map`);
   }
 
   exportUrl(slot: string): string {

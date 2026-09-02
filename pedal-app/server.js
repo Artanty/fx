@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const { findLalady, listSourceAudioDevices } = require('./src/sourceAudioHid');
 const { SourceAudioProtocol } = require('./src/sourceAudio');
@@ -22,7 +23,27 @@ const {
 
 const PORT = process.env.PORT || 3111;
 const OSBF_PATH = path.resolve(__dirname, '..', 'input', '2026-07-31_labackup.osbf');
+const DIST_ENGINES_PATH = path.resolve(__dirname, '..', 'input', 'dist-engines');
 const CACHE_TTL = 2000;
+
+// Distortion-engine catalog: "$id Name" lines from input/dist-engines. The id is
+// BOTH the MIDI CC value and the raw byte stored in the preset body (verified by
+// write/read-back round-trip probe on the pedal — identity), so no conversion is
+// needed between the select and the flash byte.
+function loadDistEngines() {
+  const out = [];
+  try {
+    const text = fs.readFileSync(DIST_ENGINES_PATH, 'utf8');
+    for (const line of text.split(/\r?\n/)) {
+      const m = line.match(/^(\d+)\s+(.*)$/);
+      if (m) out.push({ id: Number(m[1]), name: m[2].trim() });
+    }
+  } catch (e) {
+    console.warn('could not load dist-engines:', e.message);
+  }
+  return out;
+}
+const DIST_ENGINES = loadDistEngines();
 
 let cache = { at: 0, data: null };
 
@@ -75,6 +96,64 @@ const CONTROL_NAMES = {
   33: 'Mid A Q', 34: 'Mid B Freq', 35: 'Mid B Q', 36: 'Low Cut Filter',
   37: 'I/O Routing Option', 38: 'Filter Gate Option', 39: 'Noise Gate Enable'
 };
+
+// Workbench control map: the UI controls for the 53-byte preset body, split out
+// of the packed bytes into their individual fields. THIS IS THE BODY LAYOUT
+// (neuroMap DIRECT + encodeBinary53 bit-fields), which the workbench edits —
+// NOT the live control-table numbering (CONTROL_NAMES), which diverges at 26+.
+// Types match Neuro's presetEditor.controls ("knob", "dropDownList" -> select,
+// "buttonList" -> segmented, "switch" -> toggle). shift/mask locate the field
+// inside its byte; `max` is the field's max value (mask >> shift).
+const OPT = (texts) => texts.map((text, value) => ({ value, text }));
+const KNOB_ASSIGN_OPTS = OPT([
+  'Bass', 'Treble', 'Bass Freq', 'Treble Freq', 'Mid A', 'Mid A Freq', 'Mid A Q',
+  'Mid B', 'Mid B Freq', 'Mid B Q', 'Clean Mix', 'Distortion Mix', 'Voice', 'Voice Frequency'
+]);
+const SLOPE_OPTS = OPT(['Low', 'Medium', 'High']);
+const GATE_OPTS = OPT(['Off', 'Low', 'Med', 'High']);
+const BOOST_MAX_OPTS = OPT(['0dB - No Boost', '+3dB', '+6dB', '+9dB', '+12dB', '+15dB', '+20dB']);
+const ROUTING_OPTS = OPT([
+  'Default - Auto Select', 'Stereo In, Stereo Out', 'Mono In, Stereo Process, Stereo Out',
+  'Mono In, Stereo Process, Mono Out', 'Stereo In, Mono Output', 'Mono Effect plus Dry Thru',
+  'Mono In/Out with Cascaded Channels', 'External Loop Pre-Effect', 'External Loop Post-Effect'
+]);
+const SLOPE_FILTER_OPTS = OPT(['Bass Shelving Filter', 'High Pass']);
+const TREBLE_FILTER_OPTS = OPT(['Treble Shelving Filter', 'Low Pass']);
+
+const WORKBENCH_CONTROL_SPECS = [
+  // Channel blocks (whole bytes, body == live table numbering for 0..25).
+  ...[0, 1, 2, 3, 5, 7, 8, 9, 10, 11, 12].map(i => ({ index: i, name: CONTROL_NAMES[i], type: 'knob', shift: 0, mask: 0xff, max: 255 })),
+  { index: 4, name: 'Left Distortion Engine', type: 'select', shift: 0, mask: 0xff, max: 255, options: DIST_ENGINES.map(e => ({ value: e.id, text: e.name })) },
+  ...[13, 14, 15, 16, 18, 20, 21, 22, 23, 24, 25].map(i => ({ index: i, name: CONTROL_NAMES[i], type: 'knob', shift: 0, mask: 0xff, max: 255 })),
+  { index: 17, name: 'Right Distortion Engine', type: 'select', shift: 0, mask: 0xff, max: 255, options: DIST_ENGINES.map(e => ({ value: e.id, text: e.name })) },
+
+  // Noise gate & filters (byte 26 packed; byte 27..29, 37 whole fields).
+  { index: 26, name: 'Noise Gate', type: 'toggle', shift: 4, mask: 0x10, max: 1 },
+  { index: 26, name: 'Filter Gate', type: 'segmented', shift: 2, mask: 0x0c, max: 3, options: GATE_OPTS },
+  { index: 27, name: 'Noise Gate Threshold', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 28, name: 'Clean High Cut', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 29, name: 'Treble Shelf Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 37, name: 'Low Cut Filter', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+
+  // Parametric EQ (byte 30 packed: treble fields; byte 32 packed: bass fields).
+  { index: 30, name: 'Treble Cut Filter', type: 'select', shift: 0, mask: 0x01, max: 1, options: TREBLE_FILTER_OPTS },
+  { index: 30, name: 'Treble Shelf Slope', type: 'segmented', shift: 1, mask: 0x06, max: 2, options: SLOPE_OPTS },
+  { index: 30, name: 'Treble Boost Rolloff', type: 'knob', shift: 3, mask: 0x18, max: 3 },
+  { index: 30, name: 'Treble Boost Maximum', type: 'select', shift: 5, mask: 0xe0, max: 6, options: BOOST_MAX_OPTS },
+  { index: 31, name: 'Bass Shelf Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 32, name: 'Bass Cut Filter', type: 'select', shift: 0, mask: 0x01, max: 1, options: SLOPE_FILTER_OPTS },
+  { index: 32, name: 'Bass Shelf Slope', type: 'segmented', shift: 1, mask: 0x06, max: 2, options: SLOPE_OPTS },
+  { index: 32, name: 'Bass Boost Rolloff', type: 'knob', shift: 3, mask: 0xf8, max: 31 },
+  { index: 33, name: 'Mid A Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 34, name: 'Mid A Q', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 35, name: 'Mid B Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  { index: 36, name: 'Mid B Q', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+
+  // Routing & knob assign (bytes 38/39 packed nibbles).
+  { index: 38, name: 'Bass Knob Assign', type: 'select', shift: 0, mask: 0x0f, max: 15, options: KNOB_ASSIGN_OPTS },
+  { index: 38, name: 'Treble Knob Assign', type: 'select', shift: 4, mask: 0xf0, max: 15, options: KNOB_ASSIGN_OPTS },
+  { index: 39, name: 'I/O Routing', type: 'select', shift: 4, mask: 0xf0, max: 15, options: ROUTING_OPTS },
+];
 
 function readSlot(p, page) {
   const data = [];
@@ -205,6 +284,16 @@ app.get('/api/device', (req, res) => {
   const s = snapshot(req.query.fresh === '1');
   if (s.error) return res.status(503).json(s);
   res.json({ found: true, device: s.device });
+});
+
+app.get('/api/engines', (req, res) => {
+  res.json({ ok: true, count: DIST_ENGINES.length, engines: DIST_ENGINES });
+});
+
+// The workbench control map (see WORKBENCH_CONTROL_SPECS above): static
+// descriptors of how each preset-body byte decomposes into UI controls.
+app.get('/api/control-map', (req, res) => {
+  res.json({ ok: true, count: WORKBENCH_CONTROL_SPECS.length, controls: WORKBENCH_CONTROL_SPECS });
 });
 
 app.get('/api/status', (req, res) => {

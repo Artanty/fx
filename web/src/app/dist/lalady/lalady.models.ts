@@ -1,3 +1,35 @@
+export interface DistEngine {
+  id: number;
+  name: string;
+}
+
+export interface ControlOption {
+  value: number;
+  text: string;
+}
+
+export interface ControlSpec {
+  index: number;
+  name: string;
+  type: 'knob' | 'select' | 'toggle' | 'segmented';
+  shift: number;
+  mask: number;
+  max: number;
+  options?: ControlOption[];
+}
+
+export interface ControlMap {
+  ok: boolean;
+  count: number;
+  controls: ControlSpec[];
+}
+
+export interface EngineList {
+  ok: boolean;
+  count: number;
+  engines: DistEngine[];
+}
+
 export interface LaladySlot {
   name: string;
   page: number;

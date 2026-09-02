@@ -160,17 +160,58 @@
             <div class="knob-group" *ngFor="let g of row" [class.flex3]="g.title === 'Parametric EQ'">
               <h3>{{ g.title }}</h3>
               <div class="knobs">
-                <div class="knob" *ngFor="let p of g.params">
+                <div class="knob" *ngFor="let c of g.controls" [class.knob-wide]="isEngineSpec(c.spec)">
+                  <select
+                    *ngIf="c.spec.type === 'select'"
+                    class="ctl-select"
+                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    (change)="onSelectChange(c.spec, c.p, $event)"
+                    [attr.title]="'body byte ' + c.spec.index"
+                  >
+                    <option *ngFor="let opt of c.spec.options || []" [value]="opt.value" [selected]="selectOptionSelected(c.spec, c.p, opt)">{{ opt.text }}</option>
+                    <option *ngIf="!selectValueKnown(c.spec, c.p)" [value]="fieldValue(c.spec, c.p)" selected>?? {{ fieldValue(c.spec, c.p) }} (unknown)</option>
+                  </select>
+
+                  <label
+                    *ngIf="c.spec.type === 'toggle'"
+                    class="ctl-toggle"
+                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [attr.title]="'body byte ' + c.spec.index"
+                  >
+                    <input
+                      type="checkbox"
+                      [checked]="fieldValue(c.spec, c.p) === 1"
+                      (change)="onToggleChange(c.spec, c.p, $event)"
+                    />
+                    <span class="toswitch"></span>
+                  </label>
+
                   <div
+                    *ngIf="c.spec.type === 'segmented'"
+                    class="ctl-seg"
+                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [attr.title]="'body byte ' + c.spec.index"
+                  >
+                    <button
+                      type="button"
+                      *ngFor="let opt of c.spec.options || []"
+                      class="ctl-seg-btn"
+                      [class.on]="fieldValue(c.spec, c.p) === opt.value"
+                      (click)="onSegmentChange(c.spec, c.p, opt.value)"
+                    >{{ opt.text }}</button>
+                  </div>
+
+                  <div
+                    *ngIf="c.spec.type === 'knob'"
                     class="kbody"
-                    [class.modified]="p.value !== initialValue(p)"
-                    [class.scrolling]="hoveredParam === p"
-                    (pointerenter)="onKnobEnter(p)"
+                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [class.scrolling]="hoveredParam === c.p"
+                    (pointerenter)="onKnobEnter(c.spec, c.p)"
                     (pointerleave)="onKnobLeave()"
-                    (pointerdown)="knobDown($event, p)"
-                    (pointermove)="knobMove($event, p)"
-                    (pointerup)="knobUp($event, p)"
-                    (wheel)="knobWheel($event, p)"
+                    (pointerdown)="knobDown($event, c.spec, c.p)"
+                    (pointermove)="knobMove($event, c.spec, c.p)"
+                    (pointerup)="knobUp($event, c.p)"
+                    (wheel)="knobWheel($event, c.spec, c.p)"
                   >
                     <svg viewBox="0 0 40 40" class="dial">
                       <circle class="track" cx="20" cy="20" r="16" />
@@ -179,14 +220,14 @@
                         cx="20"
                         cy="20"
                         r="16"
-                        [attr.stroke-dasharray]="arcDash(p)"
-                        [attr.transform]="'rotate(' + arcRotate(p) + ' 20 20)'"
+                        [attr.stroke-dasharray]="arcDash(c.spec, c.p)"
+                        [attr.transform]="'rotate(' + arcRotate() + ' 20 20)'"
                       />
-                      <line class="pointer" x1="20" y1="20" [attr.x2]="pointerX(p)" [attr.y2]="pointerY(p)" />
+                      <line class="pointer" x1="20" y1="20" [attr.x2]="pointerX(c.spec, c.p)" [attr.y2]="pointerY(c.spec, c.p)" />
                     </svg>
-                    <div class="kvalue">{{ p.value }}</div>
+                    <div class="kvalue">{{ fieldValue(c.spec, c.p) }}</div>
                   </div>
-                  <div class="kname">{{ p.name }}</div>
+                  <div class="kname">{{ c.spec.name }}</div>
                 </div>
               </div>
             </div>

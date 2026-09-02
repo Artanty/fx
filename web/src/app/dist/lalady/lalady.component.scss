@@ -414,6 +414,17 @@ table.knobs {
     width: 66px;
     user-select: none;
     touch-action: none;
+
+    // Full-width variant for the distortion-engine selects so the engine name
+    // is visible without a scroll of the closed dropdown.
+    &.knob-wide {
+      width: 100%;
+
+      .ctl-select {
+        max-width: none;
+        font-size: 11px;
+      }
+    }
   }
 
   .kbody {
@@ -484,6 +495,113 @@ table.knobs {
     text-align: center;
     line-height: 1.2;
     min-height: 2.4em;
+  }
+
+  .ctl-select {
+    width: 100%;
+    max-width: 64px;
+    background: #1b1b22;
+    color: #c9c9d4;
+    border: 1px solid #35353f;
+    border-radius: 6px;
+    font-size: 11px;
+    padding: 3px 4px;
+    cursor: pointer;
+
+    &.modified {
+      border-color: #ffd27a;
+      color: #ffd27a;
+    }
+
+    &:hover {
+      border-color: #4a4a58;
+    }
+  }
+
+  .ctl-toggle {
+    display: inline-block;
+    cursor: pointer;
+
+    input {
+      display: none;
+    }
+
+    .toswitch {
+      display: block;
+      width: 40px;
+      height: 22px;
+      border-radius: 12px;
+      border: 1px solid #35353f;
+      background: #14141a;
+      position: relative;
+      transition: background 0.12s ease;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #c9c9d4;
+        transition: transform 0.12s ease;
+      }
+    }
+
+    input:checked + .toswitch {
+      background: #1d5572;
+      border-color: #2f7a9e;
+
+      &::after {
+        transform: translateX(18px);
+        background: #d7f1ff;
+      }
+    }
+
+    &.modified .toswitch {
+      border-color: #ffd27a;
+    }
+  }
+
+  .ctl-seg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+    max-width: 64px;
+
+    &.modified .ctl-seg-btn.on {
+      border-color: #ffd27a;
+      color: #ffd27a;
+    }
+  }
+
+  .ctl-seg-btn {
+    padding: 2px 5px;
+    font-size: 9px;
+    line-height: 1.2;
+    border-radius: 4px;
+    background: #1b1b22;
+    border: 1px solid #35353f;
+    color: #8b8b98;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: #4a4a58;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    &.on {
+      background: #1d5572;
+      border-color: #2f7a9e;
+      color: #d7f1ff;
+      font-weight: 600;
+    }
   }
 
 }

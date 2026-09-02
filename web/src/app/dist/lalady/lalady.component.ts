@@ -3,7 +3,7 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/co
 import { FormsModule } from '@angular/forms';
 import { LaladyApiService } from './lalady-api.service';
 import { LaladyMidiService } from './lalady-midi.service';
-import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult } from './lalady.models';
+import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult, ControlSpec } from './lalady.models';
 
 type RowState =
   | { kind: 'idle' }
@@ -53,6 +53,13 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private monitorTimer: ReturnType<typeof setInterval> | null = null;
   private readonly MONITOR_POLL_MS = 5000;
 
+  // Workbench control map (GET /api/control-map): how each preset-body byte
+  // decomposes into Neuro-style UI controls. This is the 53-byte BODY layout
+  // (body index 26+ differs from the live control table), so these specs drive
+  // what workbench edits — labels, kinds and bit-fields.
+  controlMap: ControlSpec[] = [];
+  private controlSpecsByIndex = new Map<number, ControlSpec[]>();
+
   // Offline workbench (no Neuro): select one of 6 slots, edit any param, then
   // persist the whole state to the active slot. Params are read from the slot's
   // flash body (what's actually saved/recalled), independent of the live table.
@@ -69,31 +76,37 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private paramsSnapshot: SlotParam[] = [];
   private editedOverrides: Record<number, number> = {};
 
-  // Workbench param grouping for the knob panel. Each group is a titled,
-  // bordered section; the first two groups share a row (Dist 1 | Dist 2), the
-  // Param EQ shares a row, and Noise gate sits alone. Indices follow CONTROL_NAMES.
-  private readonly KNOB_GROUPS = [
+  // Workbench param grouping. Each group lists body indices rendered in that
+  // section; every control-map spec whose byte index is in a group is shown
+  // there (so packed bytes like 26/30/32/38/39 split into their own controls).
+  private readonly CONTROL_GROUPS = [
     { title: 'Dist 1', indices: [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12] },
     { title: 'Dist 2', indices: [13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25] },
-    { title: 'Parametric EQ', indices: [27, 28, 30, 32, 33, 34, 35, 36] },
-    { title: 'Noise gate', indices: [26, 37, 38, 39] },
+    { title: 'Parametric EQ', indices: [27, 28, 29, 30, 31, 32, 33, 34, 35, 36] },
+    { title: 'Noise gate & filters', indices: [26, 37] },
+    { title: 'Routing & assign', indices: [38, 39] },
   ];
 
   // Rows of groups (each row rendered on its own line).
   readonly KNOB_ROWS = [
     [0, 1],
     [2],
-    [3],
+    [3, 4],
   ];
 
-  get knobRows(): { title: string; params: SlotParam[] }[][] {
-    const groups = this.KNOB_GROUPS.map((g) => ({
+  get knobRows(): { title: string; controls: { spec: ControlSpec; p: SlotParam }[] }[][] {
+    const groups = this.CONTROL_GROUPS.map((g) => ({
       title: g.title,
-      params: this.slotParams
-        ? g.indices
-            .map((i) => this.slotParams!.params.find((p) => p.index === i))
-            .filter((p): p is SlotParam => !!p)
-        : [],
+      controls: g.indices
+        .flatMap((i) => {
+          const p = this.paramFor(i);
+          if (!p) return [];
+          return this.controlSpecsByIndex.get(i)?.map((spec) => ({ spec, p })) || [];
+        })
+        // Engine selects (full-width) go to the top of their block.
+        .sort(
+          (a, b) => Number(this.isEngineSpec(b.spec)) - Number(this.isEngineSpec(a.spec)) || a.spec.index - b.spec.index
+        ),
     }));
     return this.KNOB_ROWS.map((rowIdx) => rowIdx.map((gi) => groups[gi]));
   }
@@ -116,6 +129,18 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.refreshDeviceInfo();
     this.autoSelectActive();
     this.midiEngageSupported = this.midi.isSupported();
+    this.api.controlMap().subscribe({
+      next: (r) => {
+        this.controlMap = r.controls || [];
+        this.controlSpecsByIndex = new Map();
+        for (const s of this.controlMap) {
+          const list = this.controlSpecsByIndex.get(s.index) || [];
+          list.push(s);
+          this.controlSpecsByIndex.set(s.index, list);
+        }
+      },
+      error: () => (this.controlMap = []),
+    });
   }
 
   // On a fresh session nothing is selected, so Save / all-0 / Engage are all
@@ -385,18 +410,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Called from the UI when a param value changes (slider release). Records the
-  // edited index/value so Save can overlay it on the pedal's live control table.
-  // Nothing is written until Save.
-  onParamChange(p: SlotParam, value: number): void {
-    p.value = value;
-    this.onParamInput(p, value);
-  }
-
   // Realtime: called on slider INPUT (while dragging) — writes the value into the
   // pedal's LIVE control table via CTRL_SET so you HEAR the change immediately,
   // without waiting for a flash commit. Not persisted; Save does that.
-  // Throttled lightly to avoid flooding the USB pipe during a fast drag.
+  // Throttled lightly to avoid flooding the USB pipe during a fast drag. Only
+  // used for whole-byte params (body byte == live table index, indices 0..25 and
+  // the engine bytes 4/17); packed items go through the flash-commit queue below.
   private liveTimer: ReturnType<typeof setTimeout> | null = null;
   onParamInput(p: SlotParam, value: number): void {
     p.value = value;
@@ -411,53 +430,150 @@ export class LaladyComponent implements OnInit, OnDestroy {
     }, 40);
   }
 
+  // --- Body-layout field helpers (control-map specs) -------------------------
+  paramFor(index: number): SlotParam | null {
+    if (!this.slotParams) return null;
+    return this.slotParams.params.find((p) => p.index === index) ?? null;
+  }
+
+  // The value a spec's field holds within its packed byte (whole-byte specs with
+  // shift 0/mask 0xff return the raw byte).
+  fieldValue(spec: ControlSpec, p: SlotParam): number {
+    return (p.value & spec.mask) >>> spec.shift;
+  }
+
+  // Debounced flash commit for packed/bit-field controls: writes the FULL byte
+  // (composed from the sibling bits already in p.value) via /api/control — the
+  // lossless in-place patch + re-activate. Live CTRL_SET index numbering differs
+  // from the body layout at 26+, so packed items must NOT go through controlLive
+  // (it would write a whole body byte, clobbering sibling fields). One commit at
+  // a time; later edits during the ~2s flash are coalesced and re-sent.
+  private discreteTimer: ReturnType<typeof setTimeout> | null = null;
+  private discretePending: { p: SlotParam; byte: number } | null = null;
+  private discreteInFlight = false;
+
+  // Record a changed field and route the write: whole-byte params keep the
+  // realtime CTRL_SET path, packed fields go to the flash-commit queue.
+  private setField(spec: ControlSpec, p: SlotParam, fieldValue: number): void {
+    const byte = (p.value & ~spec.mask) | ((fieldValue << spec.shift) & spec.mask);
+    p.value = byte;
+    this.slotsDirty = true;
+    this.editedOverrides[p.index] = byte;
+    if (spec.shift === 0 && spec.mask === 0xff) {
+      this.onParamInput(p, byte);
+      return;
+    }
+    this.discretePending = { p, byte };
+    if (this.discreteTimer) return;
+    this.discreteTimer = setTimeout(() => {
+      this.discreteTimer = null;
+      this.flushDiscrete();
+    }, 300);
+  }
+
+  private flushDiscrete(): void {
+    const v = this.discretePending;
+    if (!v || this.discreteInFlight) return;
+    this.discreteInFlight = true;
+    this.discretePending = null;
+    this.api.control({ index: v.p.index, value: v.byte }).subscribe({
+      next: (r) => {
+        this.discreteInFlight = false;
+        if (r && typeof r.readback === 'number') {
+          const pr = this.paramFor(v.p.index);
+          if (pr) pr.value = r.readback;
+        }
+        this.flushDiscrete();
+      },
+      error: (e) => {
+        this.discreteInFlight = false;
+        this.slotError = 'Commit failed: ' + (e.message ?? e);
+      },
+    });
+  }
+
+  // Native <select> changes (no ngModel — see engine-select v3 lesson).
+  onSelectChange(spec: ControlSpec, p: SlotParam, event: Event): void {
+    const field = Number((event.target as HTMLSelectElement).value);
+    if (!Number.isInteger(field) || this.fieldValue(spec, p) === field) return;
+    this.setField(spec, p, field);
+  }
+
+  onToggleChange(spec: ControlSpec, p: SlotParam, event: Event): void {
+    const on = (event.target as HTMLInputElement).checked ? 1 : 0;
+    if (this.fieldValue(spec, p) === on) return;
+    this.setField(spec, p, on);
+  }
+
+  onSegmentChange(spec: ControlSpec, p: SlotParam, field: number): void {
+    if (field < 0 || field > spec.max || this.fieldValue(spec, p) === field) return;
+    this.setField(spec, p, field);
+  }
+
+  selectOptionSelected(spec: ControlSpec, p: SlotParam, opt: { value: number }): boolean {
+    return this.fieldValue(spec, p) === opt.value;
+  }
+
+  // Out-of-range/unknown field values render as a marked "?? N (unknown)" option.
+  selectValueKnown(spec: ControlSpec, p: SlotParam): boolean {
+    return !!spec.options?.some((o) => o.value === this.fieldValue(spec, p));
+  }
+
+  // Distortion-engine selects (body bytes 4/17) render full-width of their group
+  // so the long engine names are legible instead of cramped into a 66px column.
+  isEngineSpec(spec: ControlSpec): boolean {
+    return spec.type === 'select' && (spec.index === 4 || spec.index === 17);
+  }
+
   // Original (snapshot) value for a param, used to highlight edited knobs.
-  initialValue(p: SlotParam): number {
-    const snap = this.paramsSnapshot.find((s) => s.index === p.index);
-    return snap ? snap.value : p.value;
+  initialValue(index: number): number {
+    const snap = this.paramsSnapshot.find((s) => s.index === index);
+    return snap ? snap.value : 0;
   }
 
-  // Circular dial geometry: value 0..255 maps to a 270° sweep starting at the
-  // lower-left (135° in screen coords, where Y is down and clockwise is positive)
-  // and sweeping clockwise through the bottom to the lower-right at 255.
-  private knobAngle(v: number): number {
-    return 135 + (v / 255) * 270;
+  // Circular dial geometry: a spec's field value maps to a 270° sweep starting
+  // at the lower-left (135° in screen coords, where Y is down and clockwise is
+  // positive) and sweeping clockwise through the bottom to the lower-right at
+  // the field's max (packed fields sweep their own range, not 0..255).
+  private knobAngle(spec: ControlSpec, p: SlotParam): number {
+    return 135 + (this.fieldValue(spec, p) / spec.max) * 270;
   }
 
-  pointerX(p: SlotParam): number {
-    return 20 + 13 * Math.cos((this.knobAngle(p.value) * Math.PI) / 180);
+  pointerX(spec: ControlSpec, p: SlotParam): number {
+    return 20 + 13 * Math.cos((this.knobAngle(spec, p) * Math.PI) / 180);
   }
 
-  pointerY(p: SlotParam): number {
-    return 20 + 13 * Math.sin((this.knobAngle(p.value) * Math.PI) / 180);
+  pointerY(spec: ControlSpec, p: SlotParam): number {
+    return 20 + 13 * Math.sin((this.knobAngle(spec, p) * Math.PI) / 180);
   }
 
   // Arc length: 0..100% of the track circumference (circumference = 2*pi*16).
-  arcDash(p: SlotParam): string {
-    const frac = p.value / 255;
+  arcDash(spec: ControlSpec, p: SlotParam): string {
+    const frac = this.fieldValue(spec, p) / spec.max;
     const C = 2 * Math.PI * 16;
     return `${(C * frac).toFixed(2)} ${C.toFixed(2)}`;
   }
 
   // Rotation that places the SVG arc's start at the lower-left (135°), matching
   // the value-0 pointer. The arc then sweeps clockwise as value rises.
-  arcRotate(p: SlotParam): number {
+  arcRotate(): number {
     return 135;
   }
 
   // --- Knob interaction -------------------------------------------------------
   // A circular knob drags vertically: drag up = increase, down = decrease. The
-  // sensitivity (~4 px per value step) makes the full 0..255 range reachable in
-  // a much shorter movement than the old 255px slider. Wheel also works.
+  // sensitivity (~4 px per value step) makes a full range reachable in a much
+  // shorter movement than the old 255px slider. Wheel also works.
   //
   // Scroll/drag mode is only "armed" while the pointer is inside the knob:
   // entering the knob shows the scroll cursor and enables dragging; leaving it
   // (or releasing) ends the drag so the knob never stays in a captured state.
-  private activeKnob: { p: SlotParam; lastY: number } | null = null;
+  private activeKnob: { spec: ControlSpec; p: SlotParam; lastY: number } | null = null;
   hoveredParam: SlotParam | null = null;
 
-  onKnobEnter(p: SlotParam): void {
+  onKnobEnter(spec: ControlSpec, p: SlotParam): void {
     this.hoveredParam = p;
+    this.activeKnob = null;
   }
 
   onKnobLeave(): void {
@@ -465,22 +581,22 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.activeKnob = null;
   }
 
-  knobDown(e: PointerEvent, p: SlotParam): void {
+  knobDown(e: PointerEvent, spec: ControlSpec, p: SlotParam): void {
     this.hoveredParam = p;
     // Only start a drag if the pointer is inside the knob (armed via enter).
     if (this.hoveredParam !== p) return;
-    this.activeKnob = { p, lastY: e.clientY };
+    this.activeKnob = { spec, p, lastY: e.clientY };
     e.preventDefault();
   }
 
-  knobMove(e: PointerEvent, p: SlotParam): void {
+  knobMove(e: PointerEvent, spec: ControlSpec, p: SlotParam): void {
     // No pointer capture: pointermove only fires while the cursor is over the
     // knob, so leaving the knob naturally stops the drag.
     if (!this.activeKnob || this.activeKnob.p !== p) return;
     const dy = this.activeKnob.lastY - e.clientY;
     this.activeKnob.lastY = e.clientY;
-    const v = Math.max(0, Math.min(255, Math.round(p.value + dy * 4)));
-    this.onParamInput(p, v);
+    const v = Math.max(0, Math.min(spec.max, Math.round(this.fieldValue(spec, p) + dy * 4)));
+    this.setField(spec, p, v);
     e.preventDefault();
   }
 
@@ -490,10 +606,10 @@ export class LaladyComponent implements OnInit, OnDestroy {
     e.preventDefault();
   }
 
-  knobWheel(e: WheelEvent, p: SlotParam): void {
+  knobWheel(e: WheelEvent, spec: ControlSpec, p: SlotParam): void {
     e.preventDefault();
-    const v = Math.max(0, Math.min(255, Math.round(p.value + (e.deltaY < 0 ? 8 : -8))));
-    this.onParamInput(p, v);
+    const v = Math.max(0, Math.min(spec.max, Math.round(this.fieldValue(spec, p) + (e.deltaY < 0 ? 8 : -8))));
+    this.setField(spec, p, v);
   }
 
   // Persist the current state to the SELECTED slot, then recall it (via the
