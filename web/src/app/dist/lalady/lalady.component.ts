@@ -534,23 +534,27 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   // The value a spec's field holds within its packed byte (whole-byte specs with
   // shift 0/mask 0xff return the raw byte). For continuous knobs this is the
-  // 0..127 UI value (pedal's native 0..255 halved), so the workbench knob domain
-  // maps 1:1 to 7-bit MIDI CC — friendly for external MIDI hardware sending CC.
+  // 0..127 UI value mapped 1:1 to the byte and to 7-bit MIDI CC. The pedal stores
+  // CC input as the raw byte (value identity, no scaling — see DECISIONS: "Body
+  // <->live value identity holds, send field value directly"), so knob UI,
+  // flash byte, and CC are all the same 0..127 number. No halving/doubling.
   fieldValue(spec: ControlSpec, p: SlotParam): number {
     const raw = (p.value & spec.mask) >>> spec.shift;
     return this.toUI(spec, raw);
   }
 
-  // Continuous knobs use a 0..127 UI/CC domain; everything else is its raw byte.
+  // Continuous knobs use a 0..127 UI/CC/byte domain; everything else is its raw
+  // byte. All three share the same value (identity) — the pedal treats the CC
+  // value it receives as the control byte directly.
   private isKnob(spec: ControlSpec): boolean {
     return spec.type === 'knob';
   }
   private toUI(spec: ControlSpec, native: number): number {
     if (!this.isKnob(spec)) return native;
-    return Math.min(127, Math.round(native / 2));
+    return Math.min(127, native);
   }
   private toNative(spec: ControlSpec, ui: number): number {
-    return this.isKnob(spec) ? Math.min(255, ui * 2) : ui;
+    return this.isKnob(spec) ? Math.min(255, ui) : ui;
   }
   private toUIMax(spec: ControlSpec): number {
     return this.isKnob(spec) ? 127 : spec.max;

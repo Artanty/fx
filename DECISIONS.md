@@ -1497,3 +1497,9 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Fix: removed MIDI_MAP_HEADER_LEN skip in decodeMidiMapFromEeprom. Verification python decoded hex: cc0=3, cc1=16, full map below. Smoke /api/midimap boundCount=48, ctrl3 cc0 Left Output, ctrl16 cc1 Right Output.
 - Correct unbound (workbench): indices 6,19,29,31 (no cc). Packed byte30/32/38 subfields still have liveIndex null -> still red (individual CC not possible; byte-level CC exists but sub-fields can't be driven separately).
 - ACTION NEEDED later: several .osbf-derived numbers in DECISIONS summary and pedal-app/docs were computed from the binary misread and may be wrong; re-derive EEPROM byte values by decoding the USER_EEPROM hex, not reading offsets directly.
+
+## Progress - 2026-09-02 pedal-app+web: remove knob halving (UI/byte/CC all 0..127 identity)
+- Bug: after the 0..127 knob change, toNative doubled the byte (ui*2, expecting 0..255) while CC sent toUI(native)=round(native/2). But the pedal stores the CC value it receives as the raw control byte (value identity, no scaling - DECISIONS line ~1453 'Body<->live value identity holds'); it does NOT double it. So mirrored readback (byte=ui) hit toUI=ui/2 -> knob reverted to half after the 3s grace, and round() quantization made wheel/drag look like chunky ~6pt steps.
+- Fix: toNative/toUI for knobs are now identity (clamped). knob UI 0..127 == flash byte 0..127 == CC 0..127. No halving/doubling. Field write, CC send, HID send, mirror compare, overrides/Save all consistent.
+- Verified by reason + line 1469 plan: 'send field value directly (0..127 for CC)'.
+- Files: web/src/app/dist/lalady/lalady.component.ts. ng build passes.
