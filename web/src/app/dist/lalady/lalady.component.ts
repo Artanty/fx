@@ -67,6 +67,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // what workbench edits — labels, kinds and bit-fields.
   controlMap: ControlSpec[] = [];
   private controlSpecsByIndex = new Map<number, ControlSpec[]>();
+  private controlToCc = new Map<number, number>();
 
   // Offline workbench (no Neuro): select one of 6 slots, edit any param, then
   // persist the whole state to the active slot. Params are read from the slot's
@@ -146,10 +147,28 @@ export class LaladyComponent implements OnInit, OnDestroy {
           list.push(s);
           this.controlSpecsByIndex.set(s.index, list);
         }
+        this.fetchMidiMap();
       },
       error: () => (this.controlMap = []),
     });
     this.startMirror();
+  }
+
+  private fetchMidiMap(): void {
+    this.api.midimap().subscribe({
+      next: (r) => {
+        if (!r || !r.ok) return;
+        this.controlToCc = new Map(
+          Object.entries(r.controlToCc).map(([k, v]) => [Number(k), v])
+        );
+        for (const s of this.controlMap) {
+          s.cc = this.controlToCc.get(s.liveIndex!) ?? null;
+        }
+      },
+      error: () => {
+        /* device offline; no CC info, HID-only */
+      },
+    });
   }
 
   // On a fresh session nothing is selected, so Save / all-0 / Engage are all
@@ -474,17 +493,21 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // Save does that. Throttled lightly (~40ms) to avoid flooding the USB pipe
   // during a fast drag; pending sends coalesce per live index (last wins).
   private liveTimer: ReturnType<typeof setTimeout> | null = null;
-  private livePending = new Map<number, number>();
+  private livePending = new Map<number, { spec: ControlSpec; value: number }>();
 
-  private queueLive(liveIndex: number, value: number): void {
-    this.livePending.set(liveIndex, value);
+  private queueLive(spec: ControlSpec, value: number): void {
+    this.livePending.set(spec.liveIndex!, { spec, value });
     if (this.liveTimer) return;
     this.liveTimer = setTimeout(() => {
       this.liveTimer = null;
-      for (const [index, v] of this.livePending) {
-        this.api.controlLive({ index, value: v }).subscribe({
-          error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
-        });
+      for (const [liveIndex, { spec: s, value: v }] of this.livePending) {
+        if (s.cc != null) {
+          this.midi.sendCc(s.cc, v);
+        } else {
+          this.api.controlLive({ index: liveIndex, value: v }).subscribe({
+            error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
+          });
+        }
       }
       this.livePending.clear();
     }, 40);
@@ -522,7 +545,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.slotsDirty = true;
     this.editedOverrides[p.index] = byte;
     if (spec.liveIndex != null) {
-      this.queueLive(spec.liveIndex, fieldValue);
+      this.queueLive(spec, fieldValue);
       return;
     }
     this.discretePending = { p, byte };

@@ -11,11 +11,11 @@ interface MidiAccess {
   outputs?: Map<string, MidiOutput>;
 }
 
-// Browser-native MIDI control for the Source Audio L.A. Lady engage/bypass,
-// using the Web MIDI API (no backend / Python needed). The pedal's engage/bypass
-// is bound to CC 102 (configured in Neuro): 0 = off (bypassed), 127 = on.
-@Injectable({ providedIn: 'root' })
-export class LaladyMidiService {
+// Browser-native MIDI control for the Source Audio L.A. Lady, using the Web MIDI
+  // API (no backend / Python needed). The pedal listens on a configurable channel
+  // (1-based). Engage/bypass is bound to CC 102 (configured in Neuro).
+  @Injectable({ providedIn: 'root' })
+  export class LaladyMidiService {
   // Input channel (1-based), defaulting to a Source Audio channel. The backend
   // config reports midiChannel 0-based; callers pass channel+1.
   channel = 3;
@@ -66,12 +66,18 @@ export class LaladyMidiService {
     return this.readyPromise;
   }
 
-  // value: 0 = off (bypass), 127 = on (engage).
-  async send(value: number): Promise<boolean> {
+  // Send a generic CC on the configured channel. value: 0..127.
+  async sendCc(cc: number, value: number): Promise<boolean> {
     const ok = await this.readyPromise;
     if (!ok || !this.output || typeof this.output.send !== 'function') return false;
     const status = 0xb0 | ((this.channel - 1) & 0x0f);
-    this.output.send([status, this.cc, value & 0x7f]);
+    this.output.send([status, cc & 0x7f, value & 0x7f]);
     return true;
+  }
+
+  // Engage/bypass shortcut (CC 102 on the configured channel).
+  // value: 0 = off (bypass), 127 = on (engage).
+  async send(value: number): Promise<boolean> {
+    return this.sendCc(this.cc, value);
   }
 }

@@ -23,6 +23,27 @@ const {
 
 const PORT = process.env.PORT || 3111;
 const OSBF_PATH = path.resolve(__dirname, '..', 'input', '2026-07-31_labackup.osbf');
+
+// Correct EEPROM MIDI map decode: 128-byte table at 0x80..0xff, indexed by CC
+// number. eeprom[0x80 + cc] = control index it drives (0xff = unassigned).
+// Bytes 0x80/0x81 are fixed firmware header (0x03, 0x10) — always present even
+// in unconfigured backups — and must NOT be treated as CC 0/1 bindings.
+const MIDI_MAP_HEADER_LEN = 2;
+function decodeMidiMapFromEeprom(eeprom) {
+  const ccToControl = new Array(128).fill(0xff);
+  const controlToCc = {};
+  for (let cc = 0; cc < 128; cc++) {
+    const addr = 0x80 + cc;
+    if (addr >= eeprom.length) break;
+    if (cc < MIDI_MAP_HEADER_LEN) continue; // fixed header, not a binding
+    const ctrl = eeprom[addr];
+    if (ctrl !== 0xff) {
+      ccToControl[cc] = ctrl;
+      controlToCc[ctrl] = cc;
+    }
+  }
+  return { ccToControl, controlToCc };
+}
 const DIST_ENGINES_PATH = path.resolve(__dirname, '..', 'input', 'dist-engines');
 const CACHE_TTL = 2000;
 
@@ -251,11 +272,11 @@ function collect() {
       presets: { slots, activePage: active ? active.activePage : null, activeIndex: active ? active.rawIdx : -1, activeScore: active ? active.score : null },
       eeprom: {
         hex: Buffer.from(eeprom).toString('hex'),
-        midiMap: decodeMidiMap(eeprom),
+        midiMap: decodeMidiMapFromEeprom(eeprom),
         midiMapRegion: {
-          start: MIDI_MAP_START,
-          len: MIDI_MAP_LEN,
-          hex: Buffer.from(eeprom.slice(MIDI_MAP_START, MIDI_MAP_START + MIDI_MAP_LEN)).toString('hex')
+          start: 0x80,
+          len: 128,
+          hex: Buffer.from(eeprom.slice(0x80, 0x100)).toString('hex')
         },
         osbfMatch: eepromDiff.length === 0,
         osbfDiffCount: eepromDiff.length,
@@ -303,6 +324,27 @@ app.get('/api/engines', (req, res) => {
 // descriptors of how each preset-body byte decomposes into UI controls.
 app.get('/api/control-map', (req, res) => {
   res.json({ ok: true, count: WORKBENCH_CONTROL_SPECS.length, controls: WORKBENCH_CONTROL_SPECS });
+});
+
+// Live MIDI map from the pedal's EEPROM: CC->control index table.
+// Decoded from the 128-byte EEPROM region at 0x80..0xff.
+// Returns both directions (ccToControl[cc] and controlToCc[controlIndex]).
+app.get('/api/midimap', (req, res) => {
+  const p = getSharedProto();
+  if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
+  try {
+    const eeprom = p.getEEPROM();
+    const map = decodeMidiMapFromEeprom(eeprom);
+    const bound = Object.entries(map.controlToCc).map(([ctrl, cc]) => ({
+      controlIndex: Number(ctrl),
+      cc,
+      name: CONTROL_NAMES[Number(ctrl)] || ('Unknown ' + ctrl)
+    }));
+    res.json({ ok: true, ...map, bound, boundCount: bound.length });
+  } catch (e) {
+    resetSharedProto();
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/status', (req, res) => {

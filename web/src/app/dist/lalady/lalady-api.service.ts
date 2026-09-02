@@ -20,6 +20,15 @@ import {
   WriteResult,
 } from './lalady.models';
 
+export interface MidiMap {
+  ok: boolean;
+  ccToControl: number[];
+  controlToCc: Record<string, number>;
+  bound: { controlIndex: number; cc: number; name: string }[];
+  boundCount: number;
+  error?: string;
+}
+
 const BASE = 'http://localhost:3111';
 
 @Injectable({ providedIn: 'root' })
@@ -44,6 +53,10 @@ export class LaladyApiService {
 
   controlMap(): Observable<ControlMap> {
     return this.http.get<ControlMap>(`${BASE}/api/control-map`);
+  }
+
+  midimap(): Observable<MidiMap> {
+    return this.http.get<MidiMap>(`${BASE}/api/midimap`);
   }
 
   exportUrl(slot: string): string {

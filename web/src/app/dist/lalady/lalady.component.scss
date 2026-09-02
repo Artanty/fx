@@ -425,6 +425,13 @@ table.knobs {
         font-size: 11px;
       }
     }
+
+    // Red border for controls not in the pedal's MIDI map (no CC binding).
+    &.unbound {
+      .ctl-select, .ctl-toggle, .ctl-seg, .kbody {
+        border-color: #8b2020;
+      }
+    }
   }
 
   .kbody {

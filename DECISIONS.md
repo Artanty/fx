@@ -1461,3 +1461,19 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Workbench live mirror: 2s poll of /api/controls reconciles each spec with a liveIndex onto the UI knob (field bits rewritten in place, marked as override+slotsDirty so Save persists it; overrides run after the backend's live-copy in /api/slots/save). Drag guard: a knob being dragged is skipped; fields w/o live control keep last-known value. Mirror started in ngOnInit, stopped in ngOnDestroy.
 - Checks: node -c OK; throwaway-port 3999 smoke GET /api/control-map -> ok=True count=45 with liveIndex populated (26+ shown: 39/38/26/27/28/36/30/32/33/34/35/37; null for 30/32/38); ng build passes (lalady-component rebuilt). No orphan node left on 3999.
 - User verification pending: restart backend :3111 + ng serve; drag Gate Threshold/EQ knobs = instant audio; toggle Noise Gate = instant; external MIDI board or physical knob turns moved the on-screen knob within ~2s; Save keeps the mirrored values.
+
+## Plan - 2026-09-02 pedal-app+web: MIDI CC send for knob changes
+- Goal: knob changes send MIDI CC from the browser (Web MIDI) instead of HID CTRL_SET. Use the decoded 0x80-based CC map: eeprom[0x80+cc] = controlIndex (0xff unassigned). CC2..46 + CC102(bypass). Unbound controls (Left/Right Output, packed 30/32/38) get red border + HID fallback.
+- Backend: new GET /api/midimap reads EEPROM, decodes cc->control and control->cc, returns static map. Replace old decodeMidiMap (was 0xc0-based, wrong).
+- Frontend: ControlSpec gains cc (from midimap). LaladyMidiService.gain sendCc(cc,value). setField/queueLive -> if cc present && Web MIDI available: sendCc, else HID fallback. Red border CSS on specs with cc==null.
+- Value scaling: send field value directly (0..127 for CC); if pedal needs *2 for 0..255 knobs, verify on hardware and adjust.
+- Files to modify: pedal-app/server.js, pedal-app/src/laLadyModel.js (deprecate old decode), web/src/app/dist/lalady/lalady.models.ts, lalady-api.service.ts, lalady.component.ts, lalady-midi.service.ts, lalady.component.scss
+
+## Progress - 2026-09-02 pedal-app+web: MIDI CC send for knob changes (done)
+- EEPROM MIDI map decoded: 128-byte table at 0x80..0xff, eeprom[0x80+cc] = control index, 0xff = unassigned. Header bytes 0x80/0x81 (0x03 0x10) are fixed firmware and skipped (not CC 0/1 bindings). 46 bindings from full-midi-map.osbf: CC2..46 = controls 0..110 in Neuro MIDI page order, CC102 = Bypass/Engage (127).
+- Backend: correct decodeMidiMapFromEeprom function + GET /api/midimap returning ccToControl[128], controlToCc, bound[], boundCount. Live EEPROM read (one HID GET).
+- Frontend: ControlSpec.cc filled from /api/midimap on init. LaladyMidiService.sendCc(cc, value) sends generic CC on configured channel. queueLive: if spec.cc present -> sendCc from browser; else HID CTRL_SET fallback.
+- Unbound controls (Left/Right Output, packed 30/32/38, Both 100-112): red border via .unbound CSS class on .knob div.
+- Checks: node -c OK; throwaway-port 3999 smoke: /api/midimap ok=True boundCount=46, cc/ctrl/name correct; ng build passes.
+- Value scaling for 0..255 knobs (send 0..127 CC -> pedal reads what?) TBD on hardware verification by user.
+- Files changed: pedal-app/server.js (decodeMidiMapFromEeprom, /api/midimap), pedal-app/src/laLadyModel.js (old decodeMidiMap deprecated), web/src/app/dist/lalady/lalady.models.ts (cc), lalady-api.service.ts (midimap), lalady-midi.service.ts (sendCc), lalady.component.ts (fetchMidiMap, queueLive->sendCc), lalady.component.html (.unbound class), lalady.component.scss (.unbound border)

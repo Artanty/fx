@@ -16,6 +16,7 @@ export interface ControlSpec {
   mask: number;
   max: number;
   liveIndex?: number | null;
+  cc?: number | null;
   options?: ControlOption[];
 }
 

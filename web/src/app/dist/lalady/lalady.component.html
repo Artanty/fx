@@ -160,7 +160,7 @@
             <div class="knob-group" *ngFor="let g of row" [class.flex3]="g.title === 'Parametric EQ'">
               <h3>{{ g.title }}</h3>
               <div class="knobs">
-                <div class="knob" *ngFor="let c of g.controls" [class.knob-wide]="isEngineSpec(c.spec)">
+                <div class="knob" *ngFor="let c of g.controls" [class.knob-wide]="isEngineSpec(c.spec)" [class.unbound]="c.spec.cc == null">
                   <select
                     *ngIf="c.spec.type === 'select'"
                     class="ctl-select"
