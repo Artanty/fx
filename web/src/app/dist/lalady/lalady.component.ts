@@ -68,6 +68,11 @@ export class LaladyComponent implements OnInit, OnDestroy {
   controlMap: ControlSpec[] = [];
   private controlSpecsByIndex = new Map<number, ControlSpec[]>();
   private controlToCc = new Map<number, number>();
+  // liveIndex -> last time we sent a CC for it; the mirror skips any control CC'd
+  // within the last CC_GRACE_MS so the pedal's quantized 7-bit value doesn't
+  // immediately yank the full-resolution knob back right after a turn.
+  private recentCc = new Map<number, number>();
+  private static CC_GRACE_MS = 3000;
 
   // Offline workbench (no Neuro): select one of 6 slots, edit any param, then
   // persist the whole state to the active slot. Params are read from the slot's
@@ -426,6 +431,10 @@ export class LaladyComponent implements OnInit, OnDestroy {
           const live = byIndex.get(s.liveIndex);
           if (typeof live !== 'number') continue;
           if (this.activeKnob && this.activeKnob.spec === s) continue;
+          // Skip knobs we just moved via CC so the 7-bit readback doesn't fight
+          // the user's 0..255 knob position.
+          const lastCc = this.recentCc.get(s.liveIndex) ?? 0;
+          if (Date.now() - lastCc < LaladyComponent.CC_GRACE_MS) continue;
           const p = this.paramFor(s.index);
           if (!p) continue;
           const field = Math.max(0, Math.min(s.max, live));
@@ -494,6 +503,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // during a fast drag; pending sends coalesce per live index (last wins).
   private liveTimer: ReturnType<typeof setTimeout> | null = null;
   private livePending = new Map<number, { spec: ControlSpec; value: number }>();
+  // CC values are 7-bit (0..127) but workbench knob/live values run 0..255.
+  // Map the 0..255 domain onto 0..127 before sending so the pedal's value and
+  // the UI's stay consistent.
+  private static ccScale(bodyValue: number): number {
+    return Math.round(Math.max(0, Math.min(255, bodyValue)) * 127 / 255);
+  }
 
   private queueLive(spec: ControlSpec, value: number): void {
     this.livePending.set(spec.liveIndex!, { spec, value });
@@ -502,7 +517,8 @@ export class LaladyComponent implements OnInit, OnDestroy {
       this.liveTimer = null;
       for (const [liveIndex, { spec: s, value: v }] of this.livePending) {
         if (s.cc != null) {
-          this.midi.sendCc(s.cc, v);
+          this.midi.sendCc(s.cc, LaladyComponent.ccScale(v));
+          this.recentCc.set(liveIndex, Date.now());
         } else {
           this.api.controlLive({ index: liveIndex, value: v }).subscribe({
             error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),

@@ -1477,3 +1477,9 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Checks: node -c OK; throwaway-port 3999 smoke: /api/midimap ok=True boundCount=46, cc/ctrl/name correct; ng build passes.
 - Value scaling for 0..255 knobs (send 0..127 CC -> pedal reads what?) TBD on hardware verification by user.
 - Files changed: pedal-app/server.js (decodeMidiMapFromEeprom, /api/midimap), pedal-app/src/laLadyModel.js (old decodeMidiMap deprecated), web/src/app/dist/lalady/lalady.models.ts (cc), lalady-api.service.ts (midimap), lalady-midi.service.ts (sendCc), lalady.component.ts (fetchMidiMap, queueLive->sendCc), lalady.component.html (.unbound class), lalady.component.scss (.unbound border)
+
+## Progress - 2026-09-02 pedal-app+web: fix CC value scaling + mirror grace guard
+- Bug: CC is 7-bit (0..127) but workbench knob/live values are 0..255. Sending raw knob values truncated via sendCc (value & 0x7f), then the 2s mirror read back the truncated pedal value and yanked the knob to a large/prev state. User reported knob "returning to prev or jumping to large" after touching.
+- Fix: queueLive now scales 0..255 -> 0..127 on CC send (Math.round(v*127/255) via ccScale). Mirror skips any liveIndex CC'd within last 3s (CC_GRACE_MS via recentCc map) so readback doesn't fight an in-progress turn. HID fallback (controlLive) unaffected (body/live values identical, no scaling).
+- NOTE still open (needs hardware confirmation): pedal holds only 7-bit resolution via CC, so after the 3s grace the mirror will still normalize the knob to the quantized value. Decide on hardware whether pedal scales CC internally (if so, may want raw passthrough instead).
+- Checks: ng build passes. Files: web/src/app/dist/lalady/lalady.component.ts (ccScale, recentCc, mirror guard).
