@@ -53,6 +53,14 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private monitorTimer: ReturnType<typeof setInterval> | null = null;
   private readonly MONITOR_POLL_MS = 5000;
 
+  // Workbench live mirror: a low-rate poll of /api/controls that reconciles
+  // workbench knob positions to the pedal's CURRENT live control table, so
+  // external changes (MIDI board sends a CC, physical knob turned, Neuro edit)
+  // move the on-screen knobs. Only fields that have a 1:1 live control
+  // (spec.liveIndex) can be mirrored; the rest keep their last-known value.
+  private mirrorTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly MIRROR_POLL_MS = 2000;
+
   // Workbench control map (GET /api/control-map): how each preset-body byte
   // decomposes into Neuro-style UI controls. This is the 53-byte BODY layout
   // (body index 26+ differs from the live control table), so these specs drive
@@ -141,6 +149,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
       },
       error: () => (this.controlMap = []),
     });
+    this.startMirror();
   }
 
   // On a fresh session nothing is selected, so Save / all-0 / Engage are all
@@ -195,6 +204,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopMonitor();
+    this.stopMirror();
   }
 
   refresh(): void {
@@ -364,6 +374,54 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.monitorOn = false;
   }
 
+  private startMirror(): void {
+    if (this.mirrorTimer) return;
+    this.mirrorTimer = setInterval(() => this.mirrorControls(), this.MIRROR_POLL_MS);
+  }
+
+  private stopMirror(): void {
+    if (this.mirrorTimer) {
+      clearInterval(this.mirrorTimer);
+      this.mirrorTimer = null;
+    }
+  }
+
+  // Reconcile workbench fields from the pedal's live control table. Each spec
+  // with spec.liveIndex reads the live table's value for that index (values are
+  // identical body<->live, no scaling) and, when it differs from what the UI
+  // shows, rewrites the field's bits inside the UI body byte and marks it as an
+  // edit so Save persists it (overrides are applied after the backend's live
+  // copy). A knob currently being dragged is skipped so the mirror never fights
+  // the user's hand; the poll rate (2s) just lags wrist turns slightly.
+  private mirrorControls(): void {
+    this.api.controls().subscribe({
+      next: (m) => {
+        if (!m || !Array.isArray(m.controls)) return;
+        const byIndex = new Map<number, number>();
+        for (const c of m.controls) {
+          if (typeof c.value === 'number') byIndex.set(c.index, c.value);
+        }
+        if (!byIndex.size || !this.slotParams) return;
+        for (const s of this.controlMap) {
+          if (s.liveIndex == null) continue;
+          const live = byIndex.get(s.liveIndex);
+          if (typeof live !== 'number') continue;
+          if (this.activeKnob && this.activeKnob.spec === s) continue;
+          const p = this.paramFor(s.index);
+          if (!p) continue;
+          const field = Math.max(0, Math.min(s.max, live));
+          if (this.fieldValue(s, p) === field) continue;
+          p.value = (p.value & ~s.mask) | ((field << s.shift) & s.mask);
+          this.editedOverrides[p.index] = p.value;
+          this.slotsDirty = true;
+        }
+      },
+      error: () => {
+        /* device offline; workbench keeps last-known values */
+      },
+    });
+  }
+
   private pollControls(): void {
     this.api.controls().subscribe({
       next: (m) => (this.monitor = m),
@@ -410,23 +468,25 @@ export class LaladyComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Realtime: called on slider INPUT (while dragging) — writes the value into the
-  // pedal's LIVE control table via CTRL_SET so you HEAR the change immediately,
-  // without waiting for a flash commit. Not persisted; Save does that.
-  // Throttled lightly to avoid flooding the USB pipe during a fast drag. Only
-  // used for whole-byte params (body byte == live table index, indices 0..25 and
-  // the engine bytes 4/17); packed items go through the flash-commit queue below.
+  // Realtime: writes a field's value into the pedal's LIVE control table via
+  // CTRL_SET (0x70) at the control's LIVE index (spec.liveIndex), so you HEAR
+  // the change immediately without waiting for a flash commit. Not persisted;
+  // Save does that. Throttled lightly (~40ms) to avoid flooding the USB pipe
+  // during a fast drag; pending sends coalesce per live index (last wins).
   private liveTimer: ReturnType<typeof setTimeout> | null = null;
-  onParamInput(p: SlotParam, value: number): void {
-    p.value = value;
-    this.slotsDirty = true;
-    this.editedOverrides[p.index] = value;
-    if (this.liveTimer) return; // already queued; latest value is in p.value/overrides
+  private livePending = new Map<number, number>();
+
+  private queueLive(liveIndex: number, value: number): void {
+    this.livePending.set(liveIndex, value);
+    if (this.liveTimer) return;
     this.liveTimer = setTimeout(() => {
       this.liveTimer = null;
-      this.api.controlLive({ index: p.index, value: this.editedOverrides[p.index] }).subscribe({
-        error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
-      });
+      for (const [index, v] of this.livePending) {
+        this.api.controlLive({ index, value: v }).subscribe({
+          error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
+        });
+      }
+      this.livePending.clear();
     }, 40);
   }
 
@@ -452,15 +512,17 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private discretePending: { p: SlotParam; byte: number } | null = null;
   private discreteInFlight = false;
 
-  // Record a changed field and route the write: whole-byte params keep the
-  // realtime CTRL_SET path, packed fields go to the flash-commit queue.
+  // Record a changed field and route the write: fields with a 1:1 live control
+  // (spec.liveIndex, e.g. body 27 Gate Threshold -> live 26, body 26 Filter
+  // Gate -> live 38) go realtime via CTRL_SET at the LIVE index; body-only
+  // packed fields (30/32/38) go to the flash-commit queue.
   private setField(spec: ControlSpec, p: SlotParam, fieldValue: number): void {
     const byte = (p.value & ~spec.mask) | ((fieldValue << spec.shift) & spec.mask);
     p.value = byte;
     this.slotsDirty = true;
     this.editedOverrides[p.index] = byte;
-    if (spec.shift === 0 && spec.mask === 0xff) {
-      this.onParamInput(p, byte);
+    if (spec.liveIndex != null) {
+      this.queueLive(spec.liveIndex, fieldValue);
       return;
     }
     this.discretePending = { p, byte };

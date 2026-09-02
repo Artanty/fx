@@ -104,6 +104,10 @@ const CONTROL_NAMES = {
 // Types match Neuro's presetEditor.controls ("knob", "dropDownList" -> select,
 // "buttonList" -> segmented, "switch" -> toggle). shift/mask locate the field
 // inside its byte; `max` is the field's max value (mask >> shift).
+// `liveIndex` is the live control-table index this field maps to when it has
+// a 1:1 whole-byte live control (CTRL_SET 0x70 targets that table; body<->live
+// values are identical — no scaling). null = body-only field (packed sub-fields,
+// knob assigns) that can only be changed via the flash-commit path.
 const OPT = (texts) => texts.map((text, value) => ({ value, text }));
 const KNOB_ASSIGN_OPTS = OPT([
   'Bass', 'Treble', 'Bass Freq', 'Treble Freq', 'Mid A', 'Mid A Freq', 'Mid A Q',
@@ -122,37 +126,42 @@ const TREBLE_FILTER_OPTS = OPT(['Treble Shelving Filter', 'Low Pass']);
 
 const WORKBENCH_CONTROL_SPECS = [
   // Channel blocks (whole bytes, body == live table numbering for 0..25).
-  ...[0, 1, 2, 3, 5, 7, 8, 9, 10, 11, 12].map(i => ({ index: i, name: CONTROL_NAMES[i], type: 'knob', shift: 0, mask: 0xff, max: 255 })),
-  { index: 4, name: 'Left Distortion Engine', type: 'select', shift: 0, mask: 0xff, max: 255, options: DIST_ENGINES.map(e => ({ value: e.id, text: e.name })) },
-  ...[13, 14, 15, 16, 18, 20, 21, 22, 23, 24, 25].map(i => ({ index: i, name: CONTROL_NAMES[i], type: 'knob', shift: 0, mask: 0xff, max: 255 })),
-  { index: 17, name: 'Right Distortion Engine', type: 'select', shift: 0, mask: 0xff, max: 255, options: DIST_ENGINES.map(e => ({ value: e.id, text: e.name })) },
+  ...[0, 1, 2, 3, 5, 7, 8, 9, 10, 11, 12].map(i => ({ index: i, name: CONTROL_NAMES[i], type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: i })),
+  { index: 4, name: 'Left Distortion Engine', type: 'select', shift: 0, mask: 0xff, max: 255, liveIndex: 4, options: DIST_ENGINES.map(e => ({ value: e.id, text: e.name })) },
+  ...[13, 14, 15, 16, 18, 20, 21, 22, 23, 24, 25].map(i => ({ index: i, name: CONTROL_NAMES[i], type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: i })),
+  { index: 17, name: 'Right Distortion Engine', type: 'select', shift: 0, mask: 0xff, max: 255, liveIndex: 17, options: DIST_ENGINES.map(e => ({ value: e.id, text: e.name })) },
 
   // Noise gate & filters (byte 26 packed; byte 27..29, 37 whole fields).
-  { index: 26, name: 'Noise Gate', type: 'toggle', shift: 4, mask: 0x10, max: 1 },
-  { index: 26, name: 'Filter Gate', type: 'segmented', shift: 2, mask: 0x0c, max: 3, options: GATE_OPTS },
-  { index: 27, name: 'Noise Gate Threshold', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 28, name: 'Clean High Cut', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 29, name: 'Treble Shelf Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 37, name: 'Low Cut Filter', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  // Live equivalents: 26 bits -> live 39 (Noise Gate Enable) / 38 (Filter Gate
+  // Option); 27 -> 26 (Gate Threshold); 28 -> 27 (Clean High Cut);
+  // 29 -> 28 (Treble Freq); 37 -> 36 (Low Cut Filter).
+  { index: 26, name: 'Noise Gate', type: 'toggle', shift: 4, mask: 0x10, max: 1, liveIndex: 39 },
+  { index: 26, name: 'Filter Gate', type: 'segmented', shift: 2, mask: 0x0c, max: 3, liveIndex: 38, options: GATE_OPTS },
+  { index: 27, name: 'Noise Gate Threshold', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 26 },
+  { index: 28, name: 'Clean High Cut', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 27 },
+  { index: 29, name: 'Treble Shelf Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 28 },
+  { index: 37, name: 'Low Cut Filter', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 36 },
 
   // Parametric EQ (byte 30 packed: treble fields; byte 32 packed: bass fields).
-  { index: 30, name: 'Treble Cut Filter', type: 'select', shift: 0, mask: 0x01, max: 1, options: TREBLE_FILTER_OPTS },
-  { index: 30, name: 'Treble Shelf Slope', type: 'segmented', shift: 1, mask: 0x06, max: 2, options: SLOPE_OPTS },
-  { index: 30, name: 'Treble Boost Rolloff', type: 'knob', shift: 3, mask: 0x18, max: 3 },
-  { index: 30, name: 'Treble Boost Maximum', type: 'select', shift: 5, mask: 0xe0, max: 6, options: BOOST_MAX_OPTS },
-  { index: 31, name: 'Bass Shelf Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 32, name: 'Bass Cut Filter', type: 'select', shift: 0, mask: 0x01, max: 1, options: SLOPE_FILTER_OPTS },
-  { index: 32, name: 'Bass Shelf Slope', type: 'segmented', shift: 1, mask: 0x06, max: 2, options: SLOPE_OPTS },
-  { index: 32, name: 'Bass Boost Rolloff', type: 'knob', shift: 3, mask: 0xf8, max: 31 },
-  { index: 33, name: 'Mid A Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 34, name: 'Mid A Q', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 35, name: 'Mid B Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255 },
-  { index: 36, name: 'Mid B Q', type: 'knob', shift: 0, mask: 0xff, max: 255 },
+  // The packed treble/bass sub-fields (30/32) have NO 1:1 live control -> null.
+  { index: 30, name: 'Treble Cut Filter', type: 'select', shift: 0, mask: 0x01, max: 1, liveIndex: null, options: TREBLE_FILTER_OPTS },
+  { index: 30, name: 'Treble Shelf Slope', type: 'segmented', shift: 1, mask: 0x06, max: 2, liveIndex: null, options: SLOPE_OPTS },
+  { index: 30, name: 'Treble Boost Rolloff', type: 'knob', shift: 3, mask: 0x18, max: 3, liveIndex: null },
+  { index: 30, name: 'Treble Boost Maximum', type: 'select', shift: 5, mask: 0xe0, max: 6, liveIndex: null, options: BOOST_MAX_OPTS },
+  { index: 31, name: 'Bass Shelf Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 30 },
+  { index: 32, name: 'Bass Cut Filter', type: 'select', shift: 0, mask: 0x01, max: 1, liveIndex: null, options: SLOPE_FILTER_OPTS },
+  { index: 32, name: 'Bass Shelf Slope', type: 'segmented', shift: 1, mask: 0x06, max: 2, liveIndex: null, options: SLOPE_OPTS },
+  { index: 32, name: 'Bass Boost Rolloff', type: 'knob', shift: 3, mask: 0xf8, max: 31, liveIndex: null },
+  { index: 33, name: 'Mid A Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 32 },
+  { index: 34, name: 'Mid A Q', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 33 },
+  { index: 35, name: 'Mid B Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 34 },
+  { index: 36, name: 'Mid B Q', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 35 },
 
   // Routing & knob assign (bytes 38/39 packed nibbles).
-  { index: 38, name: 'Bass Knob Assign', type: 'select', shift: 0, mask: 0x0f, max: 15, options: KNOB_ASSIGN_OPTS },
-  { index: 38, name: 'Treble Knob Assign', type: 'select', shift: 4, mask: 0xf0, max: 15, options: KNOB_ASSIGN_OPTS },
-  { index: 39, name: 'I/O Routing', type: 'select', shift: 4, mask: 0xf0, max: 15, options: ROUTING_OPTS },
+  // 38 knob assigns have no live control -> null; 39 I/O Routing -> live 37.
+  { index: 38, name: 'Bass Knob Assign', type: 'select', shift: 0, mask: 0x0f, max: 15, liveIndex: null, options: KNOB_ASSIGN_OPTS },
+  { index: 38, name: 'Treble Knob Assign', type: 'select', shift: 4, mask: 0xf0, max: 15, liveIndex: null, options: KNOB_ASSIGN_OPTS },
+  { index: 39, name: 'I/O Routing', type: 'select', shift: 4, mask: 0xf0, max: 15, liveIndex: 37, options: ROUTING_OPTS },
 ];
 
 function readSlot(p, page) {
@@ -504,16 +513,19 @@ app.post('/api/control', (req, res) => {
   }
 });
 
-// Live realtime param set: writes byte `index` into the pedal's LIVE (RAM)
-// control table via CTRL_SET (0x70), so the audio changes immediately — used for
-// realtime knob edits while dragging. NOT persisted to flash (that's the Save
-// step). Works without Neuro because nothing re-imports the active preset.
-// body: { index: 0..52, value: 0..255 }.
+// Live realtime param set: writes the LIVE (RAM) control table via CTRL_SET
+// (0x70), so the audio changes immediately — used for realtime knob edits while
+// dragging. `index` is the LIVE control-table index (CONTROL_NAMES), which
+// diverges from the body byte at 26+ (e.g. body 27 Noise Gate Threshold = live
+// 26 Gate Threshold; body 29 Treble Shelf Frequency = live 28 Treble Freq).
+// NOT persisted to flash (that's the flash-commit /api/control + Save step).
+// Works without Neuro because nothing re-imports the active preset.
+// body: { index: 0..127 (live control index), value: 0..255 }.
 app.post('/api/control/live', (req, res) => {
   const index = parseInt(req.body.index, 10);
   const value = parseInt(req.body.value, 10);
-  if (!Number.isInteger(index) || index < 0 || index >= LALADY_DATA_SIZE)
-    return res.status(400).json({ error: 'index must be an integer 0..52' });
+  if (!Number.isInteger(index) || index < 0 || index > 127)
+    return res.status(400).json({ error: 'index must be an integer 0..127 (live control index)' });
   if (!Number.isInteger(value) || value < 0 || value > 255)
     return res.status(400).json({ error: 'value must be an integer 0..255' });
 
