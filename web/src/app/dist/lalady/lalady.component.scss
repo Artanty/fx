@@ -324,6 +324,24 @@ table.knobs {
       white-space: nowrap;
     }
 
+    .mirror-toggle {
+      height: 28px;
+      padding: 0 12px;
+      border: 1px solid #35353f;
+      border-radius: 4px;
+      background: #1b1b22;
+      color: #8b8b98;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+
+      &.on {
+        color: #9ad0ff;
+        border-color: #2f5b8f;
+        background: #14283f;
+      }
+    }
+
     .midi-engage-btn {
       height: 30px;
       font-weight: 700;

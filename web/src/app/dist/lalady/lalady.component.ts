@@ -53,11 +53,14 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private monitorTimer: ReturnType<typeof setInterval> | null = null;
   private readonly MONITOR_POLL_MS = 5000;
 
-  // Workbench live mirror: a low-rate poll of /api/controls that reconciles
-  // workbench knob positions to the pedal's CURRENT live control table, so
-  // external changes (MIDI board sends a CC, physical knob turned, Neuro edit)
-  // move the on-screen knobs. Only fields that have a 1:1 live control
-  // (spec.liveIndex) can be mirrored; the rest keep their last-known value.
+  // Workbench live mirror: an OPT-IN low-rate poll of /api/controls that
+  // reconciles workbench knob positions to the pedal's CURRENT live control
+  // table, so external changes (MIDI board sends a CC, physical knob turned,
+  // Neuro edit) move the on-screen knobs. Only fields that have a 1:1 live
+  // control (spec.liveIndex) can be mirrored; the rest keep their last-known
+  // value. On by Start/Stop button only — not automatic, so opening/editing the
+  // workbench never surprises the user with spurious knob movement.
+  mirrorOn = false;
   private mirrorTimer: ReturnType<typeof setInterval> | null = null;
   private readonly MIRROR_POLL_MS = 2000;
 
@@ -89,10 +92,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
   slotsDirty = false;
   private paramsSnapshot: SlotParam[] = [];
   private editedOverrides: Record<number, number> = {};
-  // The mirror's first pass after a slot load reconciles displayed values to the
-  // pedal's LIVE table and adopts them as the baseline WITHOUT flagging edits,
-  // so freshly-loaded live-vs-body differences don't show as yellow "modified".
-  private mirrorBaselineSet = false;
 
   // Workbench param grouping. Each group lists body indices rendered in that
   // section; every control-map spec whose byte index is in a group is shown
@@ -160,7 +159,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
       },
       error: () => (this.controlMap = []),
     });
-    this.startMirror();
   }
 
   private fetchMidiMap(): void {
@@ -404,6 +402,8 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   private startMirror(): void {
     if (this.mirrorTimer) return;
+    this.mirrorOn = true;
+    this.mirrorControls();
     this.mirrorTimer = setInterval(() => this.mirrorControls(), this.MIRROR_POLL_MS);
   }
 
@@ -412,15 +412,24 @@ export class LaladyComponent implements OnInit, OnDestroy {
       clearInterval(this.mirrorTimer);
       this.mirrorTimer = null;
     }
+    this.mirrorOn = false;
+  }
+
+  toggleMirror(): void {
+    if (this.mirrorOn) this.stopMirror();
+    else this.startMirror();
   }
 
   // Reconcile workbench fields from the pedal's live control table. Each spec
   // with spec.liveIndex reads the live table's value for that index (values are
   // identical body<->live, no scaling) and, when it differs from what the UI
-  // shows, rewrites the field's bits inside the UI body byte and marks it as an
-  // edit so Save persists it (overrides are applied after the backend's live
-  // copy). A knob currently being dragged is skipped so the mirror never fights
-  // the user's hand; the poll rate (2s) just lags wrist turns slightly.
+  // shows, updates the field's bits inside the UI body byte AND the snapshot
+  // baseline. Live/pedal-side movement (physical knobs, MIDI) is reflected on
+  // screen but is NOT flagged as a user edit: it never adds to editedOverrides
+  // or sets slotsDirty, so the yellow "modified" highlight only appears for
+  // controls the user actually changed in this session. A knob currently being
+  // dragged is skipped so the mirror never fights the user's hand; the poll rate
+  // (2s) just lags wrist turns slightly.
   private mirrorControls(): void {
     this.api.controls().subscribe({
       next: (m) => {
@@ -445,18 +454,11 @@ export class LaladyComponent implements OnInit, OnDestroy {
           const uiField = this.toUI(s, nativeField);
           if (this.fieldValue(s, p) === uiField) continue;
           p.value = (p.value & ~s.mask) | ((nativeField << s.shift) & s.mask);
-          // First reconciliation after a slot load: adopt the pedal's live value
-          // as the baseline (update the display + snapshot) without flagging it
-          // as a user edit, so entering a slot doesn't show spurious yellow.
-          if (!this.mirrorBaselineSet) {
-            const snap = this.paramsSnapshot.find((sp) => sp.index === p.index);
-            if (snap) snap.value = p.value;
-          } else {
-            this.editedOverrides[p.index] = p.value;
-            this.slotsDirty = true;
-          }
+          // Adopt the pedal's value as the snapshot baseline so live drift never
+          // looks like a user edit (no yellow, not added to overrides).
+          const snap = this.paramsSnapshot.find((sp) => sp.index === p.index);
+          if (snap) snap.value = p.value;
         }
-        this.mirrorBaselineSet = true;
       },
       error: () => {
         /* device offline; workbench keeps last-known values */
@@ -502,7 +504,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
         this.paramsSnapshot = s.params.map((p) => ({ ...p }));
         this.slotsDirty = false;
         this.editedOverrides = {};
-        this.mirrorBaselineSet = false;
       },
       error: (e) => {
         this.slotBusy = false;

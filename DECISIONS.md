@@ -1509,3 +1509,12 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Fix: added mirrorBaselineSet flag. Reset false in loadSlotParams. On the mirror's FIRST pass after load, adopt the pedal's live value as the baseline (update p.value display + paramsSnapshot for that param index) WITHOUT flagging editedOverrides/slotsDirty. Subsequent mirror passes flag genuine live deltas as before. So entering a slot now shows the pedal's live state cleanly (no yellow for initial live-vs-body differences).
 - NOTE: values still re-sync to the pedal's live table on load (by design); only the false-edited/yellow marking is suppressed. If user wants entering a slot to pin to the saved flash body instead, revisit.
 - Files: web/src/app/dist/lalady/lalady.component.ts. ng build passes.
+
+## Progress - 2026-09-02 pedal-app+web: opt-in live observation (Start/Stop button)
+- Bug: dragging one knob / changing dist engine caused MANY knobs to move and turn yellow. Root: the 2s mirror always ran, reconciling every control against the pedal's live table and (until the last commit) flagging them as edits; live-vs-flash drift accumulated over passes so one interaction lit up many controls.
+- Fix per user request ('make a button to start observing real values, and stop'):
+  - Mirror no longer auto-starts (removed startMirror() from ngOnInit).
+  - Added mirrorOn flag + toggleMirror() and an 'Observe live' / '● Observing live…' button in the workbench slot-picker. Clicking Start begins the 2s /api/controls reconciliation; Stop halts it.
+  - Editing (drag/select) only ever writes the single touched control (setField/queueLive) - no other knobs change unless Observation is on and the pedal's live values genuinely move.
+  - mirrorControls() also updated earlier (previous commit) to never add to editedOverrides/slotsDirty - yellow now only reflects actual user edits.
+- Files: web/src/app/dist/lalady/lalady.component.ts (mirrorOn, toggleMirror, no auto-start), lalady.component.html (Observe live button), lalady.component.scss (.mirror-toggle/.on). ng build passes.

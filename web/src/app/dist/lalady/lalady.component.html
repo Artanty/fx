@@ -141,6 +141,12 @@
           [title]="'Raw (0-based) MIDI channel: ' + deviceInfo.config.midiChannel
             + '\nfirmware 0x' + deviceInfo.config.firmwareVersion.toString(16)"
         >MIDI ch {{ deviceInfo.config.midiChannel + 1 }}</span>
+        <button
+          class="action-btn mirror-toggle"
+          [class.on]="mirrorOn"
+          (click)="toggleMirror()"
+          [attr.title]="mirrorOn ? 'Stop watching the pedal\'s live values (external knobs/MIDI will no longer move the workbench)' : 'Watch the pedal\'s live values every 2s — external knobs/MIDI will move the workbench knobs'"
+        >{{ mirrorOn ? '● Observing live…' : 'Observe live' }}</button>
       </div>
 
       <p class="muted" *ngIf="slotBusy">Working…</p>
