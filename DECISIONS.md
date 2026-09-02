@@ -1518,3 +1518,10 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
   - Editing (drag/select) only ever writes the single touched control (setField/queueLive) - no other knobs change unless Observation is on and the pedal's live values genuinely move.
   - mirrorControls() also updated earlier (previous commit) to never add to editedOverrides/slotsDirty - yellow now only reflects actual user edits.
 - Files: web/src/app/dist/lalady/lalady.component.ts (mirrorOn, toggleMirror, no auto-start), lalady.component.html (Observe live button), lalady.component.scss (.mirror-toggle/.on). ng build passes.
+
+## Progress - 2026-09-02 pedal-app+web: proportional native->UI observe mapping
+- Bug: during observation, touching a real pedal knob caused the workbench knob to change by too much / unequally. Cause: knob UI is 0..127 but the pedal's native knob/live value is 0..255; toUI was identity (Math.min(127, native)), so native 0..127 mapped 1:1 onto the 0..127 UI (about 2x physical tick) and native>127 clamped to 127 (stuck at max) - neither proportional nor equal.
+- Fix: toUI/toNative for knobs are now proportional: toUI = round(native*127/255), toNative = round(ui*255/127). So a physical 0..255 knob reflects smoothly onto the 0..127 knob (1 tick physical ~ half tick UI), no clamping, no exaggeration. CC send = toUI(native) = the 0..127 UI value (CC-friendly). HID/save path uses native toNative(ui)*... (native 0..255) unchanged.
+- User chose 'keep 0..127 knob, proportional observe'.
+- NOTE (inherent pedal limit): CC can only express 0..127, so a CC-driven control sits in the native 0..127 half; observation then shows ~half on the 0..127 UI. recentCc 3s grace hides it right after our own edit.
+- Files: web/src/app/dist/lalady/lalady.component.ts (toUI/toNative). ng build passes.

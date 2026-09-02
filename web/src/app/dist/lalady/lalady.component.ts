@@ -558,18 +558,21 @@ export class LaladyComponent implements OnInit, OnDestroy {
     return this.toUI(spec, raw);
   }
 
-  // Continuous knobs use a 0..127 UI/CC/byte domain; everything else is its raw
-  // byte. All three share the same value (identity) — the pedal treats the CC
-  // value it receives as the control byte directly.
+  // Continuous knobs use a 0..127 UI/CC domain, while the pedal stores the native
+  // 0..255 control byte. Map between them proportionally so a physical (native)
+  // knob turn reflects onto the 0..127 knob smoothly and 1:1 proportionally, and
+  // so a knob edit/CC both stay in the 7-bit MIDI range. Non-knob specs pass
+  // their raw byte through.
   private isKnob(spec: ControlSpec): boolean {
     return spec.type === 'knob';
   }
   private toUI(spec: ControlSpec, native: number): number {
     if (!this.isKnob(spec)) return native;
-    return Math.min(127, native);
+    return Math.min(127, Math.max(0, Math.round((native * 127) / 255)));
   }
   private toNative(spec: ControlSpec, ui: number): number {
-    return this.isKnob(spec) ? Math.min(255, ui) : ui;
+    if (!this.isKnob(spec)) return ui;
+    return Math.min(255, Math.max(0, Math.round((ui * 255) / 127)));
   }
   private toUIMax(spec: ControlSpec): number {
     return this.isKnob(spec) ? 127 : spec.max;
