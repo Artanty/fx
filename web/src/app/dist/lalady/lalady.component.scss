@@ -513,6 +513,40 @@ table.knobs {
     pointer-events: none;
   }
 
+  // Read-only Observe tab: simple label + value rows (no dials).
+  .obs-knob {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 150px;
+    min-height: 34px;
+    gap: 2px;
+    padding: 4px 6px;
+    border: 1px solid #23232c;
+    border-radius: 4px;
+    background: #17171d;
+    cursor: default;
+
+    .obs-label {
+      font-size: 10px;
+      color: #8b8b98;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .obs-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ad0ff;
+
+      &.unbound {
+        color: #8b8b98;
+      }
+    }
+  }
+
   .kname {
     margin-top: 4px;
     font-size: 10px;

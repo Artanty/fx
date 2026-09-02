@@ -1525,3 +1525,10 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - User chose 'keep 0..127 knob, proportional observe'.
 - NOTE (inherent pedal limit): CC can only express 0..127, so a CC-driven control sits in the native 0..127 half; observation then shows ~half on the 0..127 UI. recentCc 3s grace hides it right after our own edit.
 - Files: web/src/app/dist/lalady/lalady.component.ts (toUI/toNative). ng build passes.
+
+## Progress - 2026-09-02 pedal-app+web: new read-only 'Observe' tab
+- Added a read-only 'Observe' tab between Workbench and Slots. Shows the CURRENT live state of every control (knobs, selects, toggles, segmented) in the same group layout as the workbench, rendered as plain text labels - nothing editable.
+- Values poll via the existing /api/controls -> monitor (5s, reused monitorOn/toggleMonitor/startMonitor); openObserve() switches tab and auto-starts the poll.
+- Data model: observeGroups getter iterates CONTROL_GROUPS x controlSpecsByIndex (no slotParams dependency); observeNative(spec) reads the live value by spec.liveIndex; observeLabel(spec) formats by type (knob: toUI(native); select/segmented: option text or '?? N (unknown)'; toggle: ON/OFF). Packed/unbound (liveIndex null) show '—' in muted style.
+- CSS: .obs-knob/.obs-label/.obs-value read-only cards. ng build passes.
+- Files: web/src/app/dist/lalady/lalady.component.ts, lalady.component.html, lalady.component.scss.

@@ -28,7 +28,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   @ViewChild('restoreFileInput') restoreFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
 
-  activeTab: 'slots' | 'workbench' | 'monitor' = 'workbench';
+  activeTab: 'slots' | 'workbench' | 'monitor' | 'observe' = 'workbench';
   private pendingImportRow: RowModel | null = null;
 
   rows: RowModel[] = [];
@@ -126,6 +126,48 @@ export class LaladyComponent implements OnInit, OnDestroy {
         ),
     }));
     return this.KNOB_ROWS.map((rowIdx) => rowIdx.map((gi) => groups[gi]));
+  }
+
+  // Read-only "Observe" tab: reuse the workbench group layout, but render each
+  // control's CURRENT live value (polled via /api/controls -> this.monitor,
+  // keyed by spec.liveIndex) as plain text labels. No editing controls.
+  get observeGroups(): { title: string; controls: ControlSpec[] }[] {
+    return this.CONTROL_GROUPS.map((g) => ({
+      title: g.title,
+      controls: g.indices
+        .flatMap((i) => this.controlSpecsByIndex.get(i) || [])
+        .sort(
+          (a, b) =>
+            Number(this.isEngineSpec(b)) - Number(this.isEngineSpec(a)) ||
+            a.index - b.index
+        ),
+    }));
+  }
+
+  // The live value (native 0..255) for a spec from the latest /api/controls poll,
+  // or null when the spec has no 1:1 live control (packed 30/32/38) or no data.
+  observeNative(spec: ControlSpec): number | null {
+    if (spec.liveIndex == null || !this.monitor?.controls) return null;
+    const c = this.monitor.controls.find((x) => x.index === spec.liveIndex);
+    return typeof c?.value === 'number' ? c.value : null;
+  }
+
+  // Label shown in the Observe tab for a control's live value, rendered by type.
+  observeLabel(spec: ControlSpec): string {
+    const native = this.observeNative(spec);
+    if (native == null) return '—';
+    switch (spec.type) {
+      case 'toggle':
+        return native === 1 ? 'ON' : 'OFF';
+      case 'select':
+      case 'segmented': {
+        const opt = (spec.options || []).find((o) => o.value === native);
+        return opt ? opt.text : `?? ${native} (unknown)`;
+      }
+      case 'knob':
+      default:
+        return String(this.toUI(spec, native));
+    }
   }
 
   restoreResult: RestoreResult | null = null;
@@ -383,6 +425,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
     } else {
       this.startMonitor();
     }
+  }
+
+  // Open the read-only Observe tab and ensure live values are being polled.
+  openObserve(): void {
+    this.activeTab = 'observe';
+    this.startMonitor();
   }
 
   private startMonitor(): void {

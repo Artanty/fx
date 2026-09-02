@@ -15,6 +15,7 @@
   <div *ngIf="!loading && deviceFound">
     <nav class="tabs">
       <button [class.active]="activeTab === 'workbench'" (click)="activeTab = 'workbench'">Workbench</button>
+      <button [class.active]="activeTab === 'observe'" (click)="openObserve()">Observe</button>
       <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
       <button [class.active]="activeTab === 'monitor'" (click)="activeTab = 'monitor'">Monitor</button>
     </nav>
@@ -234,6 +235,40 @@
                     <div class="kvalue">{{ fieldValue(c.spec, c.p) }}</div>
                   </div>
                   <div class="kname">{{ c.spec.name }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'observe'" class="panel workbench observe">
+      <div class="monitor-head">
+        <h2>Observe</h2>
+        <button class="refresh" (click)="toggleMonitor()">
+          {{ monitorOn ? 'Stop' : 'Start' }}
+        </button>
+      </div>
+      <p class="muted">Live state of all controls (brightens external/pedal changes). Read-only — nothing here can be edited.</p>
+      <p *ngIf="monitorOn && !monitor" class="loading">Polling…</p>
+      <div *ngIf="monitorOn && monitor">
+        <p class="muted">
+          preset <strong>{{ monitor.presetName || '—' }}</strong>
+          (idx {{ monitor.activeIndex }}) &middot; live
+        </p>
+        <div class="knob-rows">
+          <div class="knob-row" *ngFor="let group of observeGroups">
+            <div class="knob-group">
+              <h3>{{ group.title }}</h3>
+              <div class="knobs">
+                <div class="knob obs-knob" *ngFor="let spec of group.controls">
+                  <span class="obs-label">{{ spec.name }}</span>
+                  <span
+                    class="obs-value"
+                    [class.unbound]="spec.liveIndex == null"
+                    [attr.title]="'body byte ' + spec.index + (spec.cc != null ? ', CC ' + spec.cc : ', unbound')"
+                  >{{ observeLabel(spec) }}</span>
                 </div>
               </div>
             </div>
