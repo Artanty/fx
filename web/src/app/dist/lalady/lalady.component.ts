@@ -437,9 +437,10 @@ export class LaladyComponent implements OnInit, OnDestroy {
           if (Date.now() - lastCc < LaladyComponent.CC_GRACE_MS) continue;
           const p = this.paramFor(s.index);
           if (!p) continue;
-          const field = Math.max(0, Math.min(s.max, live));
-          if (this.fieldValue(s, p) === field) continue;
-          p.value = (p.value & ~s.mask) | ((field << s.shift) & s.mask);
+          const nativeField = Math.max(0, Math.min(s.max, live));
+          const uiField = this.toUI(s, nativeField);
+          if (this.fieldValue(s, p) === uiField) continue;
+          p.value = (p.value & ~s.mask) | ((nativeField << s.shift) & s.mask);
           this.editedOverrides[p.index] = p.value;
           this.slotsDirty = true;
         }
@@ -503,13 +504,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // during a fast drag; pending sends coalesce per live index (last wins).
   private liveTimer: ReturnType<typeof setTimeout> | null = null;
   private livePending = new Map<number, { spec: ControlSpec; value: number }>();
-  // CC values are 7-bit (0..127) but workbench knob/live values run 0..255.
-  // Map the 0..255 domain onto 0..127 before sending so the pedal's value and
-  // the UI's stay consistent.
-  private static ccScale(bodyValue: number): number {
-    return Math.round(Math.max(0, Math.min(255, bodyValue)) * 127 / 255);
-  }
-
   private queueLive(spec: ControlSpec, value: number): void {
     this.livePending.set(spec.liveIndex!, { spec, value });
     if (this.liveTimer) return;
@@ -517,9 +511,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
       this.liveTimer = null;
       for (const [liveIndex, { spec: s, value: v }] of this.livePending) {
         if (s.cc != null) {
-          this.midi.sendCc(s.cc, LaladyComponent.ccScale(v));
+          // CC is 7-bit; value here is the native 0..255, scaled to 0..127 for
+          // knobs (selects/toggles pass their discrete value through unchanged).
+          this.midi.sendCc(s.cc, this.toUI(s, v));
           this.recentCc.set(liveIndex, Date.now());
         } else {
+          // HID path expects the native 0..255 value.
           this.api.controlLive({ index: liveIndex, value: v }).subscribe({
             error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
           });
@@ -536,9 +533,27 @@ export class LaladyComponent implements OnInit, OnDestroy {
   }
 
   // The value a spec's field holds within its packed byte (whole-byte specs with
-  // shift 0/mask 0xff return the raw byte).
+  // shift 0/mask 0xff return the raw byte). For continuous knobs this is the
+  // 0..127 UI value (pedal's native 0..255 halved), so the workbench knob domain
+  // maps 1:1 to 7-bit MIDI CC — friendly for external MIDI hardware sending CC.
   fieldValue(spec: ControlSpec, p: SlotParam): number {
-    return (p.value & spec.mask) >>> spec.shift;
+    const raw = (p.value & spec.mask) >>> spec.shift;
+    return this.toUI(spec, raw);
+  }
+
+  // Continuous knobs use a 0..127 UI/CC domain; everything else is its raw byte.
+  private isKnob(spec: ControlSpec): boolean {
+    return spec.type === 'knob';
+  }
+  private toUI(spec: ControlSpec, native: number): number {
+    if (!this.isKnob(spec)) return native;
+    return Math.min(127, Math.round(native / 2));
+  }
+  private toNative(spec: ControlSpec, ui: number): number {
+    return this.isKnob(spec) ? Math.min(255, ui * 2) : ui;
+  }
+  private toUIMax(spec: ControlSpec): number {
+    return this.isKnob(spec) ? 127 : spec.max;
   }
 
   // Debounced flash commit for packed/bit-field controls: writes the FULL byte
@@ -555,13 +570,16 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // (spec.liveIndex, e.g. body 27 Gate Threshold -> live 26, body 26 Filter
   // Gate -> live 38) go realtime via CTRL_SET at the LIVE index; body-only
   // packed fields (30/32/38) go to the flash-commit queue.
-  private setField(spec: ControlSpec, p: SlotParam, fieldValue: number): void {
-    const byte = (p.value & ~spec.mask) | ((fieldValue << spec.shift) & spec.mask);
+  private setField(spec: ControlSpec, p: SlotParam, uiValue: number): void {
+    // Continuous knobs accept the 0..127 UI value; double it for the native
+    // 0..255 byte so Save/overrides and the pedal agree.
+    const native = this.toNative(spec, uiValue);
+    const byte = (p.value & ~spec.mask) | ((native << spec.shift) & spec.mask);
     p.value = byte;
     this.slotsDirty = true;
     this.editedOverrides[p.index] = byte;
     if (spec.liveIndex != null) {
-      this.queueLive(spec, fieldValue);
+      this.queueLive(spec, native);
       return;
     }
     this.discretePending = { p, byte };
@@ -637,7 +655,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // positive) and sweeping clockwise through the bottom to the lower-right at
   // the field's max (packed fields sweep their own range, not 0..255).
   private knobAngle(spec: ControlSpec, p: SlotParam): number {
-    return 135 + (this.fieldValue(spec, p) / spec.max) * 270;
+    return 135 + (this.fieldValue(spec, p) / this.toUIMax(spec)) * 270;
   }
 
   pointerX(spec: ControlSpec, p: SlotParam): number {
@@ -650,7 +668,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   // Arc length: 0..100% of the track circumference (circumference = 2*pi*16).
   arcDash(spec: ControlSpec, p: SlotParam): string {
-    const frac = this.fieldValue(spec, p) / spec.max;
+    const frac = this.fieldValue(spec, p) / this.toUIMax(spec);
     const C = 2 * Math.PI * 16;
     return `${(C * frac).toFixed(2)} ${C.toFixed(2)}`;
   }
@@ -696,7 +714,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
     if (!this.activeKnob || this.activeKnob.p !== p) return;
     const dy = this.activeKnob.lastY - e.clientY;
     this.activeKnob.lastY = e.clientY;
-    const v = Math.max(0, Math.min(spec.max, Math.round(this.fieldValue(spec, p) + dy * 4)));
+    const v = Math.max(0, Math.min(this.toUIMax(spec), Math.round(this.fieldValue(spec, p) + dy * 4)));
     this.setField(spec, p, v);
     e.preventDefault();
   }
@@ -709,7 +727,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   knobWheel(e: WheelEvent, spec: ControlSpec, p: SlotParam): void {
     e.preventDefault();
-    const v = Math.max(0, Math.min(spec.max, Math.round(this.fieldValue(spec, p) + (e.deltaY < 0 ? 8 : -8))));
+    const v = Math.max(0, Math.min(this.toUIMax(spec), Math.round(this.fieldValue(spec, p) + (e.deltaY < 0 ? 8 : -8))));
     this.setField(spec, p, v);
   }
 

@@ -1483,3 +1483,10 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Fix: queueLive now scales 0..255 -> 0..127 on CC send (Math.round(v*127/255) via ccScale). Mirror skips any liveIndex CC'd within last 3s (CC_GRACE_MS via recentCc map) so readback doesn't fight an in-progress turn. HID fallback (controlLive) unaffected (body/live values identical, no scaling).
 - NOTE still open (needs hardware confirmation): pedal holds only 7-bit resolution via CC, so after the 3s grace the mirror will still normalize the knob to the quantized value. Decide on hardware whether pedal scales CC internally (if so, may want raw passthrough instead).
 - Checks: ng build passes. Files: web/src/app/dist/lalady/lalady.component.ts (ccScale, recentCc, mirror guard).
+
+## Progress - 2026-09-02 pedal-app+web: knob domain is now 0..127 (CC-friendly)
+- Goal: make workbench knob positions 0..127 (matching 7-bit MIDI CC so external MIDI hardware sending CC maps 1:1). Pedal native storage stays 0..255; scaling is frontend-only at the API edge.
+- Implemented: fieldValue() returns 0..127 for continuous knob specs (native/2, clamped to 127); setField() converts UI 0..127 -> native 0..255 (x2) for the byte/overrides/Save and passes native to queueLive. queueLive CC branch sends toUI(v) = 0..127 (== displayed knob), HID branch sends native 0..255. toUIMax() gives 127 for knobs so drag/wheel clamps and dial angle/arc normalize to the 0..127 UI range. Mirror reads live native -> toUI compare, writes native byte. Selects/toggles/segmented unchanged.
+- Removed obsolete ccScale (255->127 linear); now exact 0..127 domain. toUI clamps 127.5(max round) to 127 so display/arc never overflow.
+- Files: web/src/app/dist/lalady/lalady.component.ts. ng build passes.
+- NOTE: Save overrides + /api/slots/save still send native 0..255 bytes (correct, backend unchanged). Backend spec.max stays 255.
