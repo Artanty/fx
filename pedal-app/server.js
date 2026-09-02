@@ -24,18 +24,15 @@ const {
 const PORT = process.env.PORT || 3111;
 const OSBF_PATH = path.resolve(__dirname, '..', 'input', '2026-07-31_labackup.osbf');
 
-// Correct EEPROM MIDI map decode: 128-byte table at 0x80..0xff, indexed by CC
-// number. eeprom[0x80 + cc] = control index it drives (0xff = unassigned).
-// Bytes 0x80/0x81 are fixed firmware header (0x03, 0x10) — always present even
-// in unconfigured backups — and must NOT be treated as CC 0/1 bindings.
-const MIDI_MAP_HEADER_LEN = 2;
+// EEPROM MIDI map decode: 128-byte table at 0x80..0xff, indexed by CC number.
+// eeprom[0x80 + cc] = control index it drives (0xff = unassigned). Bytes 0x80
+// and 0x81 are real bindings (03 = Left Output, 10 = Right Output), not header.
 function decodeMidiMapFromEeprom(eeprom) {
   const ccToControl = new Array(128).fill(0xff);
   const controlToCc = {};
   for (let cc = 0; cc < 128; cc++) {
     const addr = 0x80 + cc;
     if (addr >= eeprom.length) break;
-    if (cc < MIDI_MAP_HEADER_LEN) continue; // fixed header, not a binding
     const ctrl = eeprom[addr];
     if (ctrl !== 0xff) {
       ccToControl[cc] = ctrl;

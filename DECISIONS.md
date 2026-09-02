@@ -1490,3 +1490,10 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Removed obsolete ccScale (255->127 linear); now exact 0..127 domain. toUI clamps 127.5(max round) to 127 so display/arc never overflow.
 - Files: web/src/app/dist/lalady/lalady.component.ts. ng build passes.
 - NOTE: Save overrides + /api/slots/save still send native 0..255 bytes (correct, backend unchanged). Backend spec.max stays 255.
+
+## Progress - 2026-09-02 pedal-app+web: fix false-red Left/Right Output (CC 0/1 ARE bound)
+- Bug: Left/Right Output showed red (unbound). Root cause: earlier decode assumned .osbf EEPROM bytes at 0x80/0x81 (values 03,10) were a "fixed firmware header" and skipped CC 0/1. That was wrong - the .osbf USER_EEPROM is NOT raw binary but ASCII-hex encoded (SIZE=256; <512 hex chars>). My earlier "triple-confirmed" analysis read the RAW ASCII bytes instead of decoding the hex, misinterpreting eeprom[0x80]=0x30 ('0') etc.
+- Correct decode: USER_EEPROM hex decodes to a real 256-byte eeprom. CC 0 -> control 3 = Left Output, CC 1 -> control 16 = Right Output. Both genuinely bound.
+- Fix: removed MIDI_MAP_HEADER_LEN skip in decodeMidiMapFromEeprom. Verification python decoded hex: cc0=3, cc1=16, full map below. Smoke /api/midimap boundCount=48, ctrl3 cc0 Left Output, ctrl16 cc1 Right Output.
+- Correct unbound (workbench): indices 6,19,29,31 (no cc). Packed byte30/32/38 subfields still have liveIndex null -> still red (individual CC not possible; byte-level CC exists but sub-fields can't be driven separately).
+- ACTION NEEDED later: several .osbf-derived numbers in DECISIONS summary and pedal-app/docs were computed from the binary misread and may be wrong; re-derive EEPROM byte values by decoding the USER_EEPROM hex, not reading offsets directly.
