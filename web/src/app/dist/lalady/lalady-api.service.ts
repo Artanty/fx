@@ -6,12 +6,14 @@ import {
   ControlMap,
   ControlRequest,
   ControlResult,
+  EepromData,
   EngineList,
   EraseResult,
   LaladyDevice,
   LaladyPresets,
   LaladyStatus,
   LiveControls,
+  OsbfData,
   RestoreResult,
   SlotParams,
   SlotSaveRequest,
@@ -89,6 +91,18 @@ export class LaladyApiService {
 
   controls(): Observable<LiveControls> {
     return this.http.get<LiveControls>(`${BASE}/api/controls`);
+  }
+
+  eeprom(): Observable<EepromData> {
+    return this.http.get<EepromData>(`${BASE}/api/eeprom`);
+  }
+
+  osbf(): Observable<OsbfData> {
+    return this.http.get<OsbfData>(`${BASE}/api/osbf`);
+  }
+
+  exportRefUrl(id: string): string {
+    return `${BASE}/api/export-ref?id=${encodeURIComponent(id)}`;
   }
 
   slotParams(idx: number): Observable<SlotParams> {

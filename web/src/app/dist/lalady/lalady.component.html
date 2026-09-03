@@ -17,7 +17,7 @@
       <button [class.active]="activeTab === 'workbench'" (click)="activeTab = 'workbench'">Workbench</button>
       <button [class.active]="activeTab === 'observe'" (click)="openObserve()">Observe</button>
       <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
-      <button [class.active]="activeTab === 'monitor'" (click)="activeTab = 'monitor'">Monitor</button>
+      <button [class.active]="activeTab === 'inspect'" (click)="openInspect()">Inspect</button>
     </nav>
 
     <section *ngIf="activeTab === 'slots'" class="panel">
@@ -167,7 +167,7 @@
             <div class="knob-group" *ngFor="let g of row" [class.flex3]="g.title === 'Parametric EQ'">
               <h3>{{ g.title }}</h3>
               <div class="knobs">
-                <div class="knob" *ngFor="let c of g.controls" [class.knob-wide]="isEngineSpec(c.spec)" [class.unbound]="c.spec.cc == null">
+                <div class="knob" *ngFor="let c of g.controls" [class.knob-wide]="isEngineSpec(c.spec)">
                   <select
                     *ngIf="c.spec.type === 'select'"
                     class="ctl-select"
@@ -250,7 +250,7 @@
           {{ monitorOn ? 'Stop' : 'Start' }}
         </button>
       </div>
-      <p class="muted">Live state of all controls (brightens external/pedal changes). Read-only — nothing here can be edited.</p>
+      <p class="muted">Live state of all controls (reflects external/pedal changes). Read-only.</p>
       <p *ngIf="monitorOn && !monitor" class="loading">Polling…</p>
       <div *ngIf="monitorOn && monitor">
         <p class="muted">
@@ -264,11 +264,7 @@
               <div class="knobs">
                 <div class="knob obs-knob" *ngFor="let spec of group.controls">
                   <span class="obs-label">{{ spec.name }}</span>
-                  <span
-                    class="obs-value"
-                    [class.unbound]="spec.liveIndex == null"
-                    [attr.title]="'body byte ' + spec.index + (spec.cc != null ? ', CC ' + spec.cc : ', unbound')"
-                  >{{ observeLabel(spec) }}</span>
+                  <span class="obs-value" [attr.title]="'body byte ' + spec.index">{{ observeLabel(spec) }}</span>
                 </div>
               </div>
             </div>
@@ -277,33 +273,79 @@
       </div>
     </section>
 
-    <section *ngIf="activeTab === 'monitor'" class="panel monitor">
+    <section *ngIf="activeTab === 'inspect'" class="panel inspect">
       <div class="monitor-head">
-        <h2>Realtime knob monitor</h2>
-        <button class="refresh" (click)="toggleMonitor()">
-          {{ monitorOn ? 'Stop' : 'Start' }}
-        </button>
+        <h2>Inspect</h2>
+        <button class="refresh" (click)="loadInspect()" [disabled]="inspectBusy">Refresh</button>
       </div>
-      <p class="muted" *ngIf="!monitorOn">Start to watch the pedal's live knob values (reflects external changes, e.g. in the Neuro editor). Read-only.</p>
-      <p *ngIf="monitorOn && !monitor" class="loading">Polling…</p>
-      <div *ngIf="monitorOn && monitor">
-        <p class="muted">
-          preset <strong>{{ monitor.presetName || '—' }}</strong>
-          (page 0x{{ monitor.activePage.toString(16) }}, idx {{ monitor.activeIndex }})
-          &middot; live
-        </p>
-        <table class="knobs">
-          <thead>
-            <tr><th>#</th><th>knob</th><th>value</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let c of monitor.controls" [class.hot]="c.index === LEFT_DRIVE_CTRL">
-              <td class="muted">{{ c.index }}</td>
-              <td>{{ c.name }}</td>
-              <td class="mono">{{ c.value }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <p *ngIf="inspectBusy" class="loading">Loading…</p>
+      <p class="err" *ngIf="inspectError">{{ inspectError }}</p>
+
+      <div *ngIf="!inspectBusy && inspectData">
+        <div class="inspect-grid">
+          <div class="inspect-block">
+            <h3>Presets (flash slots)</h3>
+            <div *ngFor="let slot of rows; let i = index" class="inspect-slot">
+              <details>
+                <summary>
+                  <span class="mono">{{ slot.slot.name || '(unnamed)' }}</span>
+                  <span class="muted"> — page 0x{{ slot.slot.page.toString(16) }}</span>
+                  <span class="tag" *ngIf="slot.slot.kind.startsWith('USER_PRESET')">{{ slot.slot.kind }}</span>
+                  <span class="tag sel" *ngIf="slot.slot.kind.startsWith('SELECTOR')">{{ slot.slot.kind }}</span>
+                </summary>
+                <pre class="hexdump">{{ formatHex(slot.slot.hex) }}</pre>
+                <table class="inspect-rows" *ngIf="slot.slot.rows?.length">
+                  <tr *ngFor="let r of slot.slot.rows">
+                    <td class="mono muted">0x{{ r.offset.toString(16).padStart(2, '0') }}</td>
+                    <td class="mono">{{ r.hex }}</td>
+                    <td class="mono muted">{{ r.ascii }}</td>
+                    <td class="muted">{{ r.region }}</td>
+                  </tr>
+                </table>
+              </details>
+            </div>
+          </div>
+
+          <div class="inspect-block">
+            <h3>EEPROM</h3>
+            <dl class="kv">
+              <dt>vs .osbf</dt>
+              <dd>{{ inspectData.osbfMatch ? 'match' : inspectData.osbfDiffCount + ' diff (offsets ' + inspectData.osbfDiffOffsets.join(', ') + ')' }}</dd>
+            </dl>
+            <details>
+              <summary>256-byte dump</summary>
+              <pre class="hexdump">{{ formatHex(inspectData.hex, 16) }}</pre>
+            </details>
+            <details>
+              <summary>MIDI map (0x80–0xFF)</summary>
+              <p class="muted" *ngIf="midiMapBound.length === 0">No CC mappings configured.</p>
+              <p *ngIf="midiMapBound.length > 0" class="muted">
+                <span *ngFor="let m of midiMapBound">CC {{ m.cc }} → ctrl {{ m.ctrl }}&nbsp;&nbsp;</span>
+              </p>
+              <pre class="hexdump">{{ formatHex(inspectData.midiMapRegion.hex, 16) }}</pre>
+            </details>
+          </div>
+
+          <div class="inspect-block" *ngIf="inspectOsbf">
+            <h3>.osbf backup reference</h3>
+            <dl class="kv">
+              <dt>product id</dt>
+              <dd>{{ inspectOsbf.productId }}</dd>
+            </dl>
+            <table class="inspect-rows" *ngIf="inspectOsbf.presets.length || inspectOsbf.selectors.length">
+              <tr *ngFor="let p of inspectOsbf.presets">
+                <td class="mono muted">UP{{ p.location }}</td>
+                <td>{{ p.name }}</td>
+                <td><a class="btnlink" [href]="exportRefUrl('UP' + p.location)" target="_blank">export .pre</a></td>
+              </tr>
+              <tr *ngFor="let s of inspectOsbf.selectors">
+                <td class="mono muted">US{{ s.location }}</td>
+                <td class="muted">{{ s.name }} (selector)</td>
+                <td><a class="btnlink" [href]="exportRefUrl('US' + s.location)" target="_blank">export .pre</a></td>
+              </tr>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   </div>

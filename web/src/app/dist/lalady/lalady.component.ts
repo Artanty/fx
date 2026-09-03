@@ -3,7 +3,7 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/co
 import { FormsModule } from '@angular/forms';
 import { LaladyApiService } from './lalady-api.service';
 import { LaladyMidiService } from './lalady-midi.service';
-import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult, ControlSpec } from './lalady.models';
+import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult, ControlSpec, EepromData, OsbfData } from './lalady.models';
 
 type RowState =
   | { kind: 'idle' }
@@ -28,7 +28,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   @ViewChild('restoreFileInput') restoreFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
 
-  activeTab: 'slots' | 'workbench' | 'monitor' | 'observe' = 'workbench';
+  activeTab: 'slots' | 'workbench' | 'observe' | 'inspect' = 'workbench';
   private pendingImportRow: RowModel | null = null;
 
   rows: RowModel[] = [];
@@ -36,18 +36,9 @@ export class LaladyComponent implements OnInit, OnDestroy {
   deviceError: string | null = null;
   loading = true;
 
-  // Live Left Drive control (control index 2, 0..255). Moved while dragging to
-  // drive the "Left Drive" parameter in the Neuro editor via a real-time
-  // CTRL_SET write (frame [0x70, 0x02, 0x00, value]).
-  leftDrive = 128;
-  leftDriveReadback: number | null = null;
-
-  /** Important: column specifier int, e.g. left_drive = 2 */
-  readonly LEFT_DRIVE_CTRL = 2;
-
   // Realtime read-only monitor: polls GET /api/controls and displays the pedal's
   // current live knob values, reflecting external changes (e.g. made in the
-  // Neuro editor) without writing anything back.
+  // Neuro editor) without writing anything back. Used by the merged Observe tab.
   monitor: LiveControls | null = null;
   monitorOn = false;
   private monitorTimer: ReturnType<typeof setInterval> | null = null;
@@ -70,12 +61,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // what workbench edits — labels, kinds and bit-fields.
   controlMap: ControlSpec[] = [];
   private controlSpecsByIndex = new Map<number, ControlSpec[]>();
-  private controlToCc = new Map<number, number>();
-  // liveIndex -> last time we sent a CC for it; the mirror skips any control CC'd
-  // within the last CC_GRACE_MS so the pedal's quantized 7-bit value doesn't
-  // immediately yank the full-resolution knob back right after a turn.
-  private recentCc = new Map<number, number>();
-  private static CC_GRACE_MS = 3000;
 
   // Offline workbench (no Neuro): select one of 6 slots, edit any param, then
   // persist the whole state to the active slot. Params are read from the slot's
@@ -166,7 +151,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
       }
       case 'knob':
       default:
-        return String(this.toUI(spec, native));
+        return String(native);
     }
   }
 
@@ -180,6 +165,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
   midiEngageSupported = false;
   midiBypassed = true;
   midiEngageMsg: string | null = null;
+
+  // Inspect tab diagnostic data.
+  inspectData: EepromData | null = null;
+  inspectOsbf: OsbfData | null = null;
+  inspectBusy = false;
+  inspectError: string | null = null;
 
   constructor(private api: LaladyApiService, private midi: LaladyMidiService) {}
 
@@ -197,30 +188,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
           list.push(s);
           this.controlSpecsByIndex.set(s.index, list);
         }
-        this.fetchMidiMap();
       },
       error: () => (this.controlMap = []),
     });
   }
 
-  private fetchMidiMap(): void {
-    this.api.midimap().subscribe({
-      next: (r) => {
-        if (!r || !r.ok) return;
-        this.controlToCc = new Map(
-          Object.entries(r.controlToCc).map(([k, v]) => [Number(k), v])
-        );
-        for (const s of this.controlMap) {
-          s.cc = this.controlToCc.get(s.liveIndex!) ?? null;
-        }
-      },
-      error: () => {
-        /* device offline; no CC info, HID-only */
-      },
-    });
-  }
-
-  // On a fresh session nothing is selected, so Save / all-0 / Engage are all
+  // On a fresh session nothing is selected, so Save / all-0 are all
   // disabled. Read the pedal's currently-active slot and load its params for
   // display so the workbench is immediately usable. READ-ONLY: a page refresh
   // must never issue ACTIVE_SET — re-selecting here would silently switch the
@@ -242,18 +215,19 @@ export class LaladyComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Fetches hardware config (firmware, MIDI channel, bypass mode) so the MIDI
-  // channel — needed to send CC messages like the engage/bypass bind — is shown
-  // in the Workbench. MIDI channel is 0-based on the backend; display 1-based.
   refreshDeviceInfo(): void {
     this.api.status().subscribe({
       next: (s) => {
         this.deviceInfo = s;
-        // Drive the browser MIDI service on the pedal's real channel.
         this.midi.channel = s.config.midiChannel + 1;
       },
       error: () => (this.deviceInfo = null),
     });
+  }
+
+  ngOnDestroy(): void {
+    this.stopMonitor();
+    this.stopMirror();
   }
 
   // Toggle the pedal's engage/bypass via Web MIDI (CC 102 on the configured
@@ -268,11 +242,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
     } else {
       this.midiEngageMsg = 'Web MIDI unavailable — open in Chrome/Edge on http://localhost';
     }
-  }
-
-  ngOnDestroy(): void {
-    this.stopMonitor();
-    this.stopMirror();
   }
 
   refresh(): void {
@@ -382,43 +351,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
     window.open(this.api.exportUrl(row.slot.page.toString(16)), '_blank');
   }
 
-  onLeftDrive(): void {
-    this.commitLeftDrive(this.leftDrive);
-  }
-
-  // Commit the Left Drive value into the ACTIVE flash preset (single write on
-  // slider release). This is a lossless in-place byte patch + re-activate, so the
-  // pedal and Neuro load OUR persisted value instead of fighting over a live RAM
-  // control table. Because it's a slow flash commit (~2s), only one runs at a
-  // time and later releases are re-sent until the commit finishes.
-  private leftDriveCommitPending = false;
-  private leftDriveCommitValue: number | null = null;
-
-  private commitLeftDrive(value: number): void {
-    if (this.leftDriveCommitPending) {
-      this.leftDriveCommitValue = value;
-      return;
-    }
-    this.leftDriveCommitPending = true;
-    this.api.control({ index: this.LEFT_DRIVE_CTRL, value }).subscribe({
-      next: (r) => {
-        this.leftDriveCommitPending = false;
-        this.leftDriveReadback = r.readback ?? null;
-        if (this.leftDriveCommitValue !== null) {
-          const v = this.leftDriveCommitValue;
-          this.leftDriveCommitValue = null;
-          this.commitLeftDrive(v);
-        }
-      },
-      error: (e) => {
-        this.leftDriveCommitPending = false;
-        this.leftDriveCommitValue = null;
-        this.leftDriveReadback = null;
-        this.deviceError = 'Left Drive commit failed: ' + (e.message ?? e);
-      },
-    });
-  }
-
   toggleMonitor(): void {
     if (this.monitorOn) {
       this.stopMonitor();
@@ -427,10 +359,9 @@ export class LaladyComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Open the read-only Observe tab and ensure live values are being polled.
   openObserve(): void {
     this.activeTab = 'observe';
-    this.startMonitor();
+    if (!this.monitorOn) this.startMonitor();
   }
 
   private startMonitor(): void {
@@ -492,18 +423,11 @@ export class LaladyComponent implements OnInit, OnDestroy {
           const live = byIndex.get(s.liveIndex);
           if (typeof live !== 'number') continue;
           if (this.activeKnob && this.activeKnob.spec === s) continue;
-          // Skip knobs we just moved via CC so the 7-bit readback doesn't fight
-          // the user's 0..255 knob position.
-          const lastCc = this.recentCc.get(s.liveIndex) ?? 0;
-          if (Date.now() - lastCc < LaladyComponent.CC_GRACE_MS) continue;
           const p = this.paramFor(s.index);
           if (!p) continue;
           const nativeField = Math.max(0, Math.min(s.max, live));
-          const uiField = this.toUI(s, nativeField);
-          if (this.fieldValue(s, p) === uiField) continue;
+          if (this.fieldValue(s, p) === nativeField) continue;
           p.value = (p.value & ~s.mask) | ((nativeField << s.shift) & s.mask);
-          // Adopt the pedal's value as the snapshot baseline so live drift never
-          // looks like a user edit (no yellow, not added to overrides).
           const snap = this.paramsSnapshot.find((sp) => sp.index === p.index);
           if (snap) snap.value = p.value;
         }
@@ -572,18 +496,10 @@ export class LaladyComponent implements OnInit, OnDestroy {
     if (this.liveTimer) return;
     this.liveTimer = setTimeout(() => {
       this.liveTimer = null;
-      for (const [liveIndex, { spec: s, value: v }] of this.livePending) {
-        if (s.cc != null) {
-          // CC is 7-bit; value here is the native 0..255, scaled to 0..127 for
-          // knobs (selects/toggles pass their discrete value through unchanged).
-          this.midi.sendCc(s.cc, this.toUI(s, v));
-          this.recentCc.set(liveIndex, Date.now());
-        } else {
-          // HID path expects the native 0..255 value.
-          this.api.controlLive({ index: liveIndex, value: v }).subscribe({
-            error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
-          });
-        }
+      for (const [liveIndex, { value: v }] of this.livePending) {
+        this.api.controlLive({ index: liveIndex, value: v }).subscribe({
+          error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
+        });
       }
       this.livePending.clear();
     }, 40);
@@ -596,34 +512,16 @@ export class LaladyComponent implements OnInit, OnDestroy {
   }
 
   // The value a spec's field holds within its packed byte (whole-byte specs with
-  // shift 0/mask 0xff return the raw byte). For continuous knobs this is the
-  // 0..127 UI value mapped 1:1 to the byte and to 7-bit MIDI CC. The pedal stores
-  // CC input as the raw byte (value identity, no scaling — see DECISIONS: "Body
-  // <->live value identity holds, send field value directly"), so knob UI,
-  // flash byte, and CC are all the same 0..127 number. No halving/doubling.
+  // shift 0/mask 0xff return the raw byte). Knobs use the full 0..255 native
+  // byte range — no scaling, value identity between UI and pedal.
   fieldValue(spec: ControlSpec, p: SlotParam): number {
-    const raw = (p.value & spec.mask) >>> spec.shift;
-    return this.toUI(spec, raw);
+    return (p.value & spec.mask) >>> spec.shift;
   }
 
-  // Continuous knobs use a 0..127 UI/CC domain, while the pedal stores the native
-  // 0..255 control byte. Map between them proportionally so a physical (native)
-  // knob turn reflects onto the 0..127 knob smoothly and 1:1 proportionally, and
-  // so a knob edit/CC both stay in the 7-bit MIDI range. Non-knob specs pass
-  // their raw byte through.
-  private isKnob(spec: ControlSpec): boolean {
-    return spec.type === 'knob';
-  }
-  private toUI(spec: ControlSpec, native: number): number {
-    if (!this.isKnob(spec)) return native;
-    return Math.min(127, Math.max(0, Math.round((native * 127) / 255)));
-  }
-  private toNative(spec: ControlSpec, ui: number): number {
-    if (!this.isKnob(spec)) return ui;
-    return Math.min(255, Math.max(0, Math.round((ui * 255) / 127)));
-  }
+  // Knob UI domain is the full native 0..255 byte — 256 points of resolution.
+  // No halving/doubling/scaling: what you see is what the pedal stores.
   private toUIMax(spec: ControlSpec): number {
-    return this.isKnob(spec) ? 127 : spec.max;
+    return spec.max;
   }
 
   // Debounced flash commit for packed/bit-field controls: writes the FULL byte
@@ -641,9 +539,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // Gate -> live 38) go realtime via CTRL_SET at the LIVE index; body-only
   // packed fields (30/32/38) go to the flash-commit queue.
   private setField(spec: ControlSpec, p: SlotParam, uiValue: number): void {
-    // Continuous knobs accept the 0..127 UI value; double it for the native
-    // 0..255 byte so Save/overrides and the pedal agree.
-    const native = this.toNative(spec, uiValue);
+    const native = Math.max(0, Math.min(spec.max, uiValue));
     const byte = (p.value & ~spec.mask) | ((native << spec.shift) & spec.mask);
     p.value = byte;
     this.slotsDirty = true;
@@ -888,6 +784,52 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   exportAll(): void {
     window.open(this.api.exportAllUrl(), '_blank');
+  }
+
+  openInspect(): void {
+    this.activeTab = 'inspect';
+    if (!this.inspectData) this.loadInspect();
+  }
+
+  loadInspect(): void {
+    this.inspectBusy = true;
+    this.inspectError = null;
+    let done = 0;
+    const check = () => { if (++done === 2) this.inspectBusy = false; };
+    this.api.eeprom().subscribe({
+      next: (d) => { this.inspectData = d; check(); },
+      error: (e) => { this.inspectError = 'EEPROM load failed: ' + (e.message ?? e); this.inspectBusy = false; },
+    });
+    this.api.osbf().subscribe({
+      next: (d) => { this.inspectOsbf = d; check(); },
+      error: () => check(),
+    });
+  }
+
+  formatHex(hex: string, bytesPerLine = 8): string {
+    const lines: string[] = [];
+    for (let i = 0; i < hex.length; i += bytesPerLine * 2) {
+      const chunk = hex.substring(i, i + bytesPerLine * 2);
+      const spaced = chunk.match(/.{1,2}/g)?.join(' ') || chunk;
+      const offset = (i / 2).toString(16).padStart(2, '0');
+      lines.push(offset + ': ' + spaced);
+    }
+    return lines.join('\n');
+  }
+
+  get midiMapBound(): { cc: number; ctrl: number }[] {
+    if (!this.inspectData) return [];
+    const result: { cc: number; ctrl: number }[] = [];
+    for (let i = 0; i < this.inspectData.midiMap.ccToControl.length; i++) {
+      if (this.inspectData.midiMap.ccToControl[i] !== 0xff) {
+        result.push({ cc: i, ctrl: this.inspectData.midiMap.ccToControl[i] });
+      }
+    }
+    return result;
+  }
+
+  exportRefUrl(id: string): string {
+    return this.api.exportRefUrl(id);
   }
 
   private afterChange(row: RowModel): void {

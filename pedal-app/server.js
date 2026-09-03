@@ -305,7 +305,6 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
-app.use(express.static(path.join(__dirname, 'web')));
 
 app.get('/api/device', (req, res) => {
   const s = snapshot(req.query.fresh === '1');

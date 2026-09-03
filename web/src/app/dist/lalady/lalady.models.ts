@@ -36,7 +36,7 @@ export interface LaladySlot {
   name: string;
   page: number;
   hex: string;
-  rows: unknown;
+  rows: PresetRow[];
   kind: string;
 }
 
@@ -172,5 +172,27 @@ export interface RestoreResult {
   slots: RestoreSlotResult[];
   recallIdx: number;
   error?: string;
+}
+
+export interface PresetRow {
+  offset: number;
+  hex: string;
+  ascii: string;
+  region: string;
+}
+
+export interface EepromData {
+  hex: string;
+  midiMap: { ccToControl: number[]; controlToCc: Record<string, number> };
+  midiMapRegion: { start: number; len: number; hex: string };
+  osbfMatch: boolean;
+  osbfDiffCount: number;
+  osbfDiffOffsets: number[];
+}
+
+export interface OsbfData {
+  productId: number;
+  presets: { location: number; name: string }[];
+  selectors: { location: number; name: string }[];
 }
 
