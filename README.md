@@ -4,7 +4,7 @@ Local database + web UI for browsing the **491 Eventide H90 presets** downloaded
 
 > This README covers the **H90/FX** project. Other projects in this repo:
 >
-> - **Tabs** — bass tab library app (Node/Express + Angular): [`tabs/README.md`](tabs/README.md), [`tabs/DECISIONS.md`](tabs/DECISIONS.md)
+> - **Tabs** — bass tab library app (Node/Express + Angular): [`../tabs/README.md`](../tabs/README.md), [`../tabs/DECISIONS.md`](../tabs/DECISIONS.md)
 
 ## What it does
 

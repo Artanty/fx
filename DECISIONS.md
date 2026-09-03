@@ -1426,7 +1426,7 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - After adding the distortion-engine dropdown the app became unresponsive for the user. Reverted all uncommitted dist-engines work (server.js /api/engines + parser, models/api/component/html/scss engine-select changes, debug logs) back to the last committed state (912220e / ff9893d). input/dist-engines left in place as a reference (currently unused). ng build + node -c pass.
 
 ## Progress - 2026-09-01 pedal-app: dist-engines select v2
-- Re-implemented the distortion-engine dropdown after the revert. Key change from v1 (which made the app unresponsive): the template no longer uses an ng-template + 'else' reference inside the *ngFor � it renders the select or the dial via two sibling *ngIf blocks instead, eliminating the risky construct.
+- Re-implemented the distortion-engine dropdown after the revert. Key change from v1 (which made the app unresponsive): the template no longer uses an ng-template + 'else' reference inside the *ngFor � it renders the select or the dial via two sibling *ngIf blocks instead, eliminating the risky construct.
 - Same backend (/api/engines parses input/dist-engines at startup), same identity mapping (verified round-trip: body byte == engine id), same component logic (indices 4/17 as dropdowns, realtime CTRL_SET on change, Save persists, out-of-list bytes shown as '?? N (unknown)').
 - Verified: node -c + ng build pass; throwaway-port smoke test: /api/engines -> 50 engines in ~200ms. Backend restart + dev refresh required for the user to test.
 
@@ -1435,7 +1435,7 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Verified node -c + ng build pass; dist bundle contains the new engine-select code. User must restart BOTH backend and the ng serve dev server (picks up recompile cleanly).
 
 ## Status - 2026-09-01 pedal-app: engine select polish
-- v3 (native select) no longer freezes the UI. Cosmetic pass: dropped the round .engine-ctl circle - the select renders as a plain bordered dropdown below the knob label; option text is now JUST the engine name (no 'id �' prefix). Preselection now uses per-option [selected] bindings (p.value === e.id) instead of [value] on the select, so the current engine is shown even when the engine list loads after the params; unknown bytes keep '?? N (unknown)' auto-selected. ng build passes.
+- v3 (native select) no longer freezes the UI. Cosmetic pass: dropped the round .engine-ctl circle - the select renders as a plain bordered dropdown below the knob label; option text is now JUST the engine name (no 'id �' prefix). Preselection now uses per-option [selected] bindings (p.value === e.id) instead of [value] on the select, so the current engine is shown even when the engine list loads after the params; unknown bytes keep '?? N (unknown)' auto-selected. ng build passes.
 
 ## Plan - 2026-09-02 pedal-app: Neuro-style discrete controls (selects/toggles/segments)
 - Goal: remake more knobs into Neuro-style controls (selects, toggles, segmented buttons), mirroring the Neuro editor UI, reusing the proven native-element pattern that fixed the UI freeze.
@@ -1532,3 +1532,27 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Data model: observeGroups getter iterates CONTROL_GROUPS x controlSpecsByIndex (no slotParams dependency); observeNative(spec) reads the live value by spec.liveIndex; observeLabel(spec) formats by type (knob: toUI(native); select/segmented: option text or '?? N (unknown)'; toggle: ON/OFF). Packed/unbound (liveIndex null) show '—' in muted style.
 - CSS: .obs-knob/.obs-label/.obs-value read-only cards. ng build passes.
 - Files: web/src/app/dist/lalady/lalady.component.ts, lalady.component.html, lalady.component.scss.
+
+## Progress - 2026-09-02 pedal-app+web: HID-only MIDI, full 255 knob range, merged Monitor+Observe
+- **MIDI reverted to HID-only**: removed Web MIDI CC sends from queueLive — all knob writes go through `controlLive` (HID CTRL_SET). Removed `LaladyMidiService` import, `controlToCc`/`recentCc`/`CC_GRACE_MS`, `fetchMidiMap()`, `toggleMidiEngage()`, MIDI engage button, MIDI channel chip, `.midi-engage-btn`/`.midi-chip` styles. External MIDI/physical knob changes still visible via the mirror poll.
+- **Knob range 0..255 (full native resolution)**: removed `isKnob()`, `toUI()`, `toNative()` scaling — `fieldValue()` returns raw byte, `toUIMax()` returns `spec.max` for all types. Knobs now have 256 points of resolution instead of 128. SetField uses `Math.min(spec.max, uiValue)` directly.
+- **Monitor + Observe merged into one tab**: removed Monitor tab from nav and HTML. Observe tab now contains all live value display (same grouped layout). Removed `.unbound` CSS class (no CC tracking). Mirror grace guard removed since no CCs are sent from UI.
+- Files: web/src/app/dist/lalady/lalady.component.ts, lalady.component.html, lalady.component.scss, lalady-midi.service.ts (kept but no longer imported).
+
+## Progress - 2026-09-02 pedal-app+web: move static inspector to Angular Inspect tab, delete fallback
+- Moved all diagnostic features from `pedal-app/web/index.html` into a new Angular **Inspect** tab.
+- New tab shows: preset flash hex dumps with byte-level breakdown, EEPROM 256-byte dump, MIDI map (CC→control) with region hex, .osbf backup reference with offline .pre export links, EEPROM vs .osbf diff.
+- Added `EepromData`, `OsbfData`, `PresetRow` models to `lalady.models.ts`.
+- Added `eeprom()`, `osbf()`, `exportRefUrl()` API methods to `lalady-api.service.ts`.
+- Added `midiMapBound` getter, `formatHex()`, `exportRefUrl()`, `loadInspect()` to component.
+- Deleted `pedal-app/web/` directory and removed `express.static` middleware from `server.js`.
+- Files: web/src/app/dist/lalady/*, pedal-app/server.js, pedal-app/web/ (deleted).
+
+## Progress - 2026-09-02 tabs: moved tabs project out of fx repo
+- Moved the 	abs project (bass tab library app) from C:\server\fx\tabs to the separate repo C:\server\tabs.
+- Copied all tracked content: server/, web/, README.md, DECISIONS.md into the destination repo (untracked there, ready to commit).
+- The generated data/uploads/ and 	abs.db were not in git and are auto-recreated by 	abs/server/server.js on startup (s.mkdirSync + ROOT_DIR).
+- Updated x/AGENTS.md: removed [tabs] project prefix and the tabs backend-server note.
+- Updated x/README.md: tabs links now point to ../tabs/.
+- Updated x/.gitignore: removed the # Tabs app block (now out of tree).
+- Verified copy complete in destination; fx build elsewhere unaffected.

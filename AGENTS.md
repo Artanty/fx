@@ -9,7 +9,6 @@ this repository.
 Current projects:
 
 - `[h90]` — Eventide H90 control reverse-engineering / import protocol
-- `[tabs]` — bass tab library app (server + Angular web)
 - `[pedal-app]` — pedal/app prototyping (L.A. Lady, source-audio)
 - `[web]` — web frontends / shared web tooling
 - `[server]` — shared server work (proxy, captures, fx)
@@ -20,7 +19,6 @@ Examples:
 
 ```
 [h90] Reconstruct import write JSON from captured deflate stream
-[tabs] Add artist browse page
 [pedal-app] Fix MIDI frame capture over-read bug
 [web] Refresh package-lock after dependency resolution
 [server] Validate DEFLATE decoder LENGTH table
@@ -35,5 +33,4 @@ append a status entry to `DECISIONS.md` recording what was done and the result.
 This keeps a living log of intent and outcome for every change.
 
 ## Backend server
-- Do NOT start, stop, or restart the tabs backend server (`tabs/server`, port 3001). The user runs it themselves.
 - Do not spawn nodemon/npm/node processes for the backend. Only edit code; the user handles running it.
