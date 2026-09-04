@@ -14,6 +14,9 @@ import {
   LaladyStatus,
   LiveControls,
   OsbfData,
+  RandomizeGroup,
+  RandomizePreset,
+  RandomizePresetCreate,
   RestoreResult,
   SlotParams,
   SlotSaveRequest,
@@ -119,5 +122,40 @@ export class LaladyApiService {
 
   exportAllUrl(): string {
     return `${BASE}/api/export-all`;
+  }
+
+  randomizeGroups(): Observable<{ ok: boolean; count: number; groups: RandomizeGroup[] }> {
+    return this.http.get<{ ok: boolean; count: number; groups: RandomizeGroup[] }>(`${BASE}/api/randomize/groups`);
+  }
+
+  randomizeGroupCreate(body: Partial<RandomizeGroup>): Observable<{ ok: boolean; group: RandomizeGroup }> {
+    return this.http.post<{ ok: boolean; group: RandomizeGroup }>(`${BASE}/api/randomize/groups`, body);
+  }
+
+  randomizeGroupUpdate(id: string, body: Partial<RandomizeGroup>): Observable<{ ok: boolean; group: RandomizeGroup }> {
+    return this.http.put<{ ok: boolean; group: RandomizeGroup }>(`${BASE}/api/randomize/groups/${id}`, body);
+  }
+
+  randomizeGroupDelete(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`${BASE}/api/randomize/groups/${id}`);
+  }
+
+  randomizePresets(): Observable<{ ok: boolean; count: number; presets: RandomizePreset[] }> {
+    return this.http.get<{ ok: boolean; count: number; presets: RandomizePreset[] }>(`${BASE}/api/randomize/presets`);
+  }
+
+  randomizePresetCreate(body: RandomizePresetCreate): Observable<{ ok: boolean; preset: RandomizePreset }> {
+    return this.http.post<{ ok: boolean; preset: RandomizePreset }>(`${BASE}/api/randomize/presets`, body);
+  }
+
+  randomizePresetUpdate(
+    id: string,
+    body: Partial<RandomizePreset> & { saveToSlot?: number | null }
+  ): Observable<{ ok: boolean; preset: RandomizePreset }> {
+    return this.http.put<{ ok: boolean; preset: RandomizePreset }>(`${BASE}/api/randomize/presets/${id}`, body);
+  }
+
+  randomizePresetDelete(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`${BASE}/api/randomize/presets/${id}`);
   }
 }

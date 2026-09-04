@@ -316,7 +316,7 @@ app.use(express.json({ limit: '1mb' }));
 // API cross-origin (http://localhost:3111 directly). Dev-only enablement.
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -677,6 +677,169 @@ app.get('/api/slot-params', (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Randomizer — local store + CRUD endpoints.
+// Persistence: JSON files under randomizer-data/ (the "local DB" today; storage
+// can be swapped for a remote DB later without touching the API). Groups select
+// which control-map specs to randomize together — specs are identified by
+// "index:name" because a single body byte can host several packed specs.
+// Presets are named 53-byte scenes; POST/PUT saveToSlot also persist to a pedal
+// slot through the same writePreset->recall path the workbench Save uses.
+// ---------------------------------------------------------------------------
+const RAND_DATA_DIR = path.join(__dirname, 'randomizer-data');
+const RAND_GROUPS_FILE = path.join(RAND_DATA_DIR, 'groups.json');
+const RAND_PRESETS_FILE = path.join(RAND_DATA_DIR, 'presets.json');
+
+function randLoad(file) {
+  try {
+    const list = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function randSave(file, list) {
+  fs.mkdirSync(RAND_DATA_DIR, { recursive: true });
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
+  try {
+    fs.unlinkSync(file);
+  } catch {
+    /* first save */
+  }
+  fs.renameSync(tmp, file);
+}
+
+function randUuid() {
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function normalizeGroup(body) {
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'Group';
+  const priority = Number.isInteger(body.priority) ? body.priority : 10;
+  const props = Number.isInteger(body.props) && body.props >= 0 ? body.props : 0;
+  const specKeys = Array.isArray(body.specKeys)
+    ? body.specKeys.filter((k) => typeof k === 'string' && /^\d+:.+/.test(k)).slice(0, 200)
+    : [];
+  return { name, priority, props, specKeys };
+}
+
+function normalizePreset(body) {
+  const bodyHex =
+    typeof body.bodyHex === 'string' && /^[0-9a-fA-F]{106}$/.test(body.bodyHex) ? body.bodyHex.toLowerCase() : null;
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null;
+  const source = typeof body.source === 'string' && body.source.trim() ? body.source.trim() : 'scene';
+  const slot =
+    body.saveToSlot !== undefined &&
+    body.saveToSlot !== null &&
+    Number.isInteger(body.saveToSlot) &&
+    body.saveToSlot >= 0 &&
+    body.saveToSlot <= 5
+      ? body.saveToSlot
+      : null;
+  return { bodyHex, name, source, slot };
+}
+
+// Persist a full 53-byte body into pedal slot `rawIdx` (0..5) through the same
+// writePreset -> recall path the workbench Save uses, optionally naming the slot.
+function persistBody(rawIdx, body, nameOverride) {
+  const p = getSharedProto();
+  if (!p) return { error: 'Source Audio L.A. Lady HID device not found' };
+  const name = nameOverride || p.readSlotName(rawIdx);
+  const params = decodeBinary53(body);
+  const page = LALADY_PRESET_BASE + rawIdx * LALADY_PRESET_PITCH;
+  p.writePreset(page, { name, params, idx: rawIdx });
+  p.setActivePreset(rawIdx);
+  return { page, name };
+}
+
+function bodyOfHex(hex) {
+  const out = [];
+  for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.slice(i, i + 2), 16));
+  return out;
+}
+
+app.get('/api/randomize/groups', (req, res) => {
+  const groups = randLoad(RAND_GROUPS_FILE);
+  res.json({ ok: true, count: groups.length, groups });
+});
+
+app.post('/api/randomize/groups', (req, res) => {
+  const g = normalizeGroup(req.body);
+  const now = Date.now();
+  const group = { id: randUuid(), ...g, createdAt: now, updatedAt: now };
+  const list = randLoad(RAND_GROUPS_FILE);
+  list.push(group);
+  randSave(RAND_GROUPS_FILE, list);
+  res.json({ ok: true, group });
+});
+
+app.put('/api/randomize/groups/:id', (req, res) => {
+  const list = randLoad(RAND_GROUPS_FILE);
+  const group = list.find((g) => g.id === req.params.id);
+  if (!group) return res.status(404).json({ error: 'group not found' });
+  const g = normalizeGroup(req.body);
+  Object.assign(group, g, { updatedAt: Date.now() });
+  randSave(RAND_GROUPS_FILE, list);
+  res.json({ ok: true, group });
+});
+
+app.delete('/api/randomize/groups/:id', (req, res) => {
+  const list = randLoad(RAND_GROUPS_FILE);
+  const next = list.filter((g) => g.id !== req.params.id);
+  if (next.length === list.length) return res.status(404).json({ error: 'group not found' });
+  randSave(RAND_GROUPS_FILE, next);
+  res.json({ ok: true });
+});
+
+app.get('/api/randomize/presets', (req, res) => {
+  const list = randLoad(RAND_PRESETS_FILE);
+  res.json({ ok: true, count: list.length, presets: list });
+});
+
+app.post('/api/randomize/presets', (req, res) => {
+  const n = normalizePreset(req.body);
+  if (!n.bodyHex) return res.status(400).json({ error: 'bodyHex must be 106 hex chars (53 bytes)' });
+  const list = randLoad(RAND_PRESETS_FILE);
+  const now = Date.now();
+  const name = n.name || `rand-${list.length + 1}`;
+  if (n.slot !== null) {
+    const r = persistBody(n.slot, bodyOfHex(n.bodyHex), name);
+    if (r.error) return res.status(503).json({ error: r.error });
+  }
+  const preset = { id: randUuid(), name, bodyHex: n.bodyHex, source: n.source, slot: n.slot, createdAt: now, updatedAt: now };
+  list.push(preset);
+  randSave(RAND_PRESETS_FILE, list);
+  res.json({ ok: true, preset });
+});
+
+app.put('/api/randomize/presets/:id', (req, res) => {
+  const list = randLoad(RAND_PRESETS_FILE);
+  const preset = list.find((p) => p.id === req.params.id);
+  if (!preset) return res.status(404).json({ error: 'preset not found' });
+  const n = normalizePreset(req.body);
+  if (n.bodyHex) preset.bodyHex = n.bodyHex;
+  if (n.name) preset.name = n.name;
+  if (n.source) preset.source = n.source;
+  if (n.slot !== null) {
+    const r = persistBody(n.slot, bodyOfHex(preset.bodyHex), preset.name);
+    if (r.error) return res.status(503).json({ error: r.error });
+    preset.slot = n.slot;
+  }
+  preset.updatedAt = Date.now();
+  randSave(RAND_PRESETS_FILE, list);
+  res.json({ ok: true, preset });
+});
+
+app.delete('/api/randomize/presets/:id', (req, res) => {
+  const list = randLoad(RAND_PRESETS_FILE);
+  const next = list.filter((p) => p.id !== req.params.id);
+  if (next.length === list.length) return res.status(404).json({ error: 'preset not found' });
+  randSave(RAND_PRESETS_FILE, next);
+  res.json({ ok: true });
+});
+
 // Save an edited param state into a slot's flash via the IMPORT path the user
 // confirmed works: build a named-params payload (decodeBinary53), then write with
 // writePreset (the same ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET write used to import
@@ -729,14 +892,9 @@ app.post('/api/slots/save', (req, res) => {
       body[index] = value;
     }
 
-    // Rebuild into named params and write via the same path as a .pre import.
-    const name = p.readSlotName(rawIdx);
-    const params = decodeBinary53(body);
-    const page = LALADY_PRESET_BASE + rawIdx * LALADY_PRESET_PITCH;
-    p.writePreset(page, { name, params, idx: rawIdx });
-
-    // Recall the slot so the user hears the saved changes immediately.
-    p.setActivePreset(rawIdx);
+    // Rebuild into named params and write via the same path as a .pre import,
+    // then recall the slot so the user hears the saved changes immediately.
+    const { page, name } = persistBody(rawIdx, body);
 
     const readback = Array.from(p.readSlotBody(rawIdx));
     res.json({ ok: true, presetIndex: rawIdx, activePage: page.toString(16), name, readback });

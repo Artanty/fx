@@ -788,3 +788,284 @@ table.knobs {
   }
 }
 
+.randomize {
+  .monitor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+
+    h2,
+    h3 {
+      margin: 0;
+      font-size: 14px;
+      color: #8b8b98;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+
+  .rand-player {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid #2a2a34;
+    border-radius: 8px;
+    background: #15151b;
+    margin-bottom: 14px;
+
+    .generate,
+    .action-btn {
+      height: 32px;
+      padding: 0 16px;
+      font-weight: 600;
+    }
+
+    .generate {
+      background: #1d5572;
+      border-color: #2f7a9e;
+      color: #d7f1ff;
+
+      &:hover:not(:disabled) {
+        background: #24678a;
+      }
+    }
+  }
+
+  .rand-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #8b8b98;
+
+    select {
+      background: #1b1b22;
+      border: 1px solid #35353f;
+      color: #c9c9d4;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 12px;
+    }
+
+    &.rand-all {
+      cursor: pointer;
+
+      input {
+        accent-color: #2f7a9e;
+      }
+    }
+  }
+
+  .rand-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+
+  .rand-col {
+    .monitor-head {
+      margin-top: 4px;
+    }
+  }
+
+  .rand-editor {
+    border: 1px solid #2a2a34;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+
+    .rand-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+
+      .inp:first-child {
+        flex: 1 1 160px;
+        min-width: 120px;
+      }
+
+      .inp.num {
+        width: 84px;
+      }
+    }
+
+    .rand-picker-hint {
+      font-size: 11px;
+      display: block;
+      margin-bottom: 6px;
+    }
+  }
+
+  .inp {
+    background: #1b1b22;
+    border: 1px solid #35353f;
+    color: #e8e8ee;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+
+    &:focus {
+      outline: none;
+      border-color: #4da3ff;
+    }
+  }
+
+  .rand-specs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2px 10px;
+    max-height: 240px;
+    overflow: auto;
+    border: 1px solid #26262e;
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: #0d0f15;
+  }
+
+  .rand-spec {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #c9c9d4;
+    cursor: pointer;
+    padding: 1px 0;
+
+    input {
+      accent-color: #2f7a9e;
+    }
+
+    .muted {
+      font-size: 10px;
+    }
+  }
+
+  .rand-tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0 4px;
+    border-radius: 3px;
+    border: 1px solid #35353f;
+    color: #8b8b98;
+    line-height: 14px;
+  }
+
+  .rand-tag-knb { color: #7be3a0; border-color: rgba(123, 227, 160, 0.4); }
+  .rand-tag-sel { color: #4da3ff; border-color: rgba(77, 163, 255, 0.4); }
+  .rand-tag-seg { color: #ffbe50; border-color: rgba(255, 190, 80, 0.4); }
+  .rand-tag-tog { color: #ff8f93; border-color: rgba(255, 143, 147, 0.4); }
+
+  .rand-edit-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+
+    .action-btn {
+      height: 30px;
+      font-weight: 600;
+      padding: 0 14px;
+    }
+  }
+
+  .rand-group-list {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid #2a2a34;
+      border-radius: 6px;
+      margin-bottom: 6px;
+
+      .spacer {
+        flex: 1;
+      }
+
+      button {
+        height: 26px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+    }
+
+    .empty {
+      font-size: 12px;
+      padding: 8px 2px;
+    }
+  }
+
+  .rand-g-name {
+    font-weight: 600;
+    color: #e8e8ee;
+  }
+
+  .chip {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #2a2a34;
+    color: #8b8b98;
+    white-space: nowrap;
+  }
+
+  .rand-save-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+
+    .inp {
+      flex: 1;
+    }
+
+    button {
+      height: 30px;
+      font-weight: 600;
+      padding: 0 14px;
+    }
+  }
+
+  .rand-presets {
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+
+      button {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 11px;
+      }
+    }
+
+    .slot-mini {
+      background: #1b1b22;
+      border: 1px solid #35353f;
+      color: #c9c9d4;
+      border-radius: 4px;
+      font-size: 11px;
+      height: 24px;
+      padding: 0 4px;
+    }
+
+    .tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #1d5572;
+      color: #d7f1ff;
+    }
+  }
+}
+

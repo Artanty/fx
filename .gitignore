@@ -16,6 +16,9 @@ back/h90/presets.db
 back/h90/api_cache.json
 back/h90/patchstorage/
 
+# L.A. Lady randomizer local DB (created at runtime by back/lalady/server.js)
+back/lalady/randomizer-data/
+
 
 # Capstone disassembler source checkout (pip `capstone` wheel replaces it)
 input/capstone-next/

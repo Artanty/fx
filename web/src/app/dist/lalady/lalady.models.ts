@@ -174,6 +174,43 @@ export interface RestoreResult {
   error?: string;
 }
 
+// Randomizer: named scene presets + control groups, persisted by the backend
+// in back/lalady/randomizer-data/ (local DB today, remote DB later).
+export interface RandomizeGroup {
+  id: string;
+  name: string;
+  priority: number;
+  props: number; // number of random props applied per scene from this group (0 = all)
+  specKeys: string[]; // control-map entries "index:name"
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RandomizePreset {
+  id: string;
+  name: string;
+  bodyHex: string; // 106 hex chars = 53-byte preset body
+  source: string;
+  slot?: number | null; // last pedal slot this preset was saved to
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RandomizePresetCreate {
+  name?: string;
+  source?: string;
+  saveToSlot?: number | null;
+  bodyHex: string;
+}
+
+export interface RandomizeList<T> {
+  ok: boolean;
+  count: number;
+  error?: string;
+  groups?: T[];
+  presets?: T[];
+}
+
 export interface PresetRow {
   offset: number;
   hex: string;

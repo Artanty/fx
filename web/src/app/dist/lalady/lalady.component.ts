@@ -3,7 +3,7 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/co
 import { FormsModule } from '@angular/forms';
 import { LaladyApiService } from './lalady-api.service';
 import { LaladyMidiService } from './lalady-midi.service';
-import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RestoreResult, SlotParam, SlotParams, WriteResult, ControlSpec, EepromData, OsbfData } from './lalady.models';
+import { LaladyPresets, LaladySlot, LaladyStatus, LiveControls, RandomizeGroup, RandomizePreset, RestoreResult, SlotParam, SlotParams, WriteResult, ControlSpec, EepromData, OsbfData } from './lalady.models';
 
 type RowState =
   | { kind: 'idle' }
@@ -28,7 +28,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   @ViewChild('restoreFileInput') restoreFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
 
-  activeTab: 'slots' | 'workbench' | 'observe' | 'inspect' = 'workbench';
+  activeTab: 'slots' | 'workbench' | 'randomize' | 'observe' | 'inspect' = 'workbench';
   private pendingImportRow: RowModel | null = null;
 
   rows: RowModel[] = [];
@@ -247,6 +247,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.stopMonitor();
     this.stopMirror();
+    this.stopRandTimer();
   }
 
   // Toggle the pedal's engage/bypass via Web MIDI (CC 102 on the configured
@@ -850,6 +851,389 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   exportRefUrl(id: string): string {
     return this.api.exportRefUrl(id);
+  }
+
+  // --- Randomizer ----------------------------------------------------------
+  // Generates random scenes from the control map (all controls, or per-group
+  // selections), applies them LIVE (realtime CTRL_SET for 1:1 live specs,
+  // in-place packed bytes otherwise), and offers play/pause auto mode, scene
+  // history (back/forward), and full CRUD over control groups + saved presets.
+  // Groups and presets persist to backend JSON files via /api/randomize/*.
+  randGroups: RandomizeGroup[] = [];
+  randPresets: RandomizePreset[] = [];
+  randBusy = false;
+  randError: string | null = null;
+
+  randAll = false;
+  randIntervalSec = 5;
+  randPlaying = false;
+  randAlgo: 'uniform' | 'center' | 'extremes' | 'drift' = 'uniform';
+  readonly RAND_ALGOS: { value: string; text: string }[] = [
+    { value: 'uniform', text: 'Uniform' },
+    { value: 'center', text: 'Center' },
+    { value: 'extremes', text: 'Extremes' },
+    { value: 'drift', text: 'Drift' },
+  ];
+
+  randScenes: number[][] = [];
+  randSceneIdx = -1;
+  private randTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Group editor state.
+  randEditingId: string | null = null;
+  randNewName = '';
+  randNewPriority = 10;
+  randNewProps = 0;
+  randKeysChecked: Record<string, boolean> = {};
+
+  // Preset save state.
+  randSaveName = '';
+  randPresetSlots: number[] = [];
+
+  // Sorted by priority ascending (lower = first); stable tie-break by name.
+  get randSortedGroups(): RandomizeGroup[] {
+    return [...this.randGroups].sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name));
+  }
+
+  get randCheckCount(): number {
+    return Object.values(this.randKeysChecked).filter(Boolean).length;
+  }
+
+  openRandomize(): void {
+    this.activeTab = 'randomize';
+    this.refreshRand();
+  }
+
+  refreshRand(): void {
+    this.api.randomizeGroups().subscribe({
+      next: (r) => (this.randGroups = r.groups || []),
+      error: () => (this.randGroups = []),
+    });
+    this.api.randomizePresets().subscribe({
+      next: (r) => {
+        this.randPresets = r.presets || [];
+        this.randPresetSlots = this.randPresets.map((p) => p.slot ?? 3);
+      },
+      error: () => (this.randPresets = []),
+    });
+  }
+
+  specKey(spec: ControlSpec): string {
+    return spec.index + ':' + spec.name;
+  }
+
+  randSpecTag(spec: ControlSpec): string {
+    switch (spec.type) {
+      case 'select':
+        return 'sel';
+      case 'toggle':
+        return 'tog';
+      case 'segmented':
+        return 'seg';
+      default:
+        return 'knb';
+    }
+  }
+
+  // Current 53-byte body from the loaded slot params (source of truth for scene
+  // generation/saving — the workbench state is what you hear and see).
+  private bodyValues(): number[] {
+    const out = new Array<number>(53).fill(0);
+    if (this.slotParams) {
+      for (const p of this.slotParams.params) out[p.index] = p.value;
+    }
+    return out;
+  }
+
+  private randInt(min: number, maxExclusive: number): number {
+    return Math.floor(Math.random() * (maxExclusive - min)) + min;
+  }
+
+  // Field value for a spec under the selected algorithm. Non-knobs (select,
+  // segmented, toggle) always resolve to a legal option so an illegal field
+  // value is impossible.
+  private fieldFor(spec: ControlSpec, current: number): number {
+    if (spec.type === 'select' || spec.type === 'segmented') {
+      const opts = (spec.options || []).filter((o) => o.value <= spec.max);
+      return opts.length ? opts[this.randInt(0, opts.length)].value : 0;
+    }
+    if (spec.type === 'toggle') return this.randInt(0, 2);
+    switch (this.randAlgo) {
+      case 'center': {
+        const mid = Math.round(spec.max / 2);
+        const band = Math.max(1, Math.round(spec.max / 6));
+        return Math.max(0, Math.min(spec.max, mid + this.randInt(-band, band + 1)));
+      }
+      case 'extremes':
+        return this.randInt(0, 2) === 0 ? 0 : spec.max;
+      case 'drift': {
+        const step = Math.max(1, Math.ceil(spec.max / 12));
+        let v = current + this.randInt(-step, step + 1);
+        if (v === current) v = Math.random() < 0.5 ? Math.max(0, current - step) : Math.min(spec.max, current + step);
+        return Math.max(0, Math.min(spec.max, v));
+      }
+      case 'uniform':
+      default:
+        return this.randInt(0, spec.max + 1);
+    }
+  }
+
+  // Which control-map specs this scene touches: every spec when randAll, else the
+  // per-group selections (definite number of random props per group, or all).
+  private randomTargets(): ControlSpec[] {
+    if (this.randAll) return [...this.controlMap];
+    const targets = new Map<string, ControlSpec>();
+    const specByKey = new Map<string, ControlSpec>();
+    for (const spec of this.controlMap) specByKey.set(this.specKey(spec), spec);
+    for (const g of this.randSortedGroups) {
+      const members = g.specKeys.map((k) => specByKey.get(k)).filter((s): s is ControlSpec => !!s);
+      if (!members.length) continue;
+      const pick = g.props > 0 ? Math.min(g.props, members.length) : members.length;
+      const pool = [...members];
+      for (let i = 0; i < Math.min(pick, pool.length); i++) {
+        const j = this.randInt(i, pool.length);
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      for (let i = 0; i < Math.min(pick, pool.length); i++) targets.set(this.specKey(pool[i]), pool[i]);
+    }
+    return [...targets.values()];
+  }
+
+  private randomizeBody(base: number[], targets: ControlSpec[]): number[] {
+    const body = base.slice();
+    for (const spec of targets) {
+      const p = this.paramFor(spec.index);
+      const current = p ? this.fieldValue(spec, p) : 0;
+      const field = this.fieldFor(spec, current);
+      body[spec.index] = (body[spec.index] & ~spec.mask) | ((field << spec.shift) & spec.mask);
+    }
+    return body;
+  }
+
+  private pushScene(body: number[]): void {
+    this.randScenes = this.randScenes.slice(0, this.randSceneIdx + 1);
+    this.randScenes.push(body);
+    this.randSceneIdx = this.randScenes.length - 1;
+  }
+
+  // Apply a scene body to the workbench: update the param bytes + editedOverrides
+  // (so Save persists it) and send each changed spec with a 1:1 live control via
+  // CTRL_SET. Multi-spec packed bytes (26/30/32/38) fire per-spec sub-fields,
+  // never the whole byte, so sibling bits are never clobbered.
+  private applyScene(body: number[]): void {
+    if (!this.slotParams) return;
+    this.slotError = null;
+    const changed = this.slotParams.params.filter((p, i) => p.value !== body[i]);
+    for (const p of changed) {
+      p.value = body[p.index];
+      this.editedOverrides[p.index] = body[p.index];
+      this.slotsDirty = true;
+    }
+    for (const spec of this.controlMap) {
+      if (spec.liveIndex == null) continue;
+      const p = this.paramFor(spec.index);
+      if (!p || changed.indexOf(p) === -1) continue;
+      this.queueLive(spec, this.fieldValue(spec, p));
+    }
+  }
+
+  generateScene(): void {
+    if (!this.slotParams) {
+      this.randError = 'Load a slot first (Workbench tab) — randomizing needs a base sound.';
+      return;
+    }
+    const targets = this.randomTargets();
+    if (!targets.length) {
+      this.randError = this.randAll
+        ? 'No controls loaded.'
+        : 'No groups defined — add a group with controls, or tick "Randomize all controls".';
+      return;
+    }
+    this.randError = null;
+    const body = this.randomizeBody(this.bodyValues(), targets);
+    this.pushScene(body);
+    this.applyScene(body);
+  }
+
+  stepScene(dir: -1 | 1): void {
+    const next = this.randSceneIdx + dir;
+    if (next < 0 || next >= this.randScenes.length) return;
+    this.randSceneIdx = next;
+    this.applyScene(this.randScenes[next]);
+  }
+
+  togglePlay(): void {
+    if (this.randPlaying) {
+      this.stopRandTimer();
+      this.randPlaying = false;
+      return;
+    }
+    this.randPlaying = true;
+    this.generateScene();
+    this.randTimer = setInterval(() => {
+      if (this.randPlaying) this.generateScene();
+    }, this.randIntervalSec * 1000);
+  }
+
+  private stopRandTimer(): void {
+    if (this.randTimer) {
+      clearInterval(this.randTimer);
+      this.randTimer = null;
+    }
+  }
+
+  // --- Group CRUD ----------------------------------------------------------
+  startAddGroup(): void {
+    this.randEditingId = null;
+    this.randNewName = '';
+    this.randNewPriority = 10;
+    this.randNewProps = 0;
+    this.randKeysChecked = {};
+  }
+
+  editGroup(g: RandomizeGroup): void {
+    this.randEditingId = g.id;
+    this.randNewName = g.name;
+    this.randNewPriority = g.priority;
+    this.randNewProps = g.props;
+    this.randKeysChecked = {};
+    for (const k of g.specKeys) this.randKeysChecked[k] = true;
+  }
+
+  cancelEditGroup(): void {
+    this.randEditingId = null;
+    this.randNewName = '';
+    this.randKeysChecked = {};
+  }
+
+  saveGroup(): void {
+    const specKeys = Object.keys(this.randKeysChecked).filter((k) => this.randKeysChecked[k]);
+    if (!specKeys.length) {
+      this.randError = 'Select at least one control for the group.';
+      return;
+    }
+    this.randBusy = true;
+    this.randError = null;
+    const body = {
+      name: this.randNewName.trim() || 'Group',
+      priority: this.randNewPriority,
+      props: this.randNewProps,
+      specKeys,
+    };
+    const done = () => {
+      this.randBusy = false;
+      this.cancelEditGroup();
+      this.refreshRand();
+    };
+    const failed = (e: unknown) => {
+      this.randBusy = false;
+      this.randError = 'Group save failed: ' + ((e as { message?: string }).message ?? e);
+    };
+    if (this.randEditingId) {
+      this.api.randomizeGroupUpdate(this.randEditingId, body).subscribe({ next: done, error: failed });
+    } else {
+      this.api.randomizeGroupCreate(body).subscribe({ next: done, error: failed });
+    }
+  }
+
+  deleteGroup(g: RandomizeGroup): void {
+    if (!confirm(`Delete group "${g.name}"?`)) return;
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizeGroupDelete(g.id).subscribe({
+      next: () => {
+        this.randBusy = false;
+        if (this.randEditingId === g.id) this.cancelEditGroup();
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group delete failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  // --- Preset CRUD ---------------------------------------------------------
+  private hexOfBody(body: number[]): string {
+    return body.map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  private bodyOfHex(hex: string): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.slice(i, i + 2), 16));
+    return out;
+  }
+
+  savePreset(): void {
+    if (!this.slotParams) return;
+    const name = this.randSaveName.trim() || `rand-${this.randPresets.length + 1}`;
+    this.randBusy = true;
+    this.randError = null;
+    this.api
+      .randomizePresetCreate({ name, source: 'randomizer', bodyHex: this.hexOfBody(this.bodyValues()) })
+      .subscribe({
+        next: () => {
+          this.randBusy = false;
+          this.randSaveName = '';
+          this.refreshRand();
+        },
+        error: (e) => {
+          this.randBusy = false;
+          this.randError = 'Preset save failed: ' + ((e as { message?: string }).message ?? e);
+        },
+      });
+  }
+
+  loadPreset(p: RandomizePreset): void {
+    const body = this.bodyOfHex(p.bodyHex);
+    if (body.length !== 53 || !this.slotParams) {
+      this.randError = 'Cannot load preset — bad body or no slot loaded.';
+      return;
+    }
+    this.randError = null;
+    this.pushScene(body);
+    this.applyScene(body);
+  }
+
+  savePresetToSlot(p: RandomizePreset, slotIdx: number): void {
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizePresetUpdate(p.id, { saveToSlot: slotIdx }).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Preset → slot save failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  renamePreset(p: RandomizePreset): void {
+    const name = prompt('Rename preset', p.name);
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === p.name) return;
+    this.api.randomizePresetUpdate(p.id, { name: trimmed }).subscribe({
+      next: () => this.refreshRand(),
+      error: (e) => (this.randError = 'Preset rename failed: ' + ((e as { message?: string }).message ?? e)),
+    });
+  }
+
+  deletePreset(p: RandomizePreset): void {
+    if (!confirm(`Delete preset "${p.name}"?`)) return;
+    this.api.randomizePresetDelete(p.id).subscribe({
+      next: () => this.refreshRand(),
+      error: (e) => (this.randError = 'Preset delete failed: ' + ((e as { message?: string }).message ?? e)),
+    });
+  }
+
+  fmtTs(ts: number): string {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   private afterChange(row: RowModel): void {

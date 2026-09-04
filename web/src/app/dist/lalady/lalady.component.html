@@ -15,6 +15,7 @@
   <div *ngIf="!loading && deviceFound">
     <nav class="tabs">
       <button [class.active]="activeTab === 'workbench'" (click)="activeTab = 'workbench'">Workbench</button>
+      <button [class.active]="activeTab === 'randomize'" (click)="openRandomize()">Randomize</button>
       <button [class.active]="activeTab === 'observe'" (click)="openObserve()">Observe</button>
       <button [class.active]="activeTab === 'slots'" (click)="activeTab = 'slots'">Slots</button>
       <button [class.active]="activeTab === 'inspect'" (click)="openInspect()">Inspect</button>
@@ -239,6 +240,155 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="activeTab === 'randomize'" class="panel randomize">
+      <div class="monitor-head">
+        <h2>Randomizer</h2>
+        <span class="muted" *ngIf="slotParams">scene {{ randScenes.length ? randSceneIdx + 1 : 0 }} / {{ randScenes.length }}</span>
+      </div>
+      <p class="muted" style="margin:0 0 8px;">Generate random scenes and hear them instantly (realtime). Step back/forward
+        through the scenes you built, run an auto-randomize every 3/5/7/10s, and save the good ones as presets or to a slot.</p>
+      <p class="err" *ngIf="randError">{{ randError }}</p>
+      <p class="muted" *ngIf="randBusy">Working…</p>
+
+      <div class="rand-player">
+        <button
+          class="action-btn generate"
+          [disabled]="randBusy || !slotParams"
+          (click)="generateScene()"
+          title="Generate and apply a random scene now"
+        >Generate</button>
+        <button
+          class="action-btn"
+          [class.on]="randPlaying"
+          [disabled]="randBusy || !slotParams"
+          (click)="togglePlay()"
+          [attr.title]="randPlaying ? 'Pause the auto-randomizer' : 'Auto-randomize every ' + randIntervalSec + 's'"
+        >{{ randPlaying ? '⏸ Pause' : '▶ Play' }}</button>
+
+        <label class="rand-inline">
+          every
+          <select [(ngModel)]="randIntervalSec" [disabled]="randPlaying" title="Auto-randomize interval">
+            <option [ngValue]="3">3s</option>
+            <option [ngValue]="5">5s</option>
+            <option [ngValue]="7">7s</option>
+            <option [ngValue]="10">10s</option>
+          </select>
+        </label>
+
+        <label class="rand-inline">
+          algorithm
+          <select [(ngModel)]="randAlgo" title="Randomization algorithm">
+            <option *ngFor="let a of RAND_ALGOS" [ngValue]="a.value">{{ a.text }}</option>
+          </select>
+        </label>
+
+        <label class="rand-inline rand-all">
+          <input type="checkbox" [(ngModel)]="randAll" />
+          Randomize all controls
+        </label>
+
+        <span class="picker-divider"></span>
+        <button class="refresh" (click)="stepScene(-1)" [disabled]="randSceneIdx <= 0" title="Go back to the previous scene">‹ Prev</button>
+        <button class="refresh" (click)="stepScene(1)" [disabled]="randSceneIdx >= randScenes.length - 1" title="Go forward to the next scene">Next ›</button>
+      </div>
+
+      <div class="rand-cols">
+        <div class="rand-col">
+          <div class="monitor-head">
+            <h3>Groups</h3>
+            <button class="refresh" (click)="startAddGroup()" [disabled]="randBusy" title="Start a new group">New group</button>
+          </div>
+          <p class="muted" style="margin:0 0 8px;">Pick which controls each group randomizes and how many props change per scene
+            (0 = all). Priority orders groups (lower = first).</p>
+
+          <div class="rand-editor">
+            <div class="rand-fields">
+              <input class="inp" [(ngModel)]="randNewName" placeholder="group name" />
+              <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewPriority" title="priority (lower = first)" placeholder="priority" />
+              <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewProps" title="props randomized per scene (0 = all)" placeholder="props (0=all)" />
+            </div>
+            <span class="muted rand-picker-hint">{{ randCheckCount }}/{{ controlMap.length }} controls selected</span>
+            <div class="rand-specs">
+              <label class="rand-spec" *ngFor="let spec of controlMap">
+                <input
+                  type="checkbox"
+                  [checked]="randKeysChecked[specKey(spec)]"
+                  (change)="randKeysChecked[specKey(spec)] = $any($event.target).checked"
+                />
+                <span class="rand-tag" [class]="'rand-tag-' + randSpecTag(spec)">{{ randSpecTag(spec) }}</span>
+                {{ spec.name }}
+                <span class="muted">byte {{ spec.index }}</span>
+              </label>
+            </div>
+            <div class="rand-edit-actions">
+              <button class="action-btn" (click)="saveGroup()" [disabled]="randBusy || randCheckCount === 0">
+                {{ randEditingId ? 'Update group' : 'Save group' }}
+              </button>
+              <button class="refresh" *ngIf="randEditingId" (click)="cancelEditGroup()">Cancel</button>
+            </div>
+          </div>
+
+          <ul class="rand-group-list">
+            <li *ngFor="let g of randSortedGroups">
+              <span class="rand-g-name">{{ g.name }}</span>
+              <span class="chip">prio {{ g.priority }}</span>
+              <span class="chip">{{ g.specKeys.length }} ctl</span>
+              <span class="chip" *ngIf="g.props > 0">{{ g.props }} props</span>
+              <span class="spacer"></span>
+              <button class="refresh" (click)="editGroup(g)" [disabled]="randBusy">Edit</button>
+              <button class="danger action-btn" (click)="deleteGroup(g)" [disabled]="randBusy">Delete</button>
+            </li>
+            <li *ngIf="!randSortedGroups.length" class="muted empty">No groups yet.</li>
+          </ul>
+        </div>
+
+        <div class="rand-col">
+          <div class="monitor-head">
+            <h3>Presets</h3>
+            <span class="muted" *ngIf="randPresets.length">{{ randPresets.length }} saved</span>
+          </div>
+          <p class="muted" style="margin:0 0 8px;">Save the scene you currently hear as a named preset (stored locally on the
+            backend). Unnamed saves get the next &quot;rand-N&quot; name.</p>
+
+          <div class="rand-save-row">
+            <input class="inp" [(ngModel)]="randSaveName" [placeholder]="'rand-' + (randPresets.length + 1)" (keyup.enter)="savePreset()" />
+            <button class="action-btn generate" (click)="savePreset()" [disabled]="randBusy || !slotParams">Save as preset</button>
+          </div>
+
+          <table class="slots rand-presets" *ngIf="randPresets.length">
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>created</th>
+                <th>slot</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of randPresets; let i = index">
+                <td>{{ p.name }}</td>
+                <td class="muted">{{ fmtTs(p.createdAt) }}</td>
+                <td>
+                  <span class="tag" *ngIf="p.slot !== null && p.slot !== undefined">{{ displaySlotNum(p.slot) }}</span>
+                  <span class="muted" *ngIf="p.slot === null || p.slot === undefined">—</span>
+                </td>
+                <td class="actions">
+                  <button (click)="loadPreset(p)" [disabled]="randBusy || !slotParams">Load</button>
+                  <button (click)="renamePreset(p)" [disabled]="randBusy">Rename</button>
+                  <button class="danger" (click)="deletePreset(p)" [disabled]="randBusy">Delete</button>
+                  <select class="slot-mini" [(ngModel)]="randPresetSlots[i]" title="Target pedal slot">
+                    <option *ngFor="let label of SLOT_LABELS; let k = index" [ngValue]="SLOT_DISPLAY_ORDER[k]">slot {{ label }}</option>
+                  </select>
+                  <button (click)="savePresetToSlot(p, randPresetSlots[i])" [disabled]="randBusy">→ slot</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="muted empty" *ngIf="!randPresets.length">No presets saved yet.</p>
         </div>
       </div>
     </section>
