@@ -1,10 +1,14 @@
-# H90Web
+# fx web
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.21.
+Angular frontend for the `fx` project. Two apps share this dev server (port
+`4211`):
+
+- `/dist` — Source Audio L.A. Lady inspector (Talks to `back/lalady` on :3111)
+- `/h90` — Eventide H90 patch explorer (proxies `/api/*` to `back/h90` on :3000)
 
 ## Development server
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+Run `npm start` (or `ng serve`) for a dev server. Navigate to `http://localhost:4211/`.
 
 ## Code scaffolding
 

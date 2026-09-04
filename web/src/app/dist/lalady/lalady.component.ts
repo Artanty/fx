@@ -96,7 +96,20 @@ export class LaladyComponent implements OnInit, OnDestroy {
     [3, 4],
   ];
 
+  // knobRows/observeGroups are structural layout (static per control-map/slot),
+  // so they are cached and only rebuilt when the data they depend on changes.
+  // Building them from scratch on every change detection would make the ngFor
+  // destroy+recreate every knob node on each CD tick (default trackBy = item
+  // identity) — killing pointer-drag state and any external automation.
+  private _knobRowsCache: { title: string; controls: { spec: ControlSpec; p: SlotParam }[] }[][] | null = null;
+  private _knobRowsKey: readonly unknown[] | null = null;
+  private _observeGroupsCache: { title: string; controls: ControlSpec[] }[] | null = null;
+  private _observeGroupsKey: unknown = null;
+
   get knobRows(): { title: string; controls: { spec: ControlSpec; p: SlotParam }[] }[][] {
+    const key: readonly unknown[] = [this.slotParams, this.controlSpecsByIndex];
+    if (this._knobRowsCache && this._knobRowsKey && this._knobRowsKey[0] === key[0] && this._knobRowsKey[1] === key[1])
+      return this._knobRowsCache;
     const groups = this.CONTROL_GROUPS.map((g) => ({
       title: g.title,
       controls: g.indices
@@ -110,14 +123,19 @@ export class LaladyComponent implements OnInit, OnDestroy {
           (a, b) => Number(this.isEngineSpec(b.spec)) - Number(this.isEngineSpec(a.spec)) || a.spec.index - b.spec.index
         ),
     }));
-    return this.KNOB_ROWS.map((rowIdx) => rowIdx.map((gi) => groups[gi]));
+    this._knobRowsKey = key;
+    this._knobRowsCache = this.KNOB_ROWS.map((rowIdx) => rowIdx.map((gi) => groups[gi]));
+    return this._knobRowsCache;
   }
 
   // Read-only "Observe" tab: reuse the workbench group layout, but render each
   // control's CURRENT live value (polled via /api/controls -> this.monitor,
   // keyed by spec.liveIndex) as plain text labels. No editing controls.
   get observeGroups(): { title: string; controls: ControlSpec[] }[] {
-    return this.CONTROL_GROUPS.map((g) => ({
+    const key = this.controlSpecsByIndex;
+    if (this._observeGroupsCache && this._observeGroupsKey === key) return this._observeGroupsCache;
+    this._observeGroupsKey = key;
+    this._observeGroupsCache = this.CONTROL_GROUPS.map((g) => ({
       title: g.title,
       controls: g.indices
         .flatMap((i) => this.controlSpecsByIndex.get(i) || [])
@@ -127,6 +145,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
             a.index - b.index
         ),
     }));
+    return this._observeGroupsCache;
   }
 
   // The live value (native 0..255) for a spec from the latest /api/controls poll,
@@ -657,6 +676,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   hoveredParam: SlotParam | null = null;
 
   onKnobEnter(spec: ControlSpec, p: SlotParam): void {
+    if (this.hoveredParam === p && this.activeKnob === null) return;
     this.hoveredParam = p;
     this.activeKnob = null;
   }

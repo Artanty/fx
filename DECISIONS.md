@@ -1556,3 +1556,78 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Updated x/README.md: tabs links now point to ../tabs/.
 - Updated x/.gitignore: removed the # Tabs app block (now out of tree).
 - Verified copy complete in destination; fx build elsewhere unaffected.
+
+## Progress - 2026-09-03 fx: reorganize into web/ + back/{h90,lalady}
+- Reorganized the repo so code lives under web/ and ack/.
+- Moved all H90 backend + reverse-engineering (server/) into ack/h90.
+- Moved all Source Audio L.A. Lady stuff (pedal-app/) into ack/lalady.
+- Moved h90 root data scripts (build_db.py, devs*.py, H90-IMPORT-NOTES.md, upx4.tar.xz) into ack/h90.
+- input/ (shared data) and mc3/ stay at repo root.
+- Added ack/package.json: 
+pm start / 
+pm run start:h90 (H90 :3000) and 
+pm run start:la (L.A. Lady :3111).
+- Fixed moved path refs:
+  - back/h90/server.js DB_PATH/ROOT_DIR now __dirname (presets.db + patchstorage live beside build_db.py).
+  - back/lalady server.js + src/live.js now resolve ../../input / ../../../input.
+  - h90_reconstruct.py patchstorage path updated.
+- Web top header now links both /dist (L.A. Lady) and /h90.
+- web/package.json server scripts point at ../back/h90 and ../back/lalady.
+- Updated README.md, web/README.md, AGENTS.md, .gitignore for the new layout.
+- Verified: web 
+g build passes; node --check + py_compile clean; back npm scripts resolve; input files present at expected paths.
+
+## Plan - 2026-09-04 pedal-app: fix Save clobbering packed EQ/gate bytes (live-overlay misindexing)
+- User report: changing Treble Boost Rolloff makes the neighbouring treble/bass (Parametric EQ) controls change chaotically and end up wrong after saving.
+- Root cause (code): POST /api/slots/save copies the pedal LIVE control block onto the 53-byte preset body by RAW index: for (i=0;i<min(live.length,body.length);i++) body[i]=live[i]. Body and live numbering are identical only for 0..25; from 26 up they DIVERGE (body 27 Noise Gate Threshold = live 26 Gate Threshold; body 28 Clean High Cut = live 27; body 29 Treble Shelf Freq = live 28; body 31 Bass Shelf Freq = live 30; body 33/34/35/36 Mids = live 32/33/34/35; body 37 Low Cut = live 36). Body bytes 26/30/32/38 are PACKED bit-fields with no 1:1 live byte. So a Save after an EQ edit overwrites packed byte 30 (treble cut/slope/rolloff/boostmax) and 32 (bass cut/slope/rolloff) plus the 27/28/29/31/33..36 whole bytes with the WRONG live values -> the packed fields re-decode into garbage and every EQ/gate knob scrambles ("closest treble controls chaotic change").
+- Fix: in the save merge, transfer only genuine 1:1 body<->live pairs (0..25 self excluding unmapped 6/19; plus 27<-26, 28<-27, 29<-28, 31<-30, 33<-32, 34<-33, 35<-34, 36<-35, 37<-36), keep packed bytes 26/30/32/38 and the tail from the slot flash body, then apply UI overrides on top (overrides already carry full composed bytes for edited packed fields -> they can never be clobbered again).
+- Also fix resolveActiveSlot ACTIVE_COMPARE to compare semantically-correct body<->live PAIRS instead of raw live[k]==body[k] at disjoint indices (26..36), so active-slot resolution / /api/control commit target stays correct.
+- Verify: node -c; no web build needed (backend-only).
+
+## Progress - 2026-09-04 pedal-app: fixed Save clobbering packed EQ/gate bytes
+- Root cause confirmed in code: POST /api/slots/save built the persist body by copying the LIVE control block onto the body at RAW index (body[i]=live[i] for i=0..36). Body and live numbering only agree for 0..25; from 26 up they diverge (body 27<=live 26, 28<=27, 29<=28, 31<=30, 33-36<=32-35, 37<=36), and body bytes 26/30/32/38 are PACKED with no 1:1 live byte. So the 100% whole-byte value of live 30 "Bass Freq" landed on packed body 30, and live 32 "Mid A Freq" on packed body 32 -> the four treble sub-fields (cut/slope/rolloff/boostmax) and four bass sub-fields re-decoded into arbitrary values -> "closest treble controls chaotic change" on Save.
+- Verified offline: byte-30/32 packing itself is CORRECT (input .pre files match their .osbf bodies byte-for-byte: goodtone c2, Heavy b3, Sleepy ab, plus UP1 oct2+octFuzz b30=0x84, UP0 diman b30=0xd2). The chaos comes purely from the save overlay.
+- Fixes in server.js:
+  - ACTIVE_COMPARE / resolveActiveSlot now compare [bodyIdx, liveIdx] PAIRS (0..25 self, 27<-26, 28<-27, 29<-28, 31<-30, 33<-32, 34<-33, 35<-34, 36<-35, 37<-36) instead of raw live[k]==body[k] at disjoint indices -> active-slot resolution and the /api/control commit target stay correct.
+  - /api/slots/save merge copies ONLY genuine 1:1 pairs, keeps packed bytes 26/30/32/38 + the body tail (>36) from flash, and applies UI overrides last (full composed bytes, so edited packed fields can never be clobbered). Physical knob changes for 1:1 live controls are still captured.
+- Checks: node -c (server.js) passes; offline save-merge simulation shows OLD save scrambled b30->0x6e (treble cut=0 slope=3 rolloff=1 max=3 vs real 1/1/2/5) and b32->0x65, NEW save keeps b26/b30/b32 intact while capturing the mapped live values. Backend-only change (no web build). User must restart the la-lady backend :3111. NOT committed.
+
+## Plan - 2026-09-04 pedal-app/web: Playwright audit suite for the L.A. Lady workbench (every knob, select, toggle, segmented)
+- User wants a Playwright-style automated check of every workbench control to LEARN how each one works (UI interaction -> which request it fires -> what byte/bit-field it writes).
+- Create web/playwright.config.ts + web/tests/lalady-workbench.audit.spec.ts (single serial spec, shared page, workers=1 because the pedal is one USB device):
+  - Guard: skip unless GET /api/device says found.
+  - Workbench loads on the active slot (read-only auto-select) -> capture 53-byte slot body snapshot.
+  - Targeted save-regression step FIRST: drag Bass Shelf Frequency (body 31, live 30), Save, assert packed byte 30 (treble fields) is unchanged and byte 31 == UI value (this reproduces the fixed clobber on the OLD backend and passes on the fixed one).
+  - Full audit: for every control-map spec, drive the DOM control (drag knob up/down by value, pick a different select option, flip toggle, click a different seg), then assert the exact network request it fires (/api/control live vs /api/control flash) with the exact expected payload: live -> {index: liveIndex, value: field}; packed -> {index: byte, value: (prevByte & ~mask) | (field << shift)} and response readback matches.
+  - Save round-trip: readback bytes == UI-tracked bytes for every edited index, snapshot bytes unchanged elsewhere; soft-flag if gate toggle edits (byte 26 bits) do not persist on Save (suspected gap).
+  - Restore: POST /api/slots/save with overrides for ALL 53 bytes from the snapshot (works on old AND fixed backend), reload page, confirm knobs show snapshot values.
+  - Attach a JSON per-control report so the run doubles as a control-map documentation pass.
+- Add @playwright/test devDependency + web script (test:e2e:lalady). No backend processes spawned; user runs backend :3111 and 
+g serve.
+
+## Progress - 2026-09-04 pedal-app/web: Playwright workbench audit suite written
+- Created web/playwright.config.ts (workers=1, no webServer spawn, WEB_URL/API_URL env-derived, default 4211/3111) and web/tests/lalady-workbench.audit.spec.ts.
+- Suite, one serial test (shared page):
+  1. Loads /dist workbench on the ACTIVE slot, asserts every control-map spec renders exactly one DOM control.
+  2. SAFE save-path probe FIRST: drag Bass Shelf Frequency (body 31/live 30), confirm the live CTRL_SET request, Save, assert packed byte 30 unchanged + byte 31 == UI value. Old backend => clobbered byte 30 => probe fails => write-audit ABORTED (protects against stale resolveActiveSlot misidentifying the active slot and flash-committing to the wrong slot); fixed backend => audit runs. Probe is RAM + explicit-idx Save, so it cannot damage other slots even on the old build.
+  3. Per-control audit: for EVERY spec (46 total) drives the DOM control (drag knob up/down single-move, pick a different select option, flip toggle, click a different segmented) with waiters registered BEFORE the interaction, then asserts the EXACT payload: realtime -> POST /api/control/live {index: liveIndex, value: field}; packed -> POST /api/control {index, value: (prev & ~mask) | (field << shift)} with response readback === payload. Tracks a body[] mirror of the UI state byte-by-byte.
+  4. Save round-trip: readback[i] === UI-tracker body[i] for all 53 bytes (this fails on the old backend since 30/32/38 get clobbered by the misindexed live overlay).
+  5. Restore original body via /api/slots/save overrides for ALL 53 bytes (works old/fixed), reload, verify every control's DOM state equals the snapshot body. afterAll backstops the restore.
+  - Attaches workbench-audit.json (per-control payloads + findings + hex body snapshot) and logs FINDING lines. Fails at the end listing every failed control.
+- Verified: npm i -D @playwright/test@1.47 (installed 1.62.1, lock updated); tsc --noEmit on the two new TS files passes; npx playwright test --list loads 1 test. Not executed against hardware (backend :3111 + pedal + ng serve must be running; pedals: the probe requires the save-fixed server). NOT committed.
+- Run: cd web && npm run test:e2e:lalady (WEB_URL/API_URL env override optional). Lost only note: physical-knob gate changes still don't pack into flash body 26 on Save (save keeps byte 26 from flash by design) - flagged as observation, not asserted.
+
+## Status - 2026-09-04 pedal-app/web: Playwright suite runnable, smoke-checked
+- npm i -D @playwright/test (lock updated); npx playwright install chromium done.
+- Smoke run with API_URL http://localhost:1 (no device): suite loads, browser launches on this machine, beforeAll device guard makes the test SKIP cleanly (1 skipped). No pedal touched.
+- web/.gitignore now ignores /test-results, /playwright-report, /blob-report. Real run requires the save-fixed backend :3111 + pedal + ng serve.
+
+## Status - 2026-09-05 pedal-app/web: workbench audit PASSES 45/45 against the pedal; runaway render storm root-cause fixed
+- The audit previously failed the moment any knob was hovered: a PERPETUAL Angular change-detection/rebuild loop (~60 ticks/s, `knobs > knob +1` / `ctl-select +1` childList mutations re-created every tick). Isolated to two cooperating causes in web/src/app/dist/lalady/lalady.component.ts:
+  1. `get knobRows()` was impure (rebuilt groups + fresh control objects on EVERY CD call); the prior memoization never engaged because its invalidation key compared the fresh key ARRAY by identity (`this._knobRowsKey === [slotParams, ...]` -> always false, confirmed live: rowsKeyChanged=294/294 during a 2.5s hover). Fixed: pairwise key comparison `_knobRowsKey[0] === slotParams && _knobRowsKey[1] === controlSpecsByIndex`.
+  2. `onKnobEnter` re-assigned `hoveredParam` on every pointerenter re-fire (each CD replaced the hovered node under the cursor -> re-enter -> reset -> CD...). Guarded to first-set-only per param. Verified the storm is 100% enter-driven (noop handler -> 0 mutations).
+- After the fix: idle DOM = 0 mutations, wheel = 1 mutation then settles (was ~350 batches earlier). Pre-existing on the original code (verified by stashing the memoization) - the app had a latent 100%-CPU bug on any knob hover; now stable.
+- Audit drives knobs via synthetic wheel (headless drops mouse->pointerdown so drags never arm), selects via selectOption, segmented via .ctl-seg-btn, toggles by clicking the visible .ctl-toggle (its checkbox input is display:none, so setChecked() never becomes actionable).
+- Tolerant per-control precondition (root.waitFor attached + .first()) replaced the flaky toHaveCount(1) gate (it intermittently failed AFTER the probe Save reload on 26/27/28/29/30/37 with "toHaveCount Expected 1 Received undefined" even though the elements were present; likely transient panel remount blink during the gate).
+- RESULT: `npx playwright test --timeout=1200000` => 1 passed (56.1s). Probe: Save after live bass-freq edit keeps packed byte 30 = 0x19, byte 31 follows (backend still save-fixed). All 45 specs audited (0..44 incl. multi-spec bytes 26,30,32,38), Save round-trip readback == UI tracker for all 53 bytes, restore reverted the pedal to its original body and the DOM reflects it.
+- Files: lalady.component.ts (storm fix), tests/lalady-workbench.audit.spec.ts (toggle/precondition hardening). All dbg-*.js probes deleted. NOT committed.
