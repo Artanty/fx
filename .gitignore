@@ -11,10 +11,10 @@ dist/
 __pycache__/
 *.pyc
 
-# Generated / downloaded data (regenerate with `python3 build_db.py`)
-presets.db
-api_cache.json
-patchstorage/
+# Generated / downloaded data (regenerate with `python3 back/h90/build_db.py`)
+back/h90/presets.db
+back/h90/api_cache.json
+back/h90/patchstorage/
 
 
 # Capstone disassembler source checkout (pip `capstone` wheel replaces it)
@@ -24,12 +24,12 @@ input/capstone-next/
 .DS_Store
 
 # Compiled helpers (build from the .swift sources)
-server/h90_proxy
-server/test-selfsource
-server/test-send-to-source
-server/ble-connect
-server/ble-scan
-server/h90_relay
-server/midi-list
-server/midi-probe
-server/midi-step
+back/h90/h90_proxy
+back/h90/test-selfsource
+back/h90/test-send-to-source
+back/h90/ble-connect
+back/h90/ble-scan
+back/h90/h90_relay
+back/h90/midi-list
+back/h90/midi-probe
+back/h90/midi-step

@@ -42,9 +42,10 @@ REQ1 = os.path.join(CAPTURES, "h90_import_req.bin")
 REQ2 = os.path.join(CAPTURES, "h90_import2_req.bin")
 RESP1 = os.path.join(CAPTURES, "h90_import_resp_big.bin")
 RESP2 = os.path.join(CAPTURES, "h90_import2_resp.bin")
-PRESET_TWOWAY = os.path.join(HEREDIR, "..", "patchstorage", "preset90",
+PATCHSTORAGE = os.path.join(HEREDIR, "patchstorage")
+PRESET_TWOWAY = os.path.join(PATCHSTORAGE, "preset90",
                              "TWO-WAY-640284089dce6.preset90")
-PRESET_MURKY = os.path.join(HEREDIR, "..", "patchstorage", "preset90",
+PRESET_MURKY = os.path.join(PATCHSTORAGE, "preset90",
                             "MURKY-BUCKUET-LEAD-642f25f984e72.preset90")
 
 

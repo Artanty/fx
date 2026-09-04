@@ -11,7 +11,7 @@ const {
 const { loadOsbf } = require('./osbf');
 const { SLOT_PAGES, decodeMidiMap, MIDI_MAP_START, MIDI_MAP_LEN } = require('./laLadyModel');
 
-const OSBF_PATH = path.resolve(__dirname, '..', '..', 'input', '2026-07-31_labackup.osbf');
+const OSBF_PATH = path.resolve(__dirname, '..', '..', '..', 'input', '2026-07-31_labackup.osbf');
 
 const LALADY_PRESET_BASE = 0x03c000;
 const LALADY_PRESET_PITCH = 0x1000;

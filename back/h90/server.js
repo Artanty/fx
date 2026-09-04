@@ -11,8 +11,8 @@ try {
 }
 
 const PORT = process.env.PORT || 3000;
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, "..", "presets.db");
-const ROOT_DIR = path.join(__dirname, "..");
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, "presets.db");
+const ROOT_DIR = __dirname;
 
 const db = new Database(DB_PATH, { readonly: true });
 

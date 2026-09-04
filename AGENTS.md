@@ -8,9 +8,9 @@ this repository.
 
 Current projects:
 
-- `[h90]` — Eventide H90 control reverse-engineering / import protocol
-- `[pedal-app]` — pedal/app prototyping (L.A. Lady, source-audio)
-- `[web]` — web frontends / shared web tooling
+- `[h90]` — Eventide H90 control reverse-engineering / import protocol (`back/h90`)
+- `[pedal-app]` — pedal/app prototyping (L.A. Lady, source-audio) (`back/lalady`)
+- `[web]` — web frontends / shared web tooling (`web`)
 - `[server]` — shared server work (proxy, captures, fx)
 
 Add new prefixes as new projects are introduced.
@@ -23,6 +23,14 @@ Examples:
 [web] Refresh package-lock after dependency resolution
 [server] Validate DEFLATE decoder LENGTH table
 ```
+
+## Layout
+
+- `web/` — Angular frontend (`npm start`, dev port 4211). Top header links
+  both `/dist` (L.A. Lady) and `/h90`.
+- `back/` — backends. `back/h90` (Express :3000), `back/lalady` (Express :3111).
+- From `back/` run `npm run start:la` for the L.A. Lady backend or
+  `npm run start:h90` (or `npm start`) for the H90 backend.
 
 ## DECISIONS.md workflow
 

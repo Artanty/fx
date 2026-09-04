@@ -1,0 +1,11 @@
+{
+  "name": "fx-back",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backends for the fx web app: h90 and lalady.",
+  "scripts": {
+    "start": "npm --prefix h90 start",
+    "start:h90": "npm --prefix h90 start",
+    "start:la": "npm --prefix lalady start"
+  }
+}
