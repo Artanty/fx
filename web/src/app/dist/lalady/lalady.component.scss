@@ -383,6 +383,52 @@ table.knobs {
     color: #ffd27a;
   }
 
+  .action-log {
+    margin: 8px 0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-size: 12px;
+
+    .al-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      color: inherit;
+      text-align: left;
+      padding: 4px 8px;
+      cursor: pointer;
+
+      &.alert {
+        color: #ff8f93;
+        font-weight: 600;
+      }
+
+      .muted {
+        float: right;
+      }
+    }
+
+    .al-body {
+      padding: 0 8px 8px;
+      max-height: 260px;
+      overflow: auto;
+
+      .al-clear {
+        margin: 4px 0;
+        font-size: 11px;
+        padding: 1px 8px;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.45;
+        color: #9ad08a;
+      }
+    }
+  }
+
   .knob-rows {
     display: flex;
     flex-direction: column;

@@ -1,4 +1,4 @@
-<div class="lalady">
+﻿<div class="lalady">
   <header class="head">
     <div>
       <h1>L.A. Lady <span class="sub">Source Audio &middot; VID 0x29a4 / PID 0x0300</span></h1>
@@ -154,6 +154,21 @@
       <p class="muted" *ngIf="slotBusy">Working…</p>
       <p class="err" *ngIf="slotError">{{ slotError }}</p>
 
+      <div class="action-log" data-sel="action-log">
+        <button
+          type="button"
+          class="al-toggle"
+          [attr.data-open]="actionLogOpen"
+          (click)="actionLogOpen = !actionLogOpen"
+          [class.alert]="hasClobber"
+        >{{ hasClobber ? '⚠ ' : '' }}Action log ({{ actionLog.length }})
+          <span class="muted">{{ actionLogOpen ? '▾' : '▸' }}</span></button>
+        <div *ngIf="actionLogOpen" class="al-body">
+          <button type="button" class="al-clear" (click)="clearActionLog()">Clear</button>
+          <pre><code>{{ lastActionLines(60).join('\n') }}</code></pre>
+        </div>
+      </div>
+
       <div *ngIf="slotParams && !slotBusy">
         <p class="muted">
           slot {{ displaySlotNum(slotParams.idx) }} &middot; preset <strong>{{ slotParams.name || '—' }}</strong>
@@ -172,7 +187,7 @@
                   <select
                     *ngIf="c.spec.type === 'select'"
                     class="ctl-select"
-                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [class.modified]="fieldChanged(c.spec, c.p)"
                     (change)="onSelectChange(c.spec, c.p, $event)"
                     [attr.title]="'body byte ' + c.spec.index"
                   >
@@ -183,7 +198,7 @@
                   <label
                     *ngIf="c.spec.type === 'toggle'"
                     class="ctl-toggle"
-                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [class.modified]="fieldChanged(c.spec, c.p)"
                     [attr.title]="'body byte ' + c.spec.index"
                   >
                     <input
@@ -197,7 +212,7 @@
                   <div
                     *ngIf="c.spec.type === 'segmented'"
                     class="ctl-seg"
-                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [class.modified]="fieldChanged(c.spec, c.p)"
                     [attr.title]="'body byte ' + c.spec.index"
                   >
                     <button
@@ -212,7 +227,7 @@
                   <div
                     *ngIf="c.spec.type === 'knob'"
                     class="kbody"
-                    [class.modified]="c.p.value !== initialValue(c.p.index)"
+                    [class.modified]="fieldChanged(c.spec, c.p)"
                     [class.scrolling]="hoveredParam === c.p"
                     (pointerenter)="onKnobEnter(c.spec, c.p)"
                     (pointerleave)="onKnobLeave()"

@@ -78,6 +78,33 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private paramsSnapshot: SlotParam[] = [];
   private editedOverrides: Record<number, number> = {};
 
+  // Operator-facing action log: every SET/LIVE/FLASH/SAVE/observe the workbench
+  // performs lands here (rendered as a collapsible panel + exposed to E2E via
+  // window.__laladyActions). The packed-byte watchdog re-checks the load-time
+  // baseline for bytes 26/30/32/38 on every write and observe poll and emits a
+  // CLOBBER line if any changed WITHOUT a user edit on that byte — this is the
+  // literal "treble cut filter changed by another knob" alarm the operator asked
+  // for, and the E2E specs assert it never fires from other controls.
+  actionLog: string[] = [];
+  actionLogOpen = false;
+
+  get hasClobber(): boolean {
+    return this.actionLog.some((l) => l.includes('CLOBBER'));
+  }
+  private readonly ACTION_LOG_MAX = 500;
+  private packedBaseline: Partial<Record<number, number>> = {};
+  private packedUserTouched = new Set<number>();
+  private observePollCount = 0;
+
+  // Live-control indices the pedal provably does NOT honor: CTRL_SET writes to
+  // 16..39 are ignored and the live table there reads back stale 0/255 garbage,
+  // so the observer must never mirror those onto the workbench (it would fight
+  // fresh knob edits and flash wrong values). 6/19 are empty map entries. Only
+  // 0..15 are verified writable and reliably readable on the L.A. Lady.
+  private static readonly OBSERVE_UNTRUSTED_LIVE = new Set<number>([
+    6, 19, ...Array.from({ length: 24 }, (_, i) => 16 + i),
+  ]);
+
   // Workbench param grouping. Each group lists body indices rendered in that
   // section; every control-map spec whose byte index is in a group is shown
   // there (so packed bytes like 26/30/32/38/39 split into their own controls).
@@ -194,6 +221,9 @@ export class LaladyComponent implements OnInit, OnDestroy {
   constructor(private api: LaladyApiService, private midi: LaladyMidiService) {}
 
   ngOnInit(): void {
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __laladyActions?: string[] }).__laladyActions = this.actionLog;
+    }
     this.refresh();
     this.refreshDeviceInfo();
     this.autoSelectActive();
@@ -433,11 +463,13 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.api.controls().subscribe({
       next: (m) => {
         if (!m || !Array.isArray(m.controls)) return;
+        this.observePollCount++;
         const byIndex = new Map<number, number>();
         for (const c of m.controls) {
           if (typeof c.value === 'number') byIndex.set(c.index, c.value);
         }
         if (!byIndex.size || !this.slotParams) return;
+        this.logAction(`OBSERVE poll #${this.observePollCount} live table of ${byIndex.size} entries`);
         for (const s of this.controlMap) {
           if (s.liveIndex == null) continue;
           const live = byIndex.get(s.liveIndex);
@@ -445,12 +477,22 @@ export class LaladyComponent implements OnInit, OnDestroy {
           if (this.activeKnob && this.activeKnob.spec === s) continue;
           const p = this.paramFor(s.index);
           if (!p) continue;
+          if (LaladyComponent.OBSERVE_UNTRUSTED_LIVE.has(s.liveIndex)) {
+            // Pedal ignores CTRL_SET in 16..39 (+6/19) and reads 0/255 stale
+            // there; 0xff placeholders carry no value — never surface those.
+            if (live !== 0xff) {
+              this.logAction(`OBSERVE skip live#${s.liveIndex} (${s.name}): untrusted window value=${live}`);
+            }
+            continue;
+          }
           const nativeField = Math.max(0, Math.min(s.max, live));
           if (this.fieldValue(s, p) === nativeField) continue;
+          this.logAction(`OBSERVE ${s.name} live#${s.liveIndex}: field ${this.fieldValue(s, p)}->${nativeField}`);
           p.value = (p.value & ~s.mask) | ((nativeField << s.shift) & s.mask);
           const snap = this.paramsSnapshot.find((sp) => sp.index === p.index);
           if (snap) snap.value = p.value;
         }
+        this.logPackedHealth();
       },
       error: () => {
         /* device offline; workbench keeps last-known values */
@@ -496,12 +538,48 @@ export class LaladyComponent implements OnInit, OnDestroy {
         this.paramsSnapshot = s.params.map((p) => ({ ...p }));
         this.slotsDirty = false;
         this.editedOverrides = {};
+        this.packedBaseline = {};
+        this.packedUserTouched = new Set<number>();
+        for (const p of s.params) {
+          if ([26, 30, 32, 38].includes(p.index)) this.packedBaseline[p.index] = p.value;
+        }
+        const b30 = s.params.find((p) => p.index === 30);
+        this.logAction(`LOAD slot ${idx} byte30=0x${b30?.value.toString(16) ?? '??'} (baseline)`);
       },
       error: (e) => {
         this.slotBusy = false;
         this.slotError = 'Load params failed: ' + (e.message ?? e);
       },
     });
+  }
+
+  private logAction(msg: string): void {
+    this.actionLog.push(`${new Date().toISOString().slice(11, 19)} ${msg}`);
+    if (this.actionLog.length > this.ACTION_LOG_MAX) this.actionLog.shift();
+  }
+
+  clearActionLog(): void {
+    this.actionLog = [];
+  }
+
+  lastActionLines(n: number): string[] {
+    return this.actionLog.slice(-n);
+  }
+
+  private logPackedHealth(): void {
+    if (!this.slotParams) return;
+    for (const idx of [26, 30, 32, 38]) {
+      const base = this.packedBaseline[idx];
+      if (base === undefined || this.packedUserTouched.has(idx)) continue;
+      const pr = this.paramFor(idx);
+      const now = pr ? pr.value : 0;
+      if (now !== base) {
+        this.logAction(
+          `CLOBBER byte ${idx} changed 0x${base.toString(16)}->0x${now.toString(16)} with no user edit on that byte`
+        );
+        this.packedBaseline[idx] = now;
+      }
+    }
   }
 
   // Realtime: writes a field's value into the pedal's LIVE control table via
@@ -517,6 +595,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.liveTimer = setTimeout(() => {
       this.liveTimer = null;
       for (const [liveIndex, { value: v }] of this.livePending) {
+        this.logAction(`LIVE idx=${liveIndex} val=${v}`);
         this.api.controlLive({ index: liveIndex, value: v }).subscribe({
           error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
         });
@@ -560,14 +639,26 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // packed fields (30/32/38) go to the flash-commit queue.
   private setField(spec: ControlSpec, p: SlotParam, uiValue: number): void {
     const native = Math.max(0, Math.min(spec.max, uiValue));
+    const prevField = this.fieldValue(spec, p);
+    const prevByte = p.value;
     const byte = (p.value & ~spec.mask) | ((native << spec.shift) & spec.mask);
     p.value = byte;
+    if ([26, 30, 32, 38].includes(spec.index)) {
+      this.packedBaseline[spec.index] = byte;
+      this.packedUserTouched.add(spec.index);
+    }
     this.slotsDirty = true;
     this.editedOverrides[p.index] = byte;
+    this.logAction(
+      `SET ${spec.name} (${spec.index}:${spec.shift}) field ${prevField}->${native} byte 0x${prevByte
+        .toString(16)
+        .padStart(2, '0')}->0x${byte.toString(16).padStart(2, '0')} ${spec.liveIndex != null ? 'LIVE#' + spec.liveIndex : 'FLASH'}`
+    );
     if (spec.liveIndex != null) {
       this.queueLive(spec, native);
       return;
     }
+    this.logPackedHealth();
     this.discretePending = { p, byte };
     if (this.discreteTimer) return;
     this.discreteTimer = setTimeout(() => {
@@ -584,10 +675,20 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.api.control({ index: v.p.index, value: v.byte }).subscribe({
       next: (r) => {
         this.discreteInFlight = false;
+        if ([26, 30, 32, 38].includes(v.p.index)) this.packedBaseline[v.p.index] = v.byte;
         if (r && typeof r.readback === 'number') {
-          const pr = this.paramFor(v.p.index);
-          if (pr) pr.value = r.readback;
+          if (!this.discretePending || this.discretePending.p.index !== v.p.index) {
+            const pr = this.paramFor(v.p.index);
+            if (pr) pr.value = r.readback;
+          }
+          if ([26, 30, 32, 38].includes(v.p.index)) this.packedBaseline[v.p.index] = r.readback;
+          this.logAction(
+            `FLASH idx=${v.p.index} byte=0x${v.byte.toString(16).padStart(2, '0')} readback=0x${r.readback
+              .toString(16)
+              .padStart(2, '0')}`
+          );
         }
+        this.logPackedHealth();
         this.flushDiscrete();
       },
       error: (e) => {
@@ -630,10 +731,14 @@ export class LaladyComponent implements OnInit, OnDestroy {
     return spec.type === 'select' && (spec.index === 4 || spec.index === 17);
   }
 
-  // Original (snapshot) value for a param, used to highlight edited knobs.
-  initialValue(index: number): number {
-    const snap = this.paramsSnapshot.find((s) => s.index === index);
-    return snap ? snap.value : 0;
+  // Field-scoped "modified" highlight: only the field the user actually changed
+  // lights up, even inside packed bytes — editing Treble Shelf Slope must not
+  // mark Treble Cut Filter / Boost Max / Rolloff as changed just because they
+  // share body byte 30. Written bytes/overrides stay byte-level; this is purely
+  // presentational, so a sibling edit can never mask a genuinely dirty field.
+  fieldChanged(spec: ControlSpec, p: SlotParam): boolean {
+    const snap = this.paramsSnapshot.find((s) => s.index === p.index);
+    return !!snap && this.fieldValue(spec, snap) !== this.fieldValue(spec, p);
   }
 
   // Circular dial geometry: a spec's field value maps to a 270° sweep starting
@@ -726,6 +831,11 @@ export class LaladyComponent implements OnInit, OnDestroy {
     if (!this.slotParams || this.selectedSlotIdx === null) return;
     this.slotBusy = true;
     this.slotError = null;
+    const keys = Object.keys(this.editedOverrides);
+    const b30ov = this.editedOverrides[30];
+    this.logAction(
+      `SAVE idx=${this.selectedSlotIdx} overrides=${keys.length} byte30Override=${b30ov !== undefined ? '0x' + b30ov.toString(16).padStart(2, '0') : 'none'}`
+    );
     this.api.slotSave({ overrides: this.editedOverrides, idx: this.selectedSlotIdx }).subscribe({
       next: (r) => {
         this.slotBusy = false;
@@ -748,21 +858,38 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.slotParams.params = this.paramsSnapshot.map((p) => ({ ...p }));
     this.slotsDirty = false;
     this.editedOverrides = {};
+    for (const p of this.paramsSnapshot) {
+      if ([26, 30, 32, 38].includes(p.index)) this.packedBaseline[p.index] = p.value;
+    }
+    this.packedUserTouched = new Set<number>();
+    this.logAction('REVERT: workbench returned to snapshot');
   }
 
   // Set every knob of the selected slot to 0: update the workbench values, send
-  // each live via CTRL_SET (realtime), and mark edited so Save persists it.
+  // each zeroed live via CTRL_SET (realtime), and mark edited so Save persists it.
+  // Live writes go through the control-map spec liveIndex (body<->live numbering
+  // diverges at 26+, and packed bytes 26/30/32/38 have no 1:1 live byte), so a
+  // body index is never poked at wrong live control; packed bytes are zeroed
+  // whole via the byte overrides on Save.
   allParamsZero(): void {
     if (!this.slotParams) return;
     this.slotError = null;
+    const sentLive = new Set<number>();
     for (const p of this.slotParams.params) {
       p.value = 0;
       this.editedOverrides[p.index] = 0;
+      if ([26, 30, 32, 38].includes(p.index)) this.packedUserTouched.add(p.index);
       this.slotsDirty = true;
-      this.api.controlLive({ index: p.index, value: 0 }).subscribe({
-        error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
-      });
+      const specs = this.controlSpecsByIndex.get(p.index) || [];
+      for (const s of specs) {
+        if (s.liveIndex != null && !sentLive.has(s.liveIndex)) {
+          sentLive.add(s.liveIndex);
+          this.queueLive(s, 0);
+        }
+      }
     }
+    for (const b of [26, 30, 32, 38]) this.packedBaseline[b] = 0;
+    this.logAction('ZERO all 53 bytes (packed 26/30/32/38 -> 0 intended) live=' + sentLive.size);
   }
 
   // Restore all 6 preset slots from a user-selected .osbf backup file.
