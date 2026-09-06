@@ -7,12 +7,12 @@ Notes:
 - SikuliX needs a LIVE, visible desktop (image recognition reads the real
   screen). A locked or headless session fails — the H90 Control window must be
   on screen, not minimized.
-- First IDE launch shows a one-time Setup screen: click the install button for
-  the IDE/API and Jython, quit, relaunch. setup.ps1 already placed the jars and
-  the JRE so that screen is the only manual step.
-- Next session: screenshot the actual H90 Control knobs/presets with the IDE
-  capture tool (Ctrl+Shift+drag a rectangle, stores the PNG in this folder),
-  then click() the saved pattern images instead of the coordinate hacks below.
+- API confirmed on 2.0.5 (see api-probe.sikuli): App.getWindow() does NOT
+  exist; use App(name).window(). Region.capture() does NOT exist; use
+  saveCapture(). Jython 2.7.2 is bundled (no one-time Setup screen needed).
+- Next: screenshot the actual H90 Control knobs/presets with the IDE capture
+  tool (Ctrl+Shift+drag a rectangle, stores the PNG in this folder), then
+  click() the saved pattern images instead of the coordinate hacks below.
 """
 from sikuli import *
 import os, sys
@@ -26,29 +26,27 @@ def d(msg):
 d("sikuli smoke start; jython %s" % sys.version)
 b = Screen(0).getBounds()
 d("screen size: %dx%d" % (b.width, b.height))
-scr = Region(0, 0, b.width, b.height)
 
-# Locate the native H90 Control window by title fragment (if the app is running).
+# Locate the native H90 Control window (if the app is running).
+app = App("H90 Control")
+d("H90 Control running: %s window present: %s" % (app.isRunning(), app.hasWindow()))
 win = None
-for pattern in ("H90 Control", "H90"):
+if app.hasWindow():
     try:
-        win = App.getWindow(pattern)
-        if win:
-            break
+        win = app.window()
+        d("H90 window region: %s" % win)
     except Exception as ex:
-        d("App.getWindow(%r): %s" % (pattern, ex))
+        d("app.window(): %s" % ex)
 
-if win:
-    d("H90 window: %s" % win)
-    scr = win
-else:
+scr = win if win else Screen(0)
+if not win:
     d("H90 Control window not found (app running?) - capturing the full screen")
 
 out = os.path.join(getBundlePath(), "sikuli-smoke-shot.png")
 try:
-    scr.capture().save(out)
-    d("saved screenshot: %s" % out)
+    saved = scr.saveCapture(out)
+    d("saved screenshot: %s" % saved)
 except Exception as ex:
-    d("capture failed: %s" % ex)
+    d("saveCapture failed: %s" % ex)
 
 d("all ok")
