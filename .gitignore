@@ -19,6 +19,10 @@ back/h90/patchstorage/
 # L.A. Lady randomizer local DB (created at runtime by back/lalady/server.js)
 back/lalady/randomizer-data/
 
+# SikuliX runtime (jars + portable JRE - fetch with back/h90/sikulix/setup.ps1)
+back/h90/sikulix/sikulixide-*.jar
+back/h90/sikulix/sikulixapi-*.jar
+back/h90/sikulix/jre/
 
 # Capstone disassembler source checkout (pip `capstone` wheel replaces it)
 input/capstone-next/
