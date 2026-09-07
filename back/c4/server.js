@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const { findC4, listSourceAudioDevices } = require('./src/c4Hid');
 const { C4Protocol } = require('./src/c4Protocol');
+const c4UiLog = require('./src/c4UiLog');
 const {
   C4_PRESET_BASE,
   C4_PRESET_PITCH,
@@ -212,6 +213,7 @@ app.post('/api/activate', (req, res) => {
   if (!p) return res.status(503).json({ error: 'Source Audio C4 Synth HID device not found' });
   try {
     const reply = p.setActivePreset(idx);
+    c4UiLog.stamp('ACTIVATE', `preset=${idx}`);
     res.json({ ok: true, index: idx, page: (C4_PRESET_BASE + idx * C4_PRESET_PITCH).toString(16), reply: reply ? reply.join(',') : null });
   } catch (e) {
     collectErrors(res, e);
@@ -238,6 +240,7 @@ app.post('/api/control', (req, res) => {
     body[index] = value;
     const name = cleanName(p.readSlotName(rawIdx).toString('ascii'));
     const written = p.commitRawPreset(rawIdx, body, name);
+    c4UiLog.stamp('FLASH', `byte=${index} name=${bodyName(index)} value=0x${value.toString(16).padStart(2, '0')} readback=0x${written[index].toString(16).padStart(2, '0')} preset=${rawIdx}`);
     res.json({ ok: true, index, value, readback: written[index], presetIndex: rawIdx });
   } catch (e) {
     collectErrors(res, e);
@@ -258,6 +261,7 @@ app.post('/api/control/live', (req, res) => {
   if (!p) return res.status(503).json({ error: 'Source Audio C4 Synth HID device not found' });
   try {
     p.setControlValue(index, value);
+    c4UiLog.stamp('LIVE', `idx=${index} name=${liveName(index)} value=${value}`);
     res.json({ ok: true, index, value });
   } catch (e) {
     collectErrors(res, e);
@@ -290,6 +294,7 @@ app.post('/api/presets/save', (req, res) => {
 
     const name = req.body && typeof req.body.name === 'string' ? req.body.name : cleanName(p.readSlotName(rawIdx).toString('ascii'));
     const written = p.commitRawPreset(rawIdx, body, name);
+    c4UiLog.stamp('SAVE', `preset=${rawIdx} name="${name}" bytes=${Object.keys(overrides).length}`);
     res.json({ ok: true, presetIndex: rawIdx, page: (C4_PRESET_BASE + rawIdx * C4_PRESET_PITCH).toString(16), name, readback: Array.from(written) });
   } catch (e) {
     collectErrors(res, e);
@@ -335,6 +340,30 @@ app.get('/api/midimap', (req, res) => {
   }
 });
 
+// UI activity log. The workbench posts every user action here so the file
+// reflects everything happening in the UI. The frontend resets the file on each
+// fresh web session (page load) via /api/log/reset; the backend also resets on
+// boot so a file always covers one continuous session.
+app.post('/api/log', (req, res) => {
+  const lines = Array.isArray(req.body && req.body.lines)
+    ? req.body.lines.filter((l) => typeof l === 'string' && l.length > 0)
+    : typeof req.body && typeof req.body.line === 'string' && req.body.line.length > 0
+      ? [req.body.line]
+      : [];
+  if (!lines.length) return res.status(400).json({ error: 'line must be a non-empty string (or lines[])' });
+  for (const l of lines) {
+    if (l.length <= 1000) c4UiLog.append(l);
+  }
+  res.json({ ok: true, count: lines.length });
+});
+
+app.post('/api/log/reset', (req, res) => {
+  c4UiLog.reset();
+  res.json({ ok: true, file: c4UiLog.logFile });
+});
+
 app.listen(PORT, () => {
+  c4UiLog.reset();
   console.log('C4 Synth workbench: http://localhost:' + PORT);
+  console.log('C4 UI/operation log: ' + c4UiLog.logFile);
 });

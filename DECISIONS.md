@@ -1815,3 +1815,190 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - User: "add engage btn (like for lalady) for c4". C4 already had a static "MIDI engage" button in the page header (c4.component.html title-row, .midi-btn).
 - Added a matching dynamic engage/bypass button to the C4 preset-bar toolbar: web/src/app/c4/c4.component.html - .midi-engage-btn toggling "Bypassed"/"Engaged" text, .on class from !midiBypassed, disabled when no Web MIDI, title shows CC 102 ch from config.midiChannel (default 1); reuses existing toggleMidiEngage()/midiBypassed/midiEngageMsg state. web/src/app/c4/c4.component.scss - .midi-engage-btn styles copied from lalady (blue .on state).
 - No backend/process change; web-only. Verify: ng build development clean.
+
+## Plan - 2026-09-07 web: fix C4 output volume reverting after voice toggle
+
+- User: "when i disable or enable each of voices - main output (volume) doesn't
+  work, starts to work if i explicitly touch it after change voice's enable toggle"
+- Root cause: voice enable fields (voice1..4_enable) are bit-packed (4-bit, width 4
+  shift 4 in body bytes 16/23/30/37), so `liveIndex` is null in
+  `buildControlSpecs()` (line 595: `wholeByte ? live : null`). Toggle changes go
+  through `flushDiscrete()` → POST /api/control → `commitRawPreset()` which writes
+  the FULL body to flash then calls `setActivePreset(idx)`. The re-activation causes
+  the C4 pedal to reload ALL live control values from flash, overwriting any
+  transient CTRL_SET values (like output volume at body byte 8 / live index 8) that
+  the user adjusted but hasn't saved yet.
+- Fix: after `flushDiscrete()` completes successfully, call new
+  `resendLiveOverrides()` which iterates `editedOverrides`, decomposes each edited
+  body byte via `controlSpecsByIndex`, and re-sends CTRL_SET for every live control
+  the user modified. This ensures their knob adjustments survive the preset
+  re-activation triggered by the flash commit.
+- Verify: ng build passes (pre-existing warning only). User tests on hardware:
+  drag output knob → toggle voice → output volume stays.
+
+## Progress - 2026-09-07 web: fix C4 output volume reverting after voice toggle
+
+- Added `resendLiveOverrides()` private method to c4.component.ts: iterates
+  `editedOverrides`, for each body byte looks up specs via `controlSpecsByIndex`,
+  extracts the field value via mask/shift, sends CTRL_SET via `api.controlLive()` for
+  each spec with a `liveIndex`. Deduplicates by live index via a Set. Logs the
+  re-send count.
+- Called `this.resendLiveOverrides()` at the end of `flushDiscrete()`'s success
+  path (after recursive `flushDiscrete()` call and after readback update). This runs
+  after every flash commit + re-activation, restoring all transient live values.
+- Verify: ng build passes. Not committed (backend user-managed).
+
+## Progress - 2026-09-07 web: delay resendLiveOverrides after flash re-activation
+
+- Concern (voice 1 silent): calling `resendLiveOverrides()` synchronously right
+  after the backend's `commitRawPreset()` returns risks the CTRL_SET values racing
+  the firmware's flash-reload of live controls during `setActivePreset()` (which
+  blocks ~1.5s in c4Protocol.js). If a CTRL_SET arrives while firmware is still
+  re-loading, it can be overwritten — potentially leaving a voice/injected value
+  in an inconsistent state.
+- Fix: wrapped the body of `resendLiveOverrides()` in a `setTimeout(..., 300)` so
+  the re-sent CTRL_SETs are deferred ~300ms, giving `setActivePreset()` time to
+  finish importing the reloaded controls before we re-assert the user's transient
+  live values.
+- Verify: ng build passes (pre-existing warning only). User tests on hardware with
+  the action log: expect `RE-SEND <n> live controls` to now appear ~300ms after the
+  final `FLASH byte ... readback=...` line, and output volume to persist after a
+  voice toggle.
+
+## Plan - 2026-09-07 web: C4 workbench UI overhaul (neuro-style blocks, compactness, toggles, persistent log sidebar)
+
+- User requests (earlier message, put on hold): (1) reorganize workbench controls
+  into the same blocks as the official Neuro editor; (2) make all blocks more
+  compact; (3) add a top row of block toggles that show/hide each block, default
+  all visible, visibility persisted in localStorage; (4) move the operation log to
+  a right sidebar toggled by an icon on the top row.
+- Follow-up (this message): log everything that happens in the C4 UI to a file,
+  reset the file on new web session start OR new backend start; inspect that file
+  first when debugging control bugs.
+- Approach:
+  - Backend: new `src/c4UiLog.js` — `reset()`/`append()` to
+    `back/c4/runtime-actions/c4-ui.log`; reset on server boot; `POST /api/log`
+    (single line or lines[]) and `POST /api/log/reset` endpoints; server-side
+    `stamp()` for ACTIVATE/FLASH/LIVE/SAVE ops so pedal talk is in the log too.
+  - Frontend: `logAction()` now also batches to the file via `/api/log`
+    (debounced 250ms, retry on error); `ngOnInit` calls `POST /api/log/reset`
+    (new web session) then logs `session start`; activity logged for TAB, BLOCK,
+    LOG open/close, MIRROR, OBSERVE-REFRESH, ACTIVATE, LOAD, SAVE, REVERT, ZERO.
+  - Workbench layout: replace fixed `KNOB_ROWS` pairing with a single flowing
+    column of blocks, each block one neuro-style group; blocks hidden via
+    `blockVisibility` (localStorage key `c4.blockVisibility.v1`, default all
+    shown); compact knob/select/toggle CSS.
+- Verify: `ng build` clean; `node --check server.js src/c4UiLog.js`. User checks
+  file at `back/c4/runtime-actions/c4-ui.log` after a session.
+
+## Progress - 2026-09-07 web: C4 workbench UI overhaul
+
+- Backend `src/c4UiLog.js` created: appends timestamped lines to
+  `back/c4/runtime-actions/c4-ui.log`, truncates on `reset()`, never throws on
+  write error. Wired into `server.js`: `c4UiLog.reset()` in `app.listen` boot;
+  `stamp()` calls in POST /api/activate (ACTIVATE), /api/control (FLASH with
+  byte name + readback), /api/control/live (LIVE with live-name), /api/presets/save
+  (SAVE with name + override count); `POST /api/log` accepts `{line}` or
+  `{lines:[]}`; `POST /api/log/reset` truncates and returns the file path.
+- Frontend `c4-api.service.ts`: added `log(lines)` and `logReset()`.
+- `c4.component.ts`: replaced `CONTROL_GROUPS` with a neuro-style list of 19
+  blocks, each `{id,title,indices}` (Input & level, Voice 1-4, Filter 1+Mix 1,
+  Filter 2+Mix 2, Envelope 1, Envelope 2, Distortion, FM, LFO, Sequencer 1,
+  Sequencer 2, Harmony, Pitch Detect, Knobs, Routing & Misc, External 1-3);
+  removed `KNOB_ROWS` pairing — `knobGroups` getter returns flat block list;
+  added `blockVisibility` + `loadBlockVisibility()`/`blockVisible()`/`toggleBlock()`
+  persisted to localStorage key `c4.blockVisibility.v1`; `logOpen` controls the
+  sidebar; all UI actions log through `logAction()`.
+- `c4.component.html`: workbench now `.wb-layout` (main + aside); top `block-bar`
+  of `.block-chip` toggles per block; block divs render only when visible;
+  header has `.icon-btn` (hamburger) to toggle the log sidebar; the old footer
+  action-log removed. Tabs use `setTab()` for logging.
+- `c4.component.scss`: compact layout — `.knob-group` margin 8px, knob width
+  62px, knob body 44px, selects/toggles shrunk; `.action-log` is a 340px sticky
+  right sidebar (stacks below on <900px); `.block-chip`/`.icon-btn` styles added.
+- Verify: `ng build` passes (2 pre-existing warnings only); `node --check` clean
+  for server.js + c4UiLog.js. Not committed (backend user-managed).
+
+## Progress - 2026-09-07 web: C4 workbench controls flow several-per-row
+
+- User: "make controls not full width each, allow them be few in row". The wide
+  selects (engine specs, `isEngineSpec` → `.knob-wide`) were `width: 100%` so each
+  took the entire block row.
+- Fix: `.knob-wide` is now `flex: 1 1 150px; min-width: 110px; max-width: 240px`
+  with `align-items: stretch`, so several fit per row and share the available
+  width; the underlying `.ctl-select` keeps `width: 100%` of its flex item.
+  Regular knobs already sat a few-per-row (62px).
+- Verify: `ng build` passes (only budget warnings — c4.component.scss now 16 bytes
+  over the 8.19 kB style budget; cosmetic).
+
+## Progress - 2026-09-07 web: C4 workbench 2-column layout on large monitors
+
+- User: "now i use big monitor and i see we can use 2 columned control rows".
+- Added `@media (min-width: 1600px)` rule in c4.component.scss: `.wb-main` becomes
+  a 2-column CSS grid (`repeat(2, minmax(0, 1fr))`, gap 10px, `align-items: start`),
+  the `.block-bar` spans both columns (`grid-column: 1 / -1`) and individual
+  `.knob-group` blocks flow side-by-side (their `margin-bottom` removed since the
+  grid gap handles spacing). Below 1600px the single-column stack is unchanged.
+- Verify: `ng build` passes (only lalady budget warning; c4 budget warning no
+  longer shown for this change).
+
+## Progress - 2026-09-07 web: C4 log sidebar fully hidden when off + colored chip
+
+- User: "i said about toggeling the logs. not collapse. hide it entirely. add
+  'tag-button' on the row with other controls toggling but with diff color".
+- Reworked: removed the header hamburger icon-btn and the collapse-style header
+  inside the sidebar; the aside is now `*ngIf="logOpen"` so it disappears
+  completely when off instead of collapsing. The log toggle is a new
+  `.block-chip.log-chip` ("log") sitting in the same `.block-bar` row as the
+  block toggles, but amber-colored (`#ffd27a` on, dark amber idle) to stand apart;
+  `.alert` state (red) when an error is pending and the log is closed. Sidebar
+  header replaced with a static `.al-head` (title + entry count).
+- Verify: `ng build` passes (c4 budget warning gone, only lalady remains).
+
+## Progress - 2026-09-07 web: C4 top bar in one row (free vertical space)
+
+- User: "make top items like name of tab (h1), active preset block and block
+  started with LOCATION - in one row. i want to free vertical space for controls".
+- Merged `app-header` (h1 + title-actions + header-sub) and `preset-bar`
+  (Location + Save/Revert/all 0/engage/mirror/dirty) into a single `.top-bar`
+  flex row with `.top-info` (active preset, fw, midi ch) between the h1 and the
+  actions. Buttons condensed (28px). Wraps on narrow screens.
+- Removed now-unused `.app-header`/`.preset-bar`/`.icon-btn`/`.title-actions` SCSS.
+- Verify: `ng build` passes (only lalady budget warning).
+
+## Progress - 2026-09-07 web: C4 block headings rotated on left edge of each block
+
+- User: "make headings of blocks (H3) written at the left side of each block
+  (45 deg). i want them to free vertical space. add diff background color for
+  this headings."
+- Restructured `.knob-group` into a flex row: a narrow `.group-head` rail on the
+  left holding the `<h3>` rotated 45deg (`transform: rotate(45deg)`, origin 0 0),
+  and the `.knobs` content column beside it. The h3 is a distinct `#2a2a3a`
+  label chip (light text, `#3f3f4d` border, slight shadow) and floats over the
+  block gap instead of spanning the full width — removes the full-width header
+  row → more vertical room. The rail uses `z-index: 1` so the diagonal chip
+  overlays the 8-10px block gaps rather than being clipped.
+- Bumped `anyComponentStyle` budget to 12kB warning / 24kB error in angular.json
+  (c4.component.scss grew past the old 8kB; lalady still over but was pre-existing).
+- Verify: `ng build` passes (only pre-existing lalady budget warning).
+
+## Progress - 2026-09-07 web: C4 block headings anchored to blocks + per-block colors
+
+- User: "make block headings closer to appropriate blocks. color them diff".
+- Reworked `.knob-group` heading: `.group-head` is now absolutely positioned in a
+  24px gutter at the block's top-left (inside the block, padding-left 24px on the
+  group) instead of floating in the gap; the `<h3>` uses `writing-mode: vertical-rl`
+  (text runs top-to-bottom, effectively the 90° rotation) with a 3px accent
+  border-left. Added a `head` accent color to every CONTROL_GROUPS entry
+  (distinct hues: input/blue, voice1/2/3/4 = green/amber/purple/pink,
+  filter1/2 teal/olive, distortion/red, lfo/purple, seq/amber, etc.) bound via
+  `[style.background]` + `[style.border-color]`.
+- Verify: `ng build` passes (only pre-existing lalady budget warning).
+- Follow-up: headings must (1) strip trailing text when it exceeds block height,
+  (2) have a background that always spans the full block height, (3) voices 1-4
+  share one color.
+- Fix: `.group-head` now spans `top:0; bottom:0` and the `<h3>` is `height:100%`,
+  `overflow:hidden` (vertical-rl text clipped at the bottom edge when the block is
+  short) with border-radius `3px 0 0 3px` so the full-height chip hugs the left
+  border; voices 1-4 all use `#2e9e55`. Verified: `ng build` passes (only
+  pre-existing lalady budget warning).

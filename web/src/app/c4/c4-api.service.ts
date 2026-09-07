@@ -70,4 +70,13 @@ export class C4ApiService {
   midimap(): Observable<MidiMap> {
     return this.http.get<MidiMap>(`${BASE}/api/midimap`);
   }
+
+  log(lines: string | string[]): Observable<{ ok: boolean; count?: number }> {
+    const payload = Array.isArray(lines) ? { lines } : { line: lines };
+    return this.http.post<{ ok: boolean; count?: number }>(`${BASE}/api/log`, payload);
+  }
+
+  logReset(): Observable<{ ok: boolean; file?: string }> {
+    return this.http.post<{ ok: boolean; file?: string }>(`${BASE}/api/log/reset`, {});
+  }
 }

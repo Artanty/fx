@@ -55,7 +55,6 @@ export class C4Component implements OnInit, OnDestroy {
 
   // Operator action log (same spirit as the L.A. Lady workbench).
   actionLog: string[] = [];
-  actionLogOpen = false;
 
   // Observe tab: read-only live view (active preset's flash body).
   monitor: LiveControls | null = null;
@@ -77,39 +76,42 @@ export class C4Component implements OnInit, OnDestroy {
   inspectBusy = false;
   inspectError: string | null = null;
 
-  // Workbench param grouping by body-byte range (C4 128-byte body layout).
+  // Workbench param grouping by body-byte range (C4 128-byte body layout),
+  // organized into the same blocks as the official Source Audio Neuro editor.
+  // `id` keys the per-block visibility toggle persisted in localStorage.
   // lfo_tempo (body 71..74, set-only 32-bit) has no live ctrl and is excluded.
-  private readonly CONTROL_GROUPS = [
-    { title: 'Input & level', indices: this.range(0, 10) },
-    { title: 'Voice 1', indices: this.range(10, 17) },
-    { title: 'Voice 2', indices: this.range(17, 24) },
-    { title: 'Voice 3', indices: this.range(24, 31) },
-    { title: 'Voice 4', indices: this.range(31, 38) },
-    { title: 'Filters & mix', indices: this.range(38, 48) },
-    { title: 'Envelopes', indices: this.range(48, 56) },
-    { title: 'Distortion', indices: this.range(56, 60) },
-    { title: 'FM', indices: this.range(60, 65) },
-    { title: 'LFO', indices: this.range(65, 71) },
-    { title: 'Sequencer 1', indices: this.range(75, 92) },
-    { title: 'Sequencer 2', indices: this.range(92, 109) },
-    { title: 'Harmony & pitch', indices: this.range(109, 114) },
-    { title: 'Knobs & external', indices: this.range(114, 126) },
-  ];
-  private readonly KNOB_ROWS = [
-    [0, 5],
-    [1, 6],
-    [2, 7],
-    [3, 8],
-    [4, 9],
-    [10],
-    [11],
-    [12, 13],
+  private readonly CONTROL_GROUPS: ReadonlyArray<{ id: string; title: string; indices: number[]; head: string }> = [
+    { id: 'input', title: 'Input & level', head: '#3d7ea6', indices: this.range(0, 10) },
+    { id: 'voice1', title: 'Voice 1', head: '#2e9e55', indices: this.range(10, 17) },
+    { id: 'voice2', title: 'Voice 2', head: '#2e9e55', indices: this.range(17, 24) },
+    { id: 'voice3', title: 'Voice 3', head: '#2e9e55', indices: this.range(24, 31) },
+    { id: 'voice4', title: 'Voice 4', head: '#2e9e55', indices: this.range(31, 38) },
+    { id: 'filter1', title: 'Filter 1 + Mix 1', head: '#2f8f8f', indices: this.range(38, 43) },
+    { id: 'filter2', title: 'Filter 2 + Mix 2', head: '#6d8f2f', indices: this.range(43, 48) },
+    { id: 'env1', title: 'Envelope 1', head: '#3d7ea6', indices: this.range(48, 52) },
+    { id: 'env2', title: 'Envelope 2', head: '#3d7ea6', indices: this.range(52, 56) },
+    { id: 'distortion', title: 'Distortion', head: '#a63d3d', indices: this.range(56, 60) },
+    { id: 'fm', title: 'FM', head: '#2f8f8f', indices: this.range(60, 65) },
+    { id: 'lfo', title: 'LFO', head: '#8a5fb5', indices: this.range(65, 71) },
+    { id: 'seq1', title: 'Sequencer 1', head: '#b5792f', indices: this.range(75, 92) },
+    { id: 'seq2', title: 'Sequencer 2', head: '#b5792f', indices: this.range(92, 109) },
+    { id: 'harmony', title: 'Harmony', head: '#2e9e55', indices: this.range(109, 112) },
+    { id: 'pitch', title: 'Pitch Detect', head: '#3d7ea6', indices: this.range(112, 114) },
+    { id: 'knobs', title: 'Knobs', head: '#6d8f2f', indices: this.range(114, 116) },
+    { id: 'routing', title: 'Routing & Misc', head: '#6d8f2f', indices: this.range(116, 117) },
+    { id: 'external', title: 'External 1–3', head: '#6d8f2f', indices: this.range(117, 126) },
   ];
   private readonly BODY_LEN = 128;
 
-  private _knobRowsCache: { title: string; controls: { spec: ControlSpec; p: SlotParam }[] }[][] | null = null;
+  // Per-block visibility (true = shown), default all visible. Persisted in
+  // localStorage so the user's chosen layout survives reloads.
+  private readonly VIS_KEY = 'c4.blockVisibility.v1';
+  private blockVisibility: Record<string, boolean> = {};
+  logOpen = false;
+
+  private _knobRowsCache: { id: string; title: string; head: string; controls: { spec: ControlSpec; p: SlotParam }[] }[] | null = null;
   private _knobRowsKey: readonly unknown[] | null = null;
-  private _observeGroupsCache: { title: string; controls: ControlSpec[] }[] | null = null;
+  private _observeGroupsCache: { id: string; title: string; controls: ControlSpec[] }[] | null = null;
   private _observeGroupsKey: unknown = null;
 
   constructor(public api: C4ApiService, public midi: C4MidiService) {}
@@ -118,12 +120,45 @@ export class C4Component implements OnInit, OnDestroy {
     return Array.from({ length: end - start }, (_, i) => start + i);
   }
 
-  get knobRows(): { title: string; controls: { spec: ControlSpec; p: SlotParam }[] }[][] {
+  private loadBlockVisibility(): void {
+    this.blockVisibility = {};
+    if (typeof window === 'undefined') return;
+    let saved: Record<string, boolean> = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(this.VIS_KEY) || '{}') || {};
+    } catch {
+      saved = {};
+    }
+    for (const g of this.CONTROL_GROUPS) {
+      this.blockVisibility[g.id] = saved[g.id] !== false;
+    }
+  }
+
+  blockVisible(id: string): boolean {
+    return this.blockVisibility[id] !== false;
+  }
+
+  toggleBlock(id: string): void {
+    const title = this.CONTROL_GROUPS.find((g) => g.id === id)?.title ?? id;
+    this.blockVisibility[id] = !this.blockVisible(id);
+    this.logAction(`BLOCK ${title} ${this.blockVisibility[id] ? 'show' : 'hide'}`);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(this.VIS_KEY, JSON.stringify(this.blockVisibility));
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+  }
+
+  get knobGroups(): { id: string; title: string; head: string; controls: { spec: ControlSpec; p: SlotParam }[] }[] {
     const key: readonly unknown[] = [this.slotParams, this.controlSpecsByIndex];
     if (this._knobRowsCache && this._knobRowsKey && this._knobRowsKey[0] === key[0] && this._knobRowsKey[1] === key[1])
       return this._knobRowsCache;
-    const groups = this.CONTROL_GROUPS.map((g) => ({
+    this._knobRowsCache = this.CONTROL_GROUPS.map((g) => ({
+      id: g.id,
       title: g.title,
+      head: g.head,
       controls: g.indices
         .flatMap((i) => {
           const p = this.paramFor(i);
@@ -133,15 +168,15 @@ export class C4Component implements OnInit, OnDestroy {
         .sort((a, b) => Number(this.isEngineSpec(b.spec)) - Number(this.isEngineSpec(a.spec)) || a.spec.shift - b.spec.shift),
     }));
     this._knobRowsKey = key;
-    this._knobRowsCache = this.KNOB_ROWS.map((rowIdx) => rowIdx.map((gi) => groups[gi]));
     return this._knobRowsCache;
   }
 
-  get observeGroups(): { title: string; controls: ControlSpec[] }[] {
+  get observeGroups(): { id: string; title: string; controls: ControlSpec[] }[] {
     const key = this.controlSpecsByIndex;
     if (this._observeGroupsCache && this._observeGroupsKey === key) return this._observeGroupsCache;
     this._observeGroupsKey = key;
     this._observeGroupsCache = this.CONTROL_GROUPS.map((g) => ({
+      id: g.id,
       title: g.title,
       controls: g.indices
         .flatMap((i) => this.controlSpecsByIndex.get(i) || [])
@@ -175,6 +210,15 @@ export class C4Component implements OnInit, OnDestroy {
       (window as unknown as { __c4Actions?: string[] }).__c4Actions = this.actionLog;
     }
     this.midiEngageSupported = this.midi.isSupported();
+    this.loadBlockVisibility();
+    // Fresh web session: reset the backend UI/operation log file (also reset on
+    // backend boot). All subsequent logAction() lines land in this file.
+    this.api.logReset().subscribe({
+      next: () => this.logAction('session start'),
+      error: () => {
+        this.logAction('session start (log reset failed)');
+      },
+    });
     this.refresh();
     this.refreshDevice();
     this.api.controlMap().subscribe({
@@ -194,6 +238,7 @@ export class C4Component implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.stopMonitor();
     this.stopMirror();
+    this.flushLogBatch();
   }
 
   refresh(): void {
@@ -263,6 +308,7 @@ export class C4Component implements OnInit, OnDestroy {
     if (this.selectedPresetIdx === idx && this.slotParams) return;
     this.slotBusy = true;
     this.slotError = null;
+    this.logAction(`ACTIVATE preset ${idx}`);
     this.api.activate(idx).subscribe({
       next: () => this.loadPresetParams(idx),
       error: (e) => {
@@ -270,6 +316,14 @@ export class C4Component implements OnInit, OnDestroy {
         this.slotError = 'Activate failed: ' + (e.message ?? e);
       },
     });
+  }
+
+  setTab(tab: 'workbench' | 'observe' | 'inspect'): void {
+    if (this.activeTab === tab) return;
+    this.activeTab = tab;
+    this.logAction(`TAB ${tab}`);
+    if (tab === 'observe') this.startMonitor();
+    if (tab === 'inspect') this.openInspect();
   }
 
   private loadPresetParams(idx: number): void {
@@ -346,6 +400,7 @@ export class C4Component implements OnInit, OnDestroy {
   toggleMirror(): void {
     if (this.mirrorOn) this.stopMirror();
     else this.startMirror();
+    this.logAction(`MIRROR ${this.mirrorOn ? 'on' : 'off'}`);
   }
 
   private startMirror(): void {
@@ -408,6 +463,7 @@ export class C4Component implements OnInit, OnDestroy {
   toggleMonitor(): void {
     if (this.monitorOn) this.stopMonitor();
     else this.startMonitor();
+    this.logAction(`OBSERVE-REFRESH ${this.monitorOn ? 'on' : 'off'}`);
   }
 
   startMonitor(): void {
@@ -426,13 +482,41 @@ export class C4Component implements OnInit, OnDestroy {
   }
 
   // --- Action log ------------------------------------------------------------
+  // All activity is kept in memory (right sidebar) AND mirrored to a file on the
+  // backend (runtime-actions/c4-ui.log) so bugs can be traced after the fact.
+  private logTimer: ReturnType<typeof setTimeout> | null = null;
+  private logBatch: string[] = [];
+
   private logAction(msg: string): void {
     this.actionLog.push(`${new Date().toISOString().slice(11, 19)} ${msg}`);
     if (this.actionLog.length > 500) this.actionLog.shift();
+    this.logBatch.push(msg);
+    if (!this.logTimer) {
+      this.logTimer = setTimeout(() => this.flushLogBatch(), 250);
+    }
+  }
+
+  private flushLogBatch(): void {
+    this.logTimer = null;
+    const batch = this.logBatch.splice(0);
+    if (!batch.length) return;
+    this.api.log(batch).subscribe({
+      error: () => {
+        if (batch.length) {
+          this.logBatch.unshift(...batch);
+          this.logTimer = setTimeout(() => this.flushLogBatch(), 1200);
+        }
+      },
+    });
   }
 
   clearActionLog(): void {
     this.actionLog = [];
+  }
+
+  toggleLog(): void {
+    this.logOpen = !this.logOpen;
+    this.logAction(`LOG ${this.logOpen ? 'open' : 'closed'}`);
   }
 
   lastActionLines(n: number): string[] {
@@ -521,12 +605,40 @@ export class C4Component implements OnInit, OnDestroy {
           this.logAction(`FLASH byte ${v.p.index} 0x${v.byte.toString(16).padStart(2, '0')} readback=0x${r.readback.toString(16).padStart(2, '0')}`);
         }
         this.flushDiscrete();
+        this.resendLiveOverrides();
       },
       error: (e) => {
         this.discreteInFlight = false;
         this.slotError = 'Commit failed: ' + (e.message ?? e);
       },
     });
+  }
+
+  // After a flash commit re-activates the preset the pedal reloads all live
+  // controls from flash, which overwrites any transient CTRL_SET values the
+  // user set via knobs but hasn't persisted yet.  Re-send every live control
+  // that the user edited this session so their changes survive the re-activation.
+  // Delayed 300ms to allow the firmware to finish loading the preset from flash
+  // before we re-send CTRL_SET values, which could otherwise be overwritten.
+  private resendLiveOverrides(): void {
+    setTimeout(() => {
+      const sent = new Set<number>();
+      for (const key of Object.keys(this.editedOverrides)) {
+        const bodyIdx = Number(key);
+        const byteVal = this.editedOverrides[bodyIdx];
+        const specs = this.controlSpecsByIndex.get(bodyIdx) || [];
+        for (const s of specs) {
+          if (s.liveIndex != null && !sent.has(s.liveIndex)) {
+            sent.add(s.liveIndex);
+            const fieldVal = (byteVal & s.mask) >>> s.shift;
+            this.api.controlLive({ index: s.liveIndex, value: fieldVal }).subscribe({
+              error: (e) => (this.slotError = 'Re-send failed: ' + (e.message ?? e)),
+            });
+          }
+        }
+      }
+      if (sent.size) this.logAction(`RE-SEND ${sent.size} live controls after flash commit`);
+    }, 300);
   }
 
   onSelectChange(spec: ControlSpec, p: SlotParam, event: Event): void {

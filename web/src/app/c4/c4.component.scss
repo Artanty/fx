@@ -16,26 +16,56 @@
   margin: 0 0 10px;
 }
 
-.app-header {
-  margin-bottom: 10px;
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 
   h1 {
-    margin: 0 0 4px;
-    font-size: 20px;
+    margin: 0;
+    font-size: 18px;
+    white-space: nowrap;
   }
 
-  .title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .header-sub {
+  .top-info {
     color: #8b8b98;
     font-size: 12px;
     display: flex;
     gap: 14px;
+    white-space: nowrap;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .loc-label {
+    font-size: 12px;
+    color: #8b8b98;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  .preset-select {
+    background: #1b1b22;
+    color: #c9c9d4;
+    border: 1px solid #35353f;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    max-width: 320px;
+  }
+
+  .action-btn {
+    height: 28px;
+    font-weight: 600;
+    padding: 0 12px;
   }
 
   .midi-btn {
@@ -64,41 +94,9 @@
       color: #d7f1ff;
     }
   }
-}
-
-.preset-bar {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-
-  label {
-    font-size: 12px;
-    color: #8b8b98;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-  }
-
-  .preset-select {
-    background: #1b1b22;
-    color: #c9c9d4;
-    border: 1px solid #35353f;
-    border-radius: 6px;
-    padding: 5px 8px;
-    font-size: 13px;
-    max-width: 320px;
-  }
-
-  .action-btn {
-    height: 30px;
-    font-weight: 600;
-    padding: 0 12px;
-  }
 
   .midi-engage-btn {
-    height: 30px;
+    height: 28px;
     font-weight: 700;
     padding: 0 12px;
     border-radius: 4px;
@@ -208,44 +206,123 @@ button {
   }
 }
 
-.knob-row {
+.wb-layout {
   display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
   align-items: stretch;
+}
 
-  &.empty {
-    display: none;
+.wb-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+// Block visibility chip bar (top row).
+.block-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.block-chip {
+  background: #23232c;
+  color: #8b8b98;
+  border: 1px solid #35353f;
+  border-radius: 10px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.5;
+
+  &:hover {
+    border-color: #4a4a58;
+    color: #e8e8ec;
+  }
+
+  &.on {
+    background: #14283f;
+    border-color: #2f5b8f;
+    color: #9ad0ff;
+  }
+
+  // Log toggle chip: distinct amber color so it stands apart from the block chips.
+  &.log-chip {
+    border-color: #5c4a2f;
+    background: #2b2417;
+    color: #cdb27a;
+
+    &:hover {
+      border-color: #8a6a33;
+      color: #ffe0a0;
+    }
+
+    &.on {
+      background: #3a2f1c;
+      border-color: #a07a35;
+      color: #ffd27a;
+    }
+
+    &.alert {
+      border-color: #5c2f33;
+      color: #ff8f93;
+      background: #2b1619;
+    }
   }
 }
 
 .knob-group {
-  flex: 1 1 0;
-  min-width: 0;
+  position: relative;
+  margin-bottom: 8px;
   border: 1px solid #2a2a34;
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 6px;
+  padding: 6px 8px 8px 24px;
+  background: #1b1b22;
 
-  &.flex2 {
-    flex: 2 2 0;
+  .group-head {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 24px;
+    z-index: 1;
+
+    h3 {
+      margin: 0;
+      height: 100%;
+      box-sizing: border-box;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+      border: 1px solid;
+      border-radius: 3px 0 0 3px;
+      padding: 4px 2px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      white-space: nowrap;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-start;
+    }
   }
 
-  h3 {
-    margin: 0 0 6px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #8b8b98;
-    border-bottom: 1px solid #26262e;
-    padding-bottom: 4px;
+  .knobs {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }
 
 .knobs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-start;
 }
 
@@ -253,16 +330,21 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 66px;
+  flex: 0 1 62px;
+  min-width: 56px;
   user-select: none;
   touch-action: none;
 
   &.knob-wide {
-    width: 100%;
+    flex: 1 1 150px;
+    min-width: 110px;
+    max-width: 240px;
+    align-items: stretch;
 
     .ctl-select {
       max-width: none;
       font-size: 11px;
+      width: 100%;
     }
   }
 
@@ -275,8 +357,8 @@ button {
 
 .kbody {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid #35353f;
   background: #1b1b22;
@@ -323,29 +405,29 @@ button {
   align-items: center;
   justify-content: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: 10px;
   color: #c9c9d4;
   pointer-events: none;
 }
 
 .kname {
-  margin-top: 4px;
-  font-size: 10px;
+  margin-top: 3px;
+  font-size: 9px;
   color: #8b8b98;
   text-align: center;
   line-height: 1.2;
-  min-height: 2.4em;
+  min-height: 2.2em;
 }
 
 .ctl-select {
   width: 100%;
-  max-width: 64px;
+  max-width: 60px;
   background: #1b1b22;
   color: #c9c9d4;
   border: 1px solid #35353f;
-  border-radius: 6px;
-  font-size: 11px;
-  padding: 3px 4px;
+  border-radius: 5px;
+  font-size: 10px;
+  padding: 2px 3px;
   cursor: pointer;
 
   &.modified {
@@ -364,9 +446,9 @@ button {
 
   .toswitch {
     display: block;
-    width: 40px;
-    height: 22px;
-    border-radius: 12px;
+    width: 34px;
+    height: 19px;
+    border-radius: 10px;
     border: 1px solid #35353f;
     background: #14141a;
     position: relative;
@@ -377,8 +459,8 @@ button {
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 16px;
-      height: 16px;
+      width: 13px;
+      height: 13px;
       border-radius: 50%;
       background: #c9c9d4;
       transition: transform 0.12s ease;
@@ -390,7 +472,7 @@ button {
     border-color: #2f7a9e;
 
     &::after {
-      transform: translateX(18px);
+      transform: translateX(15px);
       background: #d7f1ff;
     }
   }
@@ -514,36 +596,47 @@ button {
   }
 }
 
-// Action log.
+// Action log — right sidebar, toggled by the "log" chip on the block bar.
+// Entirely hidden (not just collapsed) when the chip is off.
 .action-log {
-  margin: 8px 0;
+  width: 340px;
+  flex: 0 0 auto;
   border: 1px solid #333;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
+  background: #17171d;
+  align-self: flex-start;
+  position: sticky;
+  top: 8px;
+  max-height: calc(100vh - 20px);
+  display: flex;
+  flex-direction: column;
 
-  .al-toggle {
-    width: 100%;
-    background: none;
-    border: none;
-    color: inherit;
-    text-align: left;
-    padding: 4px 8px;
-    cursor: pointer;
+  .al-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-bottom: 1px solid #26262e;
+    font-weight: 600;
 
     &.alert {
       color: #ff8f93;
-      font-weight: 600;
     }
 
     .muted {
-      float: right;
+      color: #8b8b98;
+      font-weight: 400;
+      font-size: 11px;
     }
   }
 
   .al-body {
-    padding: 0 8px 8px;
-    max-height: 260px;
+    padding: 4px 8px 8px;
     overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
 
     .al-clear {
       margin: 4px 0;
@@ -555,8 +648,40 @@ button {
       margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
-      line-height: 1.45;
+      line-height: 1.4;
       color: #9ad08a;
+      font-size: 11px;
     }
+  }
+}
+
+// Narrow screens: stack the log sidebar below the blocks.
+@media (max-width: 900px) {
+  .wb-layout {
+    flex-direction: column;
+  }
+
+  .action-log {
+    width: 100%;
+    position: static;
+    max-height: 300px;
+  }
+}
+
+// Large monitors: two-column control blocks side by side.
+@media (min-width: 1600px) {
+  .wb-main {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: start;
+
+    .block-bar {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .knob-group {
+    margin-bottom: 0;
   }
 }
