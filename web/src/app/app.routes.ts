@@ -17,5 +17,9 @@ export const routes: Routes = [
     path: 'dist',
     loadChildren: () => import('./dist/dist.routes').then((m) => m.distRoutes),
   },
+  {
+    path: 'c4',
+    loadChildren: () => import('./c4/c4.routes').then((m) => m.c4Routes),
+  },
   { path: '**', redirectTo: 'dist' },
 ];

@@ -1,0 +1,205 @@
+<div *ngIf="loading" class="app-loading">Connecting to C4 backend (http://localhost:3222)...</div>
+
+<div *ngIf="!loading && !deviceFound" class="app-offline">
+  <pre>{{ deviceError }}</pre>
+  <button class="action-btn" (click)="refresh()">Retry</button>
+</div>
+
+<div *ngIf="!loading && deviceFound" class="app-wide">
+  <header class="app-header">
+    <div class="title-row">
+      <h1>c4&nbsp;&middot;&nbsp;synth workbench</h1>
+      <button
+        class="midi-btn"
+        [class.on]="midiEngageSupported && !midiBypassed"
+        (click)="toggleMidiEngage()"
+        [disabled]="!midiEngageSupported"
+        [title]="midiEngageMsg || ('Web MIDI engage/bypass (CC 102 ch ' + (midi.channel) + ')' )"
+      >
+        MIDI engage
+      </button>
+    </div>
+    <div class="header-sub">
+      <span>Active preset on pedal: {{ monitor?.activeIndex ?? config?.activePreset ?? '?' }}</span>
+      <span *ngIf="config?.firmwareVersion">fw {{ config?.firmwareVersion }}</span>
+      <span *ngIf="config?.midiChannel != null">midi ch {{ config?.midiChannel! + 1 }}</span>
+    </div>
+  </header>
+
+  <!-- Location picker -->
+  <section class="preset-bar">
+    <label for="c4-location">Location</label>
+    <select id="c4-location" class="preset-select" [ngModel]="selectedPresetIdx" (ngModelChange)="selectPreset($event)">
+      <ng-container *ngFor="let p of presetOptions">
+        <option [ngValue]="p.idx">#{{ p.idx }} {{ p.name || '(unnamed)' }}</option>
+      </ng-container>
+    </select>
+    <button class="action-btn" [disabled]="slotBusy || selectedPresetIdx == null" (click)="savePreset()">Save</button>
+    <button class="action-btn" [disabled]="slotBusy || selectedPresetIdx == null || !slotsDirty" (click)="revertPreset()">Revert</button>
+    <button class="action-btn" [disabled]="slotBusy || selectedPresetIdx == null" (click)="allParamsZero()">all 0</button>
+    <button
+      class="midi-engage-btn"
+      [class.on]="!midiBypassed"
+      [disabled]="!midiEngageSupported"
+      (click)="toggleMidiEngage()"
+      [attr.title]="(midiEngageSupported
+        ? 'Toggle pedal engage/bypass via MIDI (CC 102, ch '
+          + ((config ? (config.midiChannel ?? 0) + 1 : 1))
+          + ')'
+        : 'Web MIDI not supported — use Chrome/Edge on http://localhost')"
+    >{{ midiBypassed ? 'Bypassed' : 'Engaged' }}</button>
+    <p class="err" *ngIf="midiEngageMsg" style="font-size:12px;">{{ midiEngageMsg }}</p>
+    <button
+      class="action-btn"
+      [class.on]="mirrorOn"
+      [disabled]="selectedPresetIdx == null"
+      title="Real-time: move the workbench knobs to whatever is audible on the pedal (as bytes change on the active preset)"
+      (click)="toggleMirror()"
+    >{{ mirrorOn ? 'Mirror on' : 'Mirror' }}</button>
+    <button class="action-btn dirty-tag" *ngIf="slotsDirty" disabled>dirty</button>
+  </section>
+
+  <div *ngIf="slotError" class="err">{{ slotError }}</div>
+  <div *ngIf="slotBusy" class="busy">…</div>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button (click)="activeTab = 'workbench'" [class.on]="activeTab === 'workbench'">Workbench</button>
+    <button (click)="activeTab = 'observe'; startMonitor()" [class.on]="activeTab === 'observe'">Observe</button>
+    <button (click)="activeTab = 'inspect'; openInspect()" [class.on]="activeTab === 'inspect'">Inspect</button>
+  </nav>
+
+  <!-- WORKBENCH -->
+  <div *ngIf="activeTab === 'workbench' && slotParams" class="szone">
+    <ng-container *ngFor="let row of knobRows; let ri = index">
+      <div class="knob-row" [class.empty]="!row.length">
+        <ng-container *ngFor="let group of row">
+          <div class="knob-group" [class.flex2]="group.controls.length >= 4 && group.controls.length <= 8">
+            <h3>{{ group.title }}</h3>
+            <div class="knobs">
+              <div
+                *ngFor="let it of group.controls"
+                class="knob"
+                [class.knob-wide]="isEngineSpec(it.spec)"
+                [class.modified]="fieldChanged(it.spec, it.p)"
+              >
+                <div *ngIf="it.spec.type !== 'toggle' && it.spec.type !== 'select'" class="kbody">
+                  <div
+                    class="knob-inner"
+                    (pointerdown)="knobDown($event, it.spec, it.p)"
+                    (pointermove)="knobMove($event, it.spec, it.p)"
+                    (pointerup)="knobUp($event, it.p)"
+                    (pointerleave)="knobUp($event, it.p)"
+                    (wheel)="knobWheel($event, it.spec, it.p)"
+                  >
+                    <svg class="dial" viewBox="0 0 40 40">
+                      <circle class="track" cx="20" cy="20" r="16"></circle>
+                      <circle
+                        class="arc"
+                        cx="20" cy="20" r="16"
+                        [attr.transform]="'rotate(' + arcRotate() + ' 20 20)'"
+                        stroke-dasharray="arcDash(it.spec, it.p)"
+                      ></circle>
+                      <line
+                        class="pointer"
+                        x1="20" y1="20"
+                        [attr.x2]="pointerX(it.spec, it.p)"
+                        [attr.y2]="pointerY(it.spec, it.p)"
+                      ></line>
+                    </svg>
+                  </div>
+
+                  <div class="kvalue">{{ fieldValue(it.spec, it.p) }}</div>
+                </div>
+
+                <select
+                  *ngIf="it.spec.type === 'select'"
+                  class="ctl-select"
+                  [ngModel]="fieldValue(it.spec, it.p)"
+                  (ngModelChange)="onSelectChange(it.spec, it.p, $any($event))"
+                >
+                  <ng-container *ngIf="!selectValueKnown(it.spec, it.p)">
+                    <option [ngValue]="fieldValue(it.spec, it.p)" disabled>{{ fieldValue(it.spec, it.p) }}</option>
+                  </ng-container>
+                  <ng-container *ngIf="it.spec.options; else numericOpts">
+                    <option *ngFor="let o of it.spec.options" [ngValue]="o.value">{{ o.text }}</option>
+                  </ng-container>
+                  <ng-template #numericOpts>
+                    <option *ngFor="let vi of optionRange(it.spec)" [ngValue]="vi">{{ vi }}</option>
+                  </ng-template>
+                </select>
+
+                <label *ngIf="it.spec.type === 'toggle'" class="ctl-toggle" [class.modified]="fieldChanged(it.spec, it.p)">
+                  <input
+                    type="checkbox"
+                    [checked]="fieldValue(it.spec, it.p) === 1"
+                    (change)="onToggleChange(it.spec, it.p, $event)"
+                  />
+                  <span class="toswitch"></span>
+                </label>
+
+                <div class="kname">{{ it.spec.name }}</div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- OBSERVE -->
+  <div *ngIf="activeTab === 'observe'" class="szone observe">
+    <div class="obs-toolbar">
+      <button class="action-btn" [class.on]="monitorOn" (click)="toggleMonitor()">
+        {{ monitorOn ? 'Stop' : 'Start' }} live refresh (8-bit, real-time from pedal)
+      </button>
+      <span class="obs-meta" *ngIf="monitorOn && monitor?.activeIndex != null">{{ observeActiveLabel() }}</span>
+    </div>
+    <ng-container *ngFor="let group of observeGroups">
+      <div class="obs-group">
+        <h3>{{ group.title }}</h3>
+        <div class="obs-grid">
+          <div class="obs-knob" *ngFor="let spec of group.controls">
+            <div class="obs-label">{{ spec.name }}</div>
+            <div class="obs-value">{{ observeLabel(spec) }}</div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- INSPECT -->
+  <div *ngIf="activeTab === 'inspect'" class="szone">
+    <button class="action-btn" [disabled]="inspectBusy" (click)="loadInspect()">Reload</button>
+    <div *ngIf="inspectError" class="err">{{ inspectError }}</div>
+    <div class="inspect-grid">
+      <div class="inspect-block">
+        <h3>System EEPROM</h3>
+        <pre *ngIf="inspectData" class="mono">{{ formatHex(inspectData.hex) }}</pre>
+        <div *ngIf="!inspectData && !inspectBusy && !inspectError" class="muted">not loaded</div>
+      </div>
+      <div class="inspect-block">
+        <h3>MIDI map</h3>
+        <div *ngIf="inspectMidi" class="midi-map-summary">
+          <div><span class="muted">bound:</span> <b>{{ inspectMidi.boundCount || 0 }}</b> of 128 CCs</div>
+          <ul class="midi-bind-list" *ngIf="inspectMidi.bound?.length">
+            <li *ngFor="let b of inspectMidi.bound">CC {{ b.cc }} &rarr; byte {{ b.ctrl }}{{ b.name ? ' (' + b.name + ')' : '' }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action log -->
+  <footer class="action-log">
+    <button class="al-toggle" (click)="actionLogOpen = !actionLogOpen" [class.alert]="slotError || deviceError">
+      <span>operation log</span>
+      <span class="muted">{{ slotError || deviceError || (actionLog.length + ' entries') }}</span>
+    </button>
+    <div class="al-body" *ngIf="actionLogOpen">
+      <button class="al-clear" (click)="clearActionLog()">clear</button>
+      <pre><span *ngFor="let line of lastActionLines(120)">{{ line }}
+</span></pre>
+    </div>
+  </footer>
+</div>

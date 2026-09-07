@@ -1,0 +1,21 @@
+{
+  "name": "c4-synth-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Source Audio C4 Synth workbench backend (HID protocol, 128 user presets)",
+  "main": "server.js",
+  "scripts": {
+    "start": "nodemon server.js --ext js",
+    "backup": "node src/backup.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-hid": "^2.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "allowScripts": {
+    "node-hid@2.2.0": true
+  }
+}
