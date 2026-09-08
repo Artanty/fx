@@ -2002,3 +2002,108 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   short) with border-radius `3px 0 0 3px` so the full-height chip hugs the left
   border; voices 1-4 all use `#2e9e55`. Verified: `ng build` passes (only
   pre-existing lalady budget warning).
+
+## Progress - 2026-09-07 web: C4 sequencer view as table of squares
+
+- User: "make sequencer view as 'table with squares where columns are each knob
+  like now".
+- Sequencer groups (seq1/seq2) now render as a `.seq-grid` table instead of the
+  generic dial row: one `.seq-cell` column per control. The steps control shows
+  as a select across the top of its cell; each value0..15 renders as a 40px
+  `.seq-square` filled with `rgba(80,190,255,a)` proportional to value/max, with
+  the raw value overlaid, and reusing the same knobDown/Move/Up + wheel handlers
+  for drag (ns-resize) / scroll editing. Labels come from `seqLabel()` ("step N").
+  Non-sequencer groups keep the dial layout unchanged.
+- Added `isSeqGroup()`, `seqLabel()`, `seqCellBg()` to c4.component.ts; added
+  `onSeqStepsChange()` because `ngModelChange` emits the value (the
+  reused `onSelectChange` reads `event.target.value`, which is wrong for
+  ngModelChange — fixed only for the new seq select for now).
+- Verified: `ng build` passes (only pre-existing lalady budget warning).
+
+## Progress - 2026-09-07 web: fix envelope source knob on voice blocks not working
+
+- User: "envelop source knob on 1 voice block (mb on others too) doesn't work
+  properly. i checked via real neuro-app".
+- Root cause: `(ngModelChange)` emits the new VALUE (e.g. `2`), but
+  `onSelectChange()` was casting it to an Event and reading
+  `event.target.value` -> `undefined` -> `Number(undefined)` = NaN -> early return.
+  So EVERY named-enum `<select>` in the workbench (voice mode/source/envelope,
+  distortion type, filter type, destinations, etc.) was a no-op - matching the
+  user's "doesn't work properly" observed against the real Neuro app.
+- Fix: `onSelectChange(spec, p, field: number)` now reads its numeric argument
+  directly (same pattern as the recent `onSeqStepsChange`). The seq grid select
+  already used the correct handler.
+- Verified: `ng build` passes (only pre-existing lalady budget warning).
+
+## Progress and Status 2026-09-08 web+c4Model: fix voiceX destination overridden by tremolo_source
+
+- User: "when i change 'tremolo_source' in voiceX - 'voiceX destination' also
+  changes, its a bug". Verified against real neuro-app that destination and
+  tremolo_source are independent on hardware.
+- Root cause: our CTRL_ROWS bit layout for the packed voice byte was transcribed
+  from the firmware control table (ctrl_c4.c `{label,setIdx,getIdx,width,
+  bitPosition}`) which is actually WRONG for this byte vs the packed preset
+  struct `as_preset_voice_t` in sa_c4.h. Real layout (LSB-first):
+    destination:2   -> bits 0-1  (matches ours)
+    tremolo_source:1 -> bit 2    (we had shift 1 -> collided with destination bit 1)
+    modulate:1       -> bit 3    (we had shift 2 -> collided too)
+    enable:4         -> bits 4-7 (matches)
+  So `voiceX_destination` (mask 0x03) overlapped `voiceX_tremolo_source`
+  (mask 0x02) on bit 1 -> changing tremolo_source also wrote destination's
+  low bit. The firmware util.c confirms width/bitPosition only applies to the
+  RAM control VALUE (as_getControlValue), while the flash/preset body comes
+  from the packed struct -- so the packed struct is authoritative for us.
+- Fix: c4Model.js CTRL_ROWS, all four voices (bytes 16/23/30/37):
+  tremolo_source shift 1 -> 2, modulate shift 2 -> 3; destination/enable
+  unchanged.
+- Verified: node overlap scan across all 173 CTRL_ROWS -> 0 overlaps
+  (previously exactly the four voiceX_destination<->tremolo_source pairs).
+  Backend not restarted (user runs it).
+
+## Plan - 2026-09-08 web: 2-col workbench fills top-to-bottom not left-to-right
+
+- User: "ui: make direction of populating 2 columns from top to bottom, not
+  from left to right".
+- Current: .wb-main uses default CSS Grid row auto-placement (item 1 col 1,
+  item 2 col 2, item 3 col 1 ...) -> reads left-to-right.
+- Plan: switch .wb-main to grid-auto-flow: column + grid-template-rows
+  repeat(var(--wg-rows), auto) where --wg-rows = ceil(visibleGroups/2),
+  computed by a new wgRows getter and bound as a style custom property on
+  .wb-main. block-bar keeps grid-column 1/-1; auto items then fill col 1
+  top-to-bottom, then col 2. .knob-group margin-bottom handled by grid gap.
+- Verify: ng build passes; visually columns fill downwards on wide screens.
+
+## Status 2026-09-08 web: 2-col workbench fills top-to-bottom
+
+- Changed .wb-main grid to column-major population:
+  - grid-auto-flow: column with grid-template-rows:
+    repeat(var(--wg-rows), auto) where --wg-rows is bound from a new
+    wgRows getter = 1 + ceil(visibleGroupCount / 2) (the extra row is
+    consumed by the full-width block-bar).
+  - Visible count comes from visibleGroupCount getter (iterates knobGroups,
+    respects blockVisible toggles).
+- Because CSS Grid default auto-flow is row-major, items previously filled
+  col1 top, col2 top, col1 next ... (left-to-right); with bounded rows +
+  column flow they now fill col1 all the way down, then col2.
+- Result: ng build passes (only pre-existing NG8102 nullish warning at
+  c4.component.html:36 and lalady budget warning).
+
+## Plan+Status 2026-09-08 web: compact knob/control labels
+
+- User: "make labels of knobs and other controls more compact and more
+  ui-able": envelope2_type -> type, envelope2_input -> input,
+  distortion_type -> dist type, voice1_semitone -> semi, etc.
+- Added ctlLabel(spec) to c4.component.ts: strips the block-family prefix
+  (voiceN/filterN/mixN/envelopeN/distortion/fm/lfo/harmony/pitch_detect/
+  extN) since the block frame already names the family, and abbreviates long
+  words (semitone->semi, frequency->freq, sensitivity->sens, envelope->env,
+  destination->dest, tremolo_source->trem src, modulate->mod, octave->oct,
+  tremolo->trem, output->out, balance->bal, enable->on, invert->inv,
+  pitch_track->pitch tr, source->src). Family keeps a short qualifier only
+  where needed for disambiguation (dist, e1/e2/e3); ext1_min -> e1 min etc.
+- Template: kname now renders ctlLabel(it.spec) with the full spec.name as a
+  title tooltip so the raw name is still one hover away. Sequencer steps keep
+  the existing seqLabel ('step N').
+- Verified label mapping against representative names incl. all user
+  examples; ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).

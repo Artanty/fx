@@ -326,6 +326,69 @@ button {
   justify-content: flex-start;
 }
 
+// Sequencer groups: table of squares, one column per control.
+.seq-grid {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.seq-cell {
+  flex: 0 1 44px;
+  min-width: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+  touch-action: none;
+
+  &.modified .seq-square {
+    box-shadow: 0 0 0 2px #e6b84c;
+  }
+
+  .seq-steps {
+    display: block;
+    margin-top: 4px;
+
+    .ctl-select {
+      width: 100%;
+      max-width: none;
+      font-size: 11px;
+      padding: 1px 2px;
+    }
+  }
+
+  .seq-square {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #3a3a46;
+    border-radius: 4px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .seq-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+  }
+
+  .seq-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #8b8b98;
+    white-space: nowrap;
+  }
+}
+
 .knob {
   display: flex;
   flex-direction: column;
@@ -668,11 +731,13 @@ button {
   }
 }
 
-// Large monitors: two-column control blocks side by side.
+// Large monitors: two-column control blocks, populated top-to-bottom.
 @media (min-width: 1600px) {
   .wb-main {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(var(--wg-rows, 1), auto);
+    grid-auto-flow: column;
     gap: 10px;
     align-items: start;
 

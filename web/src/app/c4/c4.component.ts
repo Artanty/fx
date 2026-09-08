@@ -138,6 +138,21 @@ export class C4Component implements OnInit, OnDestroy {
     return this.blockVisibility[id] !== false;
   }
 
+  get visibleGroupCount(): number {
+    let n = 0;
+    for (const g of this.knobGroups) {
+      if (this.blockVisible(g.id)) n++;
+    }
+    return n;
+  }
+
+  // Row count for the 2-column block grid: fill the first column top-to-bottom,
+  // then the second (column-major auto-placement needs a bounded row count).
+  // block-bar spans row 1 of both columns, so add one row for it on top.
+  get wgRows(): number {
+    return 1 + Math.ceil(this.visibleGroupCount / 2);
+  }
+
   toggleBlock(id: string): void {
     const title = this.CONTROL_GROUPS.find((g) => g.id === id)?.title ?? id;
     this.blockVisibility[id] = !this.blockVisible(id);
@@ -641,10 +656,16 @@ export class C4Component implements OnInit, OnDestroy {
     }, 300);
   }
 
-  onSelectChange(spec: ControlSpec, p: SlotParam, event: Event): void {
-    const field = Number((event.target as HTMLSelectElement).value);
-    if (!Number.isInteger(field) || this.fieldValue(spec, p) === field) return;
-    this.setField(spec, p, field);
+  onSelectChange(spec: ControlSpec, p: SlotParam, field: number): void {
+    const f = Number(field);
+    if (!Number.isInteger(f) || this.fieldValue(spec, p) === f) return;
+    this.setField(spec, p, f);
+  }
+
+  onSeqStepsChange(spec: ControlSpec, p: SlotParam, field: number): void {
+    const f = Number(field);
+    if (!Number.isInteger(f) || this.fieldValue(spec, p) === f) return;
+    this.setField(spec, p, f);
   }
 
   onToggleChange(spec: ControlSpec, p: SlotParam, event: Event): void {
@@ -669,6 +690,130 @@ export class C4Component implements OnInit, OnDestroy {
   // numeric range is legible.
   isEngineSpec(spec: ControlSpec): boolean {
     return spec.type === 'select' && spec.max >= 24;
+  }
+
+  isSeqGroup(id: string): boolean {
+    return id === 'seq1' || id === 'seq2';
+  }
+
+  seqLabel(spec: ControlSpec): string {
+    const m = spec.name.match(/value(\d+)$/);
+    return m ? 'step ' + (Number(m[1]) + 1) : spec.name.replace(/^sequencer\d_/, '');
+  }
+
+  // Compact knob/control labels. The block heading already conveys the family
+  // (e.g. "Envelope 2", "Voice 1", "FM"), so strip that prefix and show the
+  // differentiating word(s), with short abbreviations for long terms.
+  private static readonly LABEL_EXACT: Readonly<Record<string, string>> = {
+    // Input & level block
+    input1_gain: 'gain 1',
+    input2_gain: 'gain 2',
+    master_depth: 'depth',
+    output_balance: 'out bal',
+    lo_retain: 'lo ret',
+    // Voice blocks (suffix lookups, prefix stripped in ctlLabel)
+    tremolo_source: 'trem src',
+    pitch_track: 'pitch tr',
+    // LFO block
+    lfo_env_to_speed: 'env→speed',
+    lfo_env_to_depth: 'env→depth',
+    lfo_2_phase: '2φ',
+    lfo_2_multiply: '2x',
+    lfo_beat_division: 'beat /8',
+    lfo_restart: 'retrig',
+    // FM block
+    fm_sine1_input: 'sine1 in',
+    fm_sine2_input: 'sine2 in',
+    mono_pitch_filter1: 'mono f1',
+    mono_pitch_filter2: 'mono f2',
+    // Harmony block
+    harmony_tuning: 'tune',
+    harmony_interval1: 'iv1',
+    harmony_interval2: 'iv2',
+    // Pitch detect block
+    pitch_detect_low_note: 'low',
+    pitch_detect_high_note: 'high',
+    // Knob assigns block
+    knob1_assign: 'knob 1',
+    knob2_assign: 'knob 2',
+    // Routing & misc block
+    routing_option: 'routing',
+    filter2_correction: 'corr',
+    on_off_status: 'on/off',
+    ext_control_enable: 'ext ctrl',
+    lfo_midi_clock_sync: 'midi sync',
+    // External 1-3 block
+    ext1_destination: 'e1 dest',
+    ext1_source: 'e1 src',
+    ext2_destination: 'e2 dest',
+    ext2_source: 'e2 src',
+    ext3_destination: 'e3 dest',
+    ext3_source: 'e3 src',
+  };
+
+  private static readonly LABEL_WORDS: Readonly<Record<string, string>> = {
+    semitone: 'semi',
+    frequency: 'freq',
+    sensitivity: 'sens',
+    envelope: 'env',
+    destination: 'dest',
+    modulate: 'mod',
+    octave: 'oct',
+    tremolo: 'trem',
+    balance: 'bal',
+    output: 'out',
+    enable: 'on',
+    invert: 'inv',
+    source: 'src',
+    gate: 'gate',
+  };
+
+  // human-readable prefix kept for controls whose numeric id must stay to
+  // disambiguate them inside a shared block (ext1..3 -> e1..e3, distortion).
+  private static readonly FAMILY: Readonly<Record<string, string>> = {
+    distortion: 'dist',
+    ext1: 'e1',
+    ext2: 'e2',
+    ext3: 'e3',
+  };
+
+  ctlLabel(spec: ControlSpec): string {
+    const name = spec.name;
+    const exact = C4Component.LABEL_EXACT[name];
+    if (exact) return exact;
+
+    // Strip a numeric block-family prefix (voice1_, filter2_, mix1_,
+    // envelope2_) or a named one (distortion_, fm_, lfo_, harmony_,
+    // pitch_detect_, extN_) — the block frame already says this family.
+    let rest = name;
+    let keepHead = '';
+    const familyM = name.match(/^(?:voice|filter|mix|envelope)\d+_/);
+    if (familyM) {
+      rest = name.slice(familyM[0].length);
+    } else {
+      const fam = ['distortion_', 'pitch_detect_', 'harmony_', 'fm_', 'lfo_', 'ext1_', 'ext2_', 'ext3_'].find((f) => name.startsWith(f));
+      if (fam) {
+        keepHead = (C4Component.FAMILY[fam.slice(0, -1)] || '') + ' ';
+        rest = name.slice(fam.length);
+      }
+    }
+
+    const wordExact = C4Component.LABEL_EXACT[rest];
+    if (wordExact) return (keepHead + wordExact).trim();
+
+    // Abbreviate each remaining underscore-separated word.
+    const words = rest
+      .split('_')
+      .map((w) => C4Component.LABEL_WORDS[w] || w)
+      .filter(Boolean);
+    const label = words.join(' ');
+    return (keepHead + label).trim() || name;
+  }
+
+  seqCellBg(spec: ControlSpec, p: SlotParam): string {
+    const frac = this.toUIMax(spec) ? this.fieldValue(spec, p) / this.toUIMax(spec) : 0;
+    const a = 0.12 + 0.88 * frac;
+    return `rgba(80, 190, 255, ${a.toFixed(3)})`;
   }
 
   fieldChanged(spec: ControlSpec, p: SlotParam): boolean {

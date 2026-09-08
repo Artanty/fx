@@ -36,8 +36,8 @@ const CTRL_ROWS = [
   ['voice1_source', 17, 15, 4, 2],
   ['voice1_envelope', 18, 15, 2, 6],
   ['voice1_destination', 19, 16, 2, 0],
-  ['voice1_tremolo_source', 20, 16, 1, 1],
-  ['voice1_modulate', 21, 16, 1, 2],
+  ['voice1_tremolo_source', 20, 16, 1, 2],
+  ['voice1_modulate', 21, 16, 1, 3],
   ['voice1_enable', 22, 16, 4, 4],
   // Voice 2
   ['voice2_level', 23, 17, 8, 0],
@@ -50,8 +50,8 @@ const CTRL_ROWS = [
   ['voice2_source', 30, 22, 4, 2],
   ['voice2_envelope', 31, 22, 2, 6],
   ['voice2_destination', 32, 23, 2, 0],
-  ['voice2_tremolo_source', 33, 23, 1, 1],
-  ['voice2_modulate', 34, 23, 1, 2],
+  ['voice2_tremolo_source', 33, 23, 1, 2],
+  ['voice2_modulate', 34, 23, 1, 3],
   ['voice2_enable', 35, 23, 4, 4],
   // Voice 3
   ['voice3_level', 36, 24, 8, 0],
@@ -64,8 +64,8 @@ const CTRL_ROWS = [
   ['voice3_source', 43, 29, 4, 2],
   ['voice3_envelope', 44, 29, 2, 6],
   ['voice3_destination', 45, 30, 2, 0],
-  ['voice3_tremolo_source', 46, 30, 1, 1],
-  ['voice3_modulate', 47, 30, 1, 2],
+  ['voice3_tremolo_source', 46, 30, 1, 2],
+  ['voice3_modulate', 47, 30, 1, 3],
   ['voice3_enable', 48, 30, 4, 4],
   // Voice 4
   ['voice4_level', 49, 31, 8, 0],
@@ -78,8 +78,8 @@ const CTRL_ROWS = [
   ['voice4_source', 56, 36, 4, 2],
   ['voice4_envelope', 57, 36, 2, 6],
   ['voice4_destination', 58, 37, 2, 0],
-  ['voice4_tremolo_source', 59, 37, 1, 1],
-  ['voice4_modulate', 60, 37, 1, 2],
+  ['voice4_tremolo_source', 59, 37, 1, 2],
+  ['voice4_modulate', 60, 37, 1, 3],
   ['voice4_enable', 61, 37, 4, 4],
   // Distortion
   ['distortion_drive', 62, 56, 8, 0],

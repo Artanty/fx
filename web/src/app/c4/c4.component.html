@@ -70,7 +70,7 @@
 
   <!-- WORKBENCH -->
   <div *ngIf="activeTab === 'workbench' && slotParams" class="wb-layout">
-    <div class="szone wb-main">
+    <div class="szone wb-main" [style.--wg-rows]="wgRows">
       <!-- Block visibility toggle bar (top row) -->
       <div class="block-bar">
         <button
@@ -94,7 +94,42 @@
           <div class="group-head">
             <h3 [style.background]="group.head" [style.border-color]="group.head">{{ group.title }}</h3>
           </div>
-          <div class="knobs">
+
+          <!-- Sequencer groups render as a table of squares, one column per control -->
+          <div class="seq-grid" *ngIf="isSeqGroup(group.id)">
+            <div *ngFor="let it of group.controls" class="seq-cell" [class.modified]="fieldChanged(it.spec, it.p)">
+              <label *ngIf="it.spec.type === 'select'" class="seq-steps">
+                <select
+                  class="ctl-select"
+                  [ngModel]="fieldValue(it.spec, it.p)"
+                  (ngModelChange)="onSeqStepsChange(it.spec, it.p, $any($event))"
+                >
+                  <ng-container *ngIf="!selectValueKnown(it.spec, it.p)">
+                    <option [ngValue]="fieldValue(it.spec, it.p)" disabled>{{ fieldValue(it.spec, it.p) }}</option>
+                  </ng-container>
+                  <option *ngFor="let o of it.spec.options" [ngValue]="o.value">{{ o.text }}</option>
+                </select>
+              </label>
+
+              <div
+                *ngIf="it.spec.type !== 'select'"
+                class="seq-square"
+                [style.background]="seqCellBg(it.spec, it.p)"
+                [title]="it.spec.name + ': ' + fieldValue(it.spec, it.p)"
+                (pointerdown)="knobDown($event, it.spec, it.p)"
+                (pointermove)="knobMove($event, it.spec, it.p)"
+                (pointerup)="knobUp($event, it.p)"
+                (pointerleave)="knobUp($event, it.p)"
+                (wheel)="knobWheel($event, it.spec, it.p)"
+              >
+                <span class="seq-val">{{ fieldValue(it.spec, it.p) }}</span>
+              </div>
+
+              <div class="seq-label">{{ isSeqGroup(group.id) ? seqLabel(it.spec) : it.spec.name }}</div>
+            </div>
+          </div>
+
+          <div class="knobs" *ngIf="!isSeqGroup(group.id)">
             <div
               *ngFor="let it of group.controls"
               class="knob"
@@ -156,7 +191,7 @@
                 <span class="toswitch"></span>
               </label>
 
-              <div class="kname">{{ it.spec.name }}</div>
+              <div class="kname" [title]="it.spec.name">{{ ctlLabel(it.spec) }}</div>
             </div>
           </div>
         </div>
