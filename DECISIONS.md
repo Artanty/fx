@@ -2107,3 +2107,76 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - Verified label mapping against representative names incl. all user
   examples; ng build passes (only pre-existing NG8102 html:36 + lalady
   budget warnings).
+
+## Plan+Status 2026-09-08 web: sequencer step count fading, semitone display
+
+- User: in sequencer block, when steps is set, active steps should be visible
+  and the rest faded/disabled; raw step numbers (36, 255) are confusing ->
+  show signed semitone shifts; presaved Neuro patterns optional (skip if
+  complex).
+- Encoding confirmed from real C4 .pre export (MichaelMCE/TeensyC4Synth pre/
+  C minor Harmony and Sequencer.pre): sequencer value bytes 12/24/36/48 map
+  to semitones as raw-24 (root @24), range -24..+24 per manual (up/down two
+  octaves). steps raw = count-2 (14 -> "16 steps"), matching the existing
+  SEQUENCER_STEPS option list and the firmware applyPresetSeqStepsFixup.
+- Added to c4.component.ts: seqStepCount(group) (= steps value + 2, capped
+  16), seqStepActive(it, group) (value index < count), seqSemiText(spec,p)
+  (raw-24 formatted +12/-12/0, 255 shown as em dash). seqCellBg now fills by
+  sharpness raw/48 (semitone range) instead of raw/255.
+- c4.component.html: seq-square gets .inactive class + pointer/wheel guarded
+  by seqStepActive; value label + tooltip show signed semitone with raw in
+  parens. c4.component.scss: .inactive = opacity .25, not-allowed, pointer-
+  events none.
+- Presaved Neuro patterns NOT implemented (user said skip if complex).
+- Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).
+
+## Status 2026-09-08 web: sequencer semitone edit step = 1
+
+- User: "make selects on each semitone shift in sequenser or make change
+  step=1 (not 8 like now)".
+- Chose the simpler option: step=1 instead of rendering a select per square.
+- knobWheel now uses step 1 for sequencer step squares (was 8); knobMove drag
+  scale 1 semitone/pixel (was 4). Implemented via isSeqStep() =
+  /^sequencer\d_value\d*$/; normal knobs unchanged (wheel 8, drag 4).
+- Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).
+
+## Status 2026-09-08 web: sequencer step range capped +-24 semiton:
+
+- User asked to limit the sequencer 'knobs' (step squares) to +-24.
+- toUIMax() now returns 48 (raw 0..48 = -24..+24 semitones) for seq step
+  specs via isSeqStep(), instead of the full byte max 255. knobMove/knobWheel
+  clamp through toUIMax before setField, so edits stay in range. Display and
+  fill already used raw/48. setField itself still clamps to spec.max 255 but
+  is only reached with UI-clamped values.
+- Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).
+
+## Status 2026-09-08 web: filter/mix enable toggles labelled
+
+- User: in 'filter X + mix' block both enable toggles looked identical.
+- LABEL_EXACT now maps filter1/2_enable -> 'filter on' and mix1/2_enable ->
+  'out on' (previously both stripped to 'enable' -> LABEL_WORDS 'on').
+- Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).
+
+## Status 2026-09-08 web: mix 'dest'/'out on' to right in filter blocks
+
+- User: in 'Filter X + Mix' block, move 'dest' (mixN_destination) and 'out on'
+  (mixN_enable) to the right.
+- Added isMixSpec() (/^mix\d+_/) and a third sort key in knobGroups: engine
+  selects first, then mix controls last-right, then by shift. Only filter1/2
+  groups contain mix controls, so other blocks are unaffected.
+- Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).
+
+## Status 2026-09-08 web: voice mode select disabled for input sources
+
+- Follow-up to the incomplete request: voice mode select (harmony/sequencer
+  modes) now disables when the voice source is an unpitched input - index 0
+  Stereo Input Mix, 11/12 Mono Input 1/2 - matching the Neuro app.
+- Template select gets [disabled] + .disabled class (faded, not-allowed),
+  via voiceModeDisabled() which finds the sibling voiceN_source in the group.
+- Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
+  budget warnings).

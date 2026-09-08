@@ -180,7 +180,12 @@ export class C4Component implements OnInit, OnDestroy {
           if (!p) return [];
           return this.controlSpecsByIndex.get(i)?.map((spec) => ({ spec, p })) || [];
         })
-        .sort((a, b) => Number(this.isEngineSpec(b.spec)) - Number(this.isEngineSpec(a.spec)) || a.spec.shift - b.spec.shift),
+        .sort((a, b) =>
+          Number(this.isEngineSpec(b.spec)) - Number(this.isEngineSpec(a.spec)) ||
+          // Filter + Mix blocks: keep the mix 'dest'/'out on' pair last (right).
+          Number(this.isMixSpec(a.spec)) - Number(this.isMixSpec(b.spec)) ||
+          a.spec.shift - b.spec.shift
+        ),
     }));
     this._knobRowsKey = key;
     return this._knobRowsCache;
@@ -549,7 +554,9 @@ export class C4Component implements OnInit, OnDestroy {
   }
 
   private toUIMax(spec: ControlSpec): number {
-    return spec.max;
+    // Sequencer steps hold signed semitone offsets: raw 0..48 = -24..+24
+    // (two octaves each way). Cap editing there instead of the full byte.
+    return this.isSeqStep(spec) ? 48 : spec.max;
   }
 
   // Record a changed field and route the write: fields with a 1:1 live control
@@ -692,6 +699,12 @@ export class C4Component implements OnInit, OnDestroy {
     return spec.type === 'select' && spec.max >= 24;
   }
 
+  // Mix output controls (mixN_destination / mixN_enable) in the Filter X +
+  // Mix X blocks render last, to the right of the filter controls.
+  isMixSpec(spec: ControlSpec): boolean {
+    return /^mix\d+_/.test(spec.name);
+  }
+
   isSeqGroup(id: string): boolean {
     return id === 'seq1' || id === 'seq2';
   }
@@ -714,6 +727,11 @@ export class C4Component implements OnInit, OnDestroy {
     // Voice blocks (suffix lookups, prefix stripped in ctlLabel)
     tremolo_source: 'trem src',
     pitch_track: 'pitch tr',
+    // Filter + mix block toggles: distinguish the two 'on' switches
+    filter1_enable: 'filter on',
+    filter2_enable: 'filter on',
+    mix1_enable: 'out on',
+    mix2_enable: 'out on',
     // LFO block
     lfo_env_to_speed: 'env→speed',
     lfo_env_to_depth: 'env→depth',
@@ -811,9 +829,47 @@ export class C4Component implements OnInit, OnDestroy {
   }
 
   seqCellBg(spec: ControlSpec, p: SlotParam): string {
-    const frac = this.toUIMax(spec) ? this.fieldValue(spec, p) / this.toUIMax(spec) : 0;
+    // Sequencer steps are semitone offsets from root: raw 0..48 maps to
+    // -24..+24 (manual: up/down two octaves). Height = sharpness relative
+    // to that range, so a step a twelfth above shows taller than root.
+    const raw = this.fieldValue(spec, p);
+    const frac = Math.max(0, Math.min(1, raw / 48));
     const a = 0.12 + 0.88 * frac;
     return `rgba(80, 190, 255, ${a.toFixed(3)})`;
+  }
+
+  // Steps raw value is one behind the count (2..16 stored as 0..14).
+  // Returns the number of active steps for this sequencer group.
+  seqStepCount(group: { controls: { spec: ControlSpec; p: SlotParam }[] }): number {
+    const st = group.controls.find((c) => /_steps$/.test(c.spec.name));
+    return st ? Math.min(16, this.fieldValue(st.spec, st.p) + 2) : 16;
+  }
+
+  // A step square is active if its index < active step count.
+  seqStepActive(it: { spec: ControlSpec; p: SlotParam }, group: { controls: { spec: ControlSpec; p: SlotParam }[] }): boolean {
+    const m = it.spec.name.match(/value(\d+)$/);
+    if (!m) return true;
+    return Number(m[1]) < this.seqStepCount(group);
+  }
+
+  // Display a sequencer step as a signed semitone offset (raw - 24).
+  seqSemiText(spec: ControlSpec, p: SlotParam): string {
+    const raw = this.fieldValue(spec, p);
+    const s = raw - 24;
+    if (s < -24 || s > 24) return raw === 255 ? '—' : String(raw);
+    return s > 0 ? '+' + s : String(s);
+  }
+
+  // Mode (harmony/sequencer) is meaningless for unpitched input sources, so
+  // the Neuro app disables it. source field indices for VOICE_SOURCES:
+  // 0 Stereo Input Mix, 11 Mono Input 1, 12 Mono Input 2.
+  private static readonly SIMPLE_SOURCES = new Set([0, 11, 12]);
+
+  voiceModeDisabled(group: { controls: { spec: ControlSpec; p: SlotParam }[] }, spec: ControlSpec): boolean {
+    const m = spec.name.match(/^(voice\d+)_mode$/);
+    if (!m) return false;
+    const src = group.controls.find((c) => c.spec.name === m[1] + '_source');
+    return !!src && C4Component.SIMPLE_SOURCES.has(this.fieldValue(src.spec, src.p));
   }
 
   fieldChanged(spec: ControlSpec, p: SlotParam): boolean {
@@ -869,7 +925,8 @@ export class C4Component implements OnInit, OnDestroy {
     if (!this.activeKnob || this.activeKnob.p !== p) return;
     const dy = this.activeKnob.lastY - e.clientY;
     this.activeKnob.lastY = e.clientY;
-    const v = Math.max(0, Math.min(this.toUIMax(spec), Math.round(this.fieldValue(spec, p) + dy * 4)));
+    const scale = this.isSeqStep(spec) ? 1 : 4;
+    const v = Math.max(0, Math.min(this.toUIMax(spec), Math.round(this.fieldValue(spec, p) + dy * scale)));
     this.setField(spec, p, v);
     e.preventDefault();
   }
@@ -882,8 +939,15 @@ export class C4Component implements OnInit, OnDestroy {
 
   knobWheel(e: WheelEvent, spec: ControlSpec, p: SlotParam): void {
     e.preventDefault();
-    const v = Math.max(0, Math.min(this.toUIMax(spec), Math.round(this.fieldValue(spec, p) + (e.deltaY < 0 ? 8 : -8))));
+    const step = this.isSeqStep(spec) ? 1 : 8;
+    const v = Math.max(0, Math.min(this.toUIMax(spec), Math.round(this.fieldValue(spec, p) + (e.deltaY < 0 ? step : -step))));
     this.setField(spec, p, v);
+  }
+
+  // Sequencer step squares edit in whole semitones (one notch = 1 semi),
+  // unlike the coarse 8-unit wheel/4-unit drag of normal knobs.
+  private isSeqStep(spec: ControlSpec): boolean {
+    return /^sequencer\d_value\d*$/.test(spec.name);
   }
 
   // --- MIDI engage/bypass -----------------------------------------------------

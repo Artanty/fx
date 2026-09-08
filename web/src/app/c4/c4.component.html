@@ -114,15 +114,16 @@
               <div
                 *ngIf="it.spec.type !== 'select'"
                 class="seq-square"
+                [class.inactive]="!seqStepActive(it, group)"
                 [style.background]="seqCellBg(it.spec, it.p)"
-                [title]="it.spec.name + ': ' + fieldValue(it.spec, it.p)"
-                (pointerdown)="knobDown($event, it.spec, it.p)"
-                (pointermove)="knobMove($event, it.spec, it.p)"
-                (pointerup)="knobUp($event, it.p)"
-                (pointerleave)="knobUp($event, it.p)"
-                (wheel)="knobWheel($event, it.spec, it.p)"
+                [title]="it.spec.name + ': ' + seqSemiText(it.spec, it.p) + ' (raw ' + fieldValue(it.spec, it.p) + ')'"
+                (pointerdown)="seqStepActive(it, group) && knobDown($event, it.spec, it.p)"
+                (pointermove)="seqStepActive(it, group) && knobMove($event, it.spec, it.p)"
+                (pointerup)="seqStepActive(it, group) && knobUp($event, it.p)"
+                (pointerleave)="seqStepActive(it, group) && knobUp($event, it.p)"
+                (wheel)="seqStepActive(it, group) && knobWheel($event, it.spec, it.p)"
               >
-                <span class="seq-val">{{ fieldValue(it.spec, it.p) }}</span>
+                <span class="seq-val">{{ seqSemiText(it.spec, it.p) }}</span>
               </div>
 
               <div class="seq-label">{{ isSeqGroup(group.id) ? seqLabel(it.spec) : it.spec.name }}</div>
@@ -168,6 +169,8 @@
               <select
                 *ngIf="it.spec.type === 'select'"
                 class="ctl-select"
+                [class.disabled]="voiceModeDisabled(group, it.spec)"
+                [disabled]="voiceModeDisabled(group, it.spec)"
                 [ngModel]="fieldValue(it.spec, it.p)"
                 (ngModelChange)="onSelectChange(it.spec, it.p, $any($event))"
               >

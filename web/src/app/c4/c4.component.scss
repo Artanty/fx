@@ -372,6 +372,12 @@ button {
     align-items: center;
     justify-content: center;
 
+    &.inactive {
+      opacity: 0.25;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
     .seq-val {
       font-size: 12px;
       font-weight: 700;
@@ -496,6 +502,11 @@ button {
   &.modified {
     border-color: #ffd27a;
     color: #ffd27a;
+  }
+
+  &.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 }
 
