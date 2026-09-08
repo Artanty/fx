@@ -343,6 +343,13 @@ const LFO_SHAPES = [
   'Triangle Fall Skew'
 ];
 const LFO_BEAT_DIVISIONS = ['Whole', 'Half', 'Quarter', 'Eighth', 'Triplet', 'Sixteenth'];
+// fm_sine1_input/fm_sine2_input are 1-bit fields (byte 62 bit 0 / bit 1) -
+// the table declares sine2 as 7 bits but only bit1 is real (packed struct
+// as_preset_t.fm_sine2_input:1 + fm_sine_padding:6). Two choices only.
+const FM_SINE_INPUTS = [
+  'LFO 1',
+  'LFO 2'
+];
 const LFO_2_MULTIPLY = [
   'LFO 2 = LFO 1',
   'LFO 2 = 2x LFO 1',
@@ -534,6 +541,8 @@ ENUM_NAMES.envelope2_input = ENVELOPE_INPUTS;
 ENUM_NAMES.lfo_shape = LFO_SHAPES;
 ENUM_NAMES.lfo_beat_division = LFO_BEAT_DIVISIONS;
 ENUM_NAMES.lfo_2_multiply = LFO_2_MULTIPLY;
+ENUM_NAMES.fm_sine1_input = FM_SINE_INPUTS;
+ENUM_NAMES.fm_sine2_input = FM_SINE_INPUTS;
 ENUM_NAMES.harmony_key = HARMONY_KEYS;
 ENUM_NAMES.harmony_interval1 = HARMONY_INTERVALS;
 ENUM_NAMES.harmony_interval2 = HARMONY_INTERVALS;

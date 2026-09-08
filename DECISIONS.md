@@ -2180,3 +2180,13 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   via voiceModeDisabled() which finds the sibling voiceN_source in the group.
 - Verified: ng build passes (only pre-existing NG8102 html:36 + lalady
   budget warnings).
+
+## Status 2026-09-08 web+c4model: FM sine input selects read human-readable
+
+- User: 'sine2 in' select in FM block showed raw numbers.
+- fm_sine1_input/fm_sine2_input are 1-bit fields (byte 62 bit0 / bit1; the
+  table declares sine2 width 7 but packed struct has fm_sine2_input:1 +
+  padding:6), so exactly 2 choices. Added FM_SINE_INPUTS = ['LFO 1','LFO 2']
+  (user-confirmed labels) and ENUM_NAMES entries for both controls.
+- Verified: model loads, both specs carry the LFO 1/LFO 2 options; ng build
+  passes (only pre-existing NG8102 html:36 + lalady budget warnings).
