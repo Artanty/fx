@@ -2190,3 +2190,64 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   (user-confirmed labels) and ENUM_NAMES entries for both controls.
 - Verified: model loads, both specs carry the LFO 1/LFO 2 options; ng build
   passes (only pre-existing NG8102 html:36 + lalady budget warnings).
+
+## Plan - 2026-09-09 web+c4model: LFO numeric tempo input (BPM)
+
+- User wants to type a number for LFO tempo (like the Neuro app Tap Tempo
+  control) instead of only the lfo_speed knob.
+- lfo_tempo is a set-only 32-bit LE field at body bytes 71..74; official spec
+  sa-249.json: type tapTempo, min 0, max 127795200 (microseconds/beat),
+  BPM = 60,000,000 / us (verified against backup values: 500628 -> 120 BPM).
+- Plan: add a 'tempo' ControlSpec type (byteWidth 4, index 71) in c4Model.js,
+  extend the LFO group to include byte 71, render a numeric input (BPM),
+  read/write 4 LE bytes, commit all four via /api/presets/save overrides
+  (atomic, unlike the single-byte /api/control path).
+- Verify: model exports the spec with max 127795200; ng build passes.
+
+## Status 2026-09-09 web+c4model: LFO numeric tempo input (BPM)
+
+- Added lfo_tempo as a 32-bit LE 'tempo' spec (body 71..74, max 127795200 µs,
+  liveIndex null) in c4Model.js; LFO group extended to byte 71.
+- Frontend renders a numeric BPM input (BPM = 60,000,000 / µs, clamped to the
+  official spec max). Read assembles 4 LE bytes from slotParams; write splits
+  BPM -> µs into 4 bytes and commits all four atomically via /api/presets/save
+  overrides {71,72,73,74} (single-byte /api/control would leave the field
+  half-written). Tempo excluded from observe/mirror (set-only).
+- Verified: model exports the spec (count 174, index 71 :: lfo_tempo :: tempo);
+  ng build passes (only pre-existing NG8102 html:36 + lalady budget warnings).
+
+## Plan - 2026-09-09 web: replace editable LFO tempo with read-only multi-formula readout
+
+- The lfo_tempo BPM input write path did not work (user report).
+- New approach: drop the writable input entirely. Show several READ-ONLY BPM
+  candidates computed from the lfo_speed knob value (body byte 65, 0..254) via
+  different formulas, so the correct mapping can be found by comparing against
+  the pedal. No write is attempted.
+- Revert: lfo_tempo 'tempo' spec in c4Model.js, byteWidth/'tempo' in
+  c4.models.ts, observe/mirror tempo filters, tempo write helpers in
+  c4.component.ts (tempoBpm/onTempoBpmChange/setTempoByte/flushTempo*), the
+  .ctl-tempo input/label, LABEL_EXACT lfo_tempo entry.
+- Add: tempoFormulas getter (candidate BPM from speed knob) + read-only panel
+  in the LFO block; verify ng build passes.
+
+## Status - 2026-09-09 web: editable LFO tempo replaced with read-only candidates
+
+- Reverted the lfo_tempo 'tempo' spec (c4Model.js), byteWidth/'tempo' type
+  (c4.models.ts), observe/mirror tempo filters, LABEL_EXACT entry, and all
+  tempo write helpers (tempoBpm/onTempoBpmChange/setTempoByte/flushTempo*).
+- Added read-only BPM candidates derived from lfo_speed (byte 65, live 101):
+  linear 0..254/0..300, 1%=1Hz/0.5Hz, µs=max·speed/254, µs=max·(1-speed/254).
+  Panel renders under the LFO knobs; no writes are attempted.
+- ng build passes (only pre-existing NG8102 and lalady budget warnings).
+- Next: compare candidates against the pedal to identify the true mapping,
+  then hard-code that formula (and optionally restore a read-only BPM readout
+  of the 32-bit lfo_tempo field at body 71..74).
+
+## Status - 2026-09-09 web: read-only tempo candidates removed
+
+- None of the read-only BPM candidates matched the pedal, so the whole
+  candidates panel was removed (html/scss/ts) and c4Model.js reverted to its
+  committed state. The LFO block now only shows the standard knobs.
+- ng build passes (pre-existing NG8102 and lalady budget warnings only).
+- Back to baseline for lfo_tempo (body 71..74, set-only 32-bit): deliberately
+  not modeled/edited until the real speed->BPM mapping is understood.
