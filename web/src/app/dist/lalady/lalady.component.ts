@@ -292,6 +292,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
     }
     this.refresh();
     this.refreshDeviceInfo();
+    this.refreshRand();
     this.autoSelectActive();
     this.midiEngageSupported = this.midi.isSupported();
     this.api.logReset().subscribe();
@@ -1135,6 +1136,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   randScenes: number[][] = [];
   randSceneIdx = -1;
   private randTimer: ReturnType<typeof setInterval> | null = null;
+  randCountdown = 0;
 
   // Group editor state.
   randEditingId: string | null = null;
@@ -1236,20 +1238,23 @@ export class LaladyComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Which control-map specs this scene touches. Excluded groups lock their
-  // controls (never randomized, even with randAll). Include groups contribute a
-  // definite number of random props per group (or all their members).
+  // Which control-map specs this scene touches. Disabled groups are ignored.
+  // Excluded groups lock their controls (never randomized, even with randAll).
+  // Include groups contribute a definite number of random props per group (or
+  // all their members).
   private randomTargets(): ControlSpec[] {
     const specByKey = new Map<string, ControlSpec>();
     for (const spec of this.controlMap) specByKey.set(this.specKey(spec), spec);
     const excluded = new Set<string>();
     for (const g of this.randSortedGroups) {
+      if (g.enabled === false) continue;
       if (g.mode === 'exclude') for (const k of g.specKeys) excluded.add(k);
     }
     const avail = (spec: ControlSpec): boolean => !excluded.has(this.specKey(spec));
     if (this.randAll) return this.controlMap.filter(avail);
     const targets = new Map<string, ControlSpec>();
     for (const g of this.randSortedGroups) {
+      if (g.enabled === false) continue;
       if (g.mode !== 'include') continue;
       const members = g.specKeys.map((k) => specByKey.get(k)).filter((s): s is ControlSpec => !!s && avail(s));
       if (!members.length) continue;
@@ -1331,13 +1336,20 @@ export class LaladyComponent implements OnInit, OnDestroy {
     if (this.randPlaying) {
       this.stopRandTimer();
       this.randPlaying = false;
+      this.randCountdown = 0;
       return;
     }
     this.randPlaying = true;
     this.generateScene();
+    this.randCountdown = this.randIntervalSec;
     this.randTimer = setInterval(() => {
-      if (this.randPlaying) this.generateScene();
-    }, this.randIntervalSec * 1000);
+      if (!this.randPlaying) return;
+      this.randCountdown--;
+      if (this.randCountdown <= 0) {
+        this.randCountdown = this.randIntervalSec;
+        this.generateScene();
+      }
+    }, 1000);
   }
 
   private stopRandTimer(): void {
@@ -1440,7 +1452,9 @@ export class LaladyComponent implements OnInit, OnDestroy {
   }
 
   specOfExclude(spec: ControlSpec): boolean {
-    return this.randGroups.some((g) => g.mode === 'exclude' && g.specKeys.includes(this.specKey(spec)));
+    return this.randGroups.some(
+      (g) => g.enabled !== false && g.mode === 'exclude' && g.specKeys.includes(this.specKey(spec))
+    );
   }
 
   groupsOf(spec: ControlSpec): RandomizeGroup[] {
@@ -1493,6 +1507,21 @@ export class LaladyComponent implements OnInit, OnDestroy {
       error: (e) => {
         this.randBusy = false;
         this.randError = 'Group create failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  toggleGroupEnabled(g: RandomizeGroup, on: boolean): void {
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizeGroupUpdate(g.id, { enabled: on }).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group on/off update failed: ' + ((e as { message?: string }).message ?? e);
       },
     });
   }
@@ -1575,10 +1604,12 @@ export class LaladyComponent implements OnInit, OnDestroy {
   savePresetToSlot(p: RandomizePreset, slotIdx: number): void {
     this.randBusy = true;
     this.randError = null;
-    this.api.randomizePresetUpdate(p.id, { saveToSlot: slotIdx }).subscribe({
+    this.api.randomizePresetUpdate(p.id, { saveToSlot: slotIdx, name: p.name }).subscribe({
       next: () => {
         this.randBusy = false;
         this.refreshRand();
+        this.loadSlots();
+        this.loadSlotParams(slotIdx);
       },
       error: (e) => {
         this.randBusy = false;

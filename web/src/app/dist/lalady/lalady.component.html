@@ -352,6 +352,12 @@
           (click)="togglePlay()"
           [attr.title]="randPlaying ? 'Pause the auto-randomizer' : 'Auto-randomize every ' + randIntervalSec + 's'"
         >{{ randPlaying ? '⏸ Pause' : '▶ Play' }}</button>
+        <span
+          class="rand-count"
+          [class.low]="randCountdown <= 3"
+          *ngIf="randPlaying && randCountdown > 0"
+          [attr.title]="'Random params change in ' + randCountdown + 's'"
+        >{{ randCountdown }}s</span>
 
         <label class="rand-inline">
           every
@@ -370,7 +376,7 @@
           </select>
         </label>
 
-        <label class="rand-inline rand-all">
+        <label class="rand-inline rand-all" [class.on]="randAll">
           <input type="checkbox" [(ngModel)]="randAll" />
           Randomize all controls
         </label>
@@ -384,21 +390,27 @@
         <div class="rand-col">
           <div class="monitor-head">
             <h3>Groups</h3>
-            <button class="refresh" (click)="startAddGroup()" [disabled]="randBusy" title="Start a new group">New group</button>
+            <button class="refresh" (click)="startAddGroup()" [disabled]="randBusy || randAll" title="Start a new group">New group</button>
           </div>
           <p class="muted" style="margin:0 0 8px;">Groups pick controls to randomize. <strong>Included</strong> groups randomize their
             controls; <strong>excluded</strong> groups lock their controls (never randomized, even with "all").
             Props = how many of the group's controls change per scene (0 = all). Priority orders groups
             (lower = first).</p>
 
-          <div class="rand-editor">
+          <div class="rand-editor" [class.dim]="randAll">
             <div class="rand-fields">
-              <input class="inp" [(ngModel)]="randNewName" placeholder="group name" />
-              <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewPriority" title="priority (lower = first)" placeholder="priority" />
-              <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewProps" title="props randomized per scene (0 = all)" placeholder="props (0=all)" />
+              <input class="inp" [(ngModel)]="randNewName" [disabled]="randAll" placeholder="group name" />
+              <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewPriority" [disabled]="randAll" title="priority (lower = first)" placeholder="priority" />
+              <span
+                class="field-helper"
+                [attr.title]="'How many of this group\'s controls change per generated scene. 0 = all members; e.g. 3 changes only 3 random controls per scene.'"
+              >
+                <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewProps" [disabled]="randAll" title="props randomized per scene (0 = all)" placeholder="props (0=all)" />
+                <span class="helper" aria-hidden="true">?</span>
+              </span>
               <div class="rand-mode-toggle" title="Include = randomize these controls; Exclude = never randomize them">
-                <button type="button" class="grp-mode" [class.on]="randNewMode !== 'exclude'" (click)="randNewMode = 'include'">✓ include</button>
-                <button type="button" class="grp-mode exclude" [class.on]="randNewMode === 'exclude'" (click)="randNewMode = 'exclude'">✕ exclude</button>
+                <button type="button" class="grp-mode" [class.on]="randNewMode !== 'exclude'" [disabled]="randAll" (click)="randNewMode = 'include'">✓ include</button>
+                <button type="button" class="grp-mode exclude" [class.on]="randNewMode === 'exclude'" [disabled]="randAll" (click)="randNewMode = 'exclude'">✕ exclude</button>
               </div>
             </div>
             <span class="muted rand-picker-hint">{{ randCheckCount }}/{{ controlMap.length }} controls selected</span>
@@ -407,32 +419,48 @@
                 <input
                   type="checkbox"
                   [checked]="randKeysChecked[specKey(spec)]"
+                  [disabled]="randAll"
                   (change)="randKeysChecked[specKey(spec)] = $any($event.target).checked"
                 />
                 <span class="rand-tag" [class]="'rand-tag-' + randSpecTag(spec)">{{ randSpecTag(spec) }}</span>
                 {{ spec.name }}
-                <span class="muted">byte {{ spec.index }}</span>
               </label>
             </div>
             <div class="rand-edit-actions">
-              <button class="action-btn" (click)="saveGroup()" [disabled]="randBusy || randCheckCount === 0">
+              <button class="action-btn" (click)="saveGroup()" [disabled]="randBusy || randAll || randCheckCount === 0">
                 {{ randEditingId ? 'Update group' : 'Save group' }}
               </button>
-              <button class="refresh" *ngIf="randEditingId" (click)="cancelEditGroup()">Cancel</button>
+              <button class="refresh" *ngIf="randEditingId" (click)="cancelEditGroup()" [disabled]="randAll">Cancel</button>
             </div>
           </div>
 
-          <ul class="rand-group-list">
-            <li *ngFor="let g of randSortedGroups">
+          <ul class="rand-group-list" [class.dim]="randAll">
+            <li
+              *ngFor="let g of randSortedGroups"
+              [class.off]="g.enabled === false"
+              [attr.title]="randAll ? 'Randomized all controls — this group is ignored' : (g.enabled === false ? 'Off — randomizer skips this group' : g.name)"
+            >
+              <label
+                class="rand-g-on"
+                [attr.title]="randAll ? 'Randomized all controls' : (g.enabled === false ? 'Off — randomizer skips this group' : 'On — randomizer uses this group')"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="g.enabled !== false"
+                  [disabled]="randBusy || randAll"
+                  (change)="toggleGroupEnabled(g, $any($event.target).checked)"
+                />
+                <span>on</span>
+              </label>
               <span class="rand-g-name">{{ g.name }}</span>
               <span class="chip" [class.exclude]="g.mode === 'exclude'" [title]="g.mode === 'exclude' ? 'Never randomized' : 'Randomized'">{{ g.mode === 'exclude' ? 'excluded' : 'included' }}</span>
               <span class="chip">prio {{ g.priority }}</span>
               <span class="chip">{{ g.specKeys.length }} ctl</span>
               <span class="chip" *ngIf="g.props > 0">{{ g.props }} props</span>
               <span class="spacer"></span>
-              <button class="refresh" (click)="toggleGroupMode(g)" [disabled]="randBusy" [attr.title]="g.mode === 'exclude' ? 'Include this group' : 'Exclude this group'">{{ g.mode === 'exclude' ? 'include' : 'exclude' }}</button>
-              <button class="refresh" (click)="editGroup(g)" [disabled]="randBusy">Edit</button>
-              <button class="danger action-btn" (click)="deleteGroup(g)" [disabled]="randBusy">Delete</button>
+              <button class="refresh" (click)="toggleGroupMode(g)" [disabled]="randBusy || randAll" [attr.title]="g.mode === 'exclude' ? 'Include this group' : 'Exclude this group'">{{ g.mode === 'exclude' ? 'include' : 'exclude' }}</button>
+              <button class="refresh" (click)="editGroup(g)" [disabled]="randBusy || randAll">Edit</button>
+              <button class="danger action-btn" (click)="deleteGroup(g)" [disabled]="randBusy || randAll">Delete</button>
             </li>
             <li *ngIf="!randSortedGroups.length" class="muted empty">No groups yet.</li>
           </ul>
@@ -456,7 +484,6 @@
               <tr>
                 <th>name</th>
                 <th>created</th>
-                <th>slot</th>
                 <th>actions</th>
               </tr>
             </thead>
@@ -464,10 +491,6 @@
               <tr *ngFor="let p of randPresets; let i = index">
                 <td>{{ p.name }}</td>
                 <td class="muted">{{ fmtTs(p.createdAt) }}</td>
-                <td>
-                  <span class="tag" *ngIf="p.slot !== null && p.slot !== undefined">{{ displaySlotNum(p.slot) }}</span>
-                  <span class="muted" *ngIf="p.slot === null || p.slot === undefined">—</span>
-                </td>
                 <td class="actions">
                   <button (click)="loadPreset(p)" [disabled]="randBusy || !slotParams">Load</button>
                   <button (click)="renamePreset(p)" [disabled]="randBusy">Rename</button>

@@ -2514,3 +2514,151 @@ of only ticking a giant checkbox list under Groups.
 - ng build passes (pre-existing SCSS budget warning only).
 - Next: verify green/red knob toggles + Save persists memberships, and format
   the banner as you like.
+
+## lalady randomizer: drop per-effect byte label; per-group on/off toggle
+
+### Plan
+2026-09-11 lalady: (1) In the Groups editor's controls-selected list every row
+appends "byte <index>" next to the effect name — remove that noise. (2) In the
+created-groups list, add an "on" toggle per group so a group can be turned off
+temporarily (it stops being randomized; an exclude group also stops locking its
+controls) without deleting it. enabled persists to the backend and defaults
+true for existing groups. Verify: ng build passes; Generate/Play skip disabled
+groups and keep randomized controls consistent.
+
+### Status
+2026-09-11 lalady: implemented.
+- Groups editor controls list: removed the trailing "byte <index>" label from each
+  effect row (and its now-unused .rand-spec .muted SCSS rule).
+- RandomizeGroup gets enabled: boolean; server.js normalizeGroup persists it
+  (default true) and GET /api/randomize/groups backfills enabled: true for old
+  records.
+- Created-groups list rows gain an "on" checkbox; unchecked rows dim (.off) and
+  the group is skipped entirely by the randomizer. randomTargets() ignores
+  disabled groups for both include and exclude behavior; specOfExclude also
+  skips disabled groups so locked-knob styling stays accurate. New TS method
+  toggleGroupEnabled() PUTs the flag.
+- ng build passes (pre-existing c4 '??' template warning + SCSS budget warning
+  only); node --check passes on server.js.
+- Next: eyeball the toggle in the browser; confirm Generate/Play skip dimmed
+  groups and dimmed exclude groups no longer lock their controls.
+
+### Status
+2026-09-11 lalady: fixed saved randomizer groups not showing on session start.
+- Root cause: activeTab initializes to 'workbench', so the workbench tab renders
+  without ever firing openWorkbench() — the only call to refreshRand(). Groups
+  and presets therefore stayed empty until the user clicked the Workbench tab or
+  saved a new group.
+- Fix: call refreshRand() from ngOnInit (alongside refresh/refreshDeviceInfo),
+  so persisted randomizer groups + presets load on startup regardless of tab.
+- ng build passes.
+
+## lalady randomizer: visible countdown before param changes
+
+### Plan
+2026-09-11 lalady: while auto-randomize (Play) is running, show a visible
+countdown of the seconds remaining until the next random param change, next to
+the Play/Pause controls. The existing interval stays whole-second; tick it every
+1s so the display counts down live. Verify: ng build passes; countdown shows and
+resets right after each Generate.
+
+### Status
+2026-09-11 lalady: implemented.
+- New randCountdown state; the auto-randomize interval now ticks every 1s,
+  decrementing the countdown and generating a scene (resetting to the interval)
+  when it reaches 0. First scene still applies immediately on Play; Pause resets
+  the countdown.
+- UI: a "Ns" badge next to Play/Pause (hidden when not playing), turning amber
+  (.low) in the last 3s; styled .rand-count SCSS.
+- ng build passes (pre-existing c4 '??' template warning only).
+
+## lalady randomizer: one preset per displayed slot
+
+### Plan
+2026-09-11 lalady: the presets table's "slot" column shows the pedal slot each
+preset was last written to. Because a pedal slot holds one preset at a time,
+writing a next preset to the same slot left the previous preset also marked with
+that slot — both displayed slot=2. Fix: when a preset claims a slot (POST/PUT
+with saveToSlot), clear the slot on any other preset still pointing at it.
+Verify: node --check + in-app check that the overwritten preset shows "—" after
+refresh.
+
+### Status
+2026-09-11 lalady: implemented.
+- server.js: new claimPresetSlot(list, id, rawIdx) helper clears p.slot on any
+  preset other than id that points at rawIdx. Called after persistBody in both
+  POST /api/randomize/presets (id = null, new record not yet pushed) and PUT
+  /api/randomize/presets/:id; both follow with randSave so the clearing persists.
+- No frontend change needed: the table already renders a blank dash for
+  p.slot === null, picked up by refreshRand.
+- node --check passes.
+
+### Status
+2026-09-11 lalady: removed the "slot" column from the randomizer presets table.
+- The saved-slot display (displaySlotNum / dash) is gone since it only repeated
+  stale/duplicated last-write info on session start. The actions column keeps
+  Load/Rename/Delete and the per-preset "slot <n> -> slot" write target.
+- ng build passes.
+
+## lalady randomizer: "-> slot" also writes the preset name
+
+### Plan
+2026-09-11 lalady: the "-> slot" action in the random-saved presets list should
+save the preset's name to the pedal slot, and the UI should immediately reflect
+it (the pedal's ACTIVE preset also switches to the written slot). Verify: ng
+build passes; after clicking "-> slot" the workbench loads that slot and its
+header shows the preset name, while the Slots tab updates too.
+
+### Status
+2026-09-11 lalady: considered —
+- The write path ALREADY saves the name: persistBody(...) is called with
+  preset.name (PUT) / the new preset name (POST), and writePreset commits the
+  85-byte slot body (53 data + 32 name) with read-back verify (validated by
+  scripts/validateActiveWrite.js). No backend change needed.
+- Root visible gap: after a successful write the frontend kept showing stale
+  slot names, and the pedal (setActivePreset) had switched to the written slot
+  while the workbench still showed the previous scene.
+- Fix (lalady.component.ts savePresetToSlot): the PUT now also sends the preset
+  name, and on success it reloads the slot list (this.loadSlots()) plus loads
+  the written slot's params into the workbench (this.loadSlotParams(slotIdx)),
+  so the slot name and sound immediately match the pedal.
+- ng build passes.
+
+## lalady randomizer: helper tooltip on group props input
+
+### Plan
+2026-09-11 lalady: add a visible "?" helper next to the props input in the
+group create/edit form with a plain-English tooltip (what the value does, 0 =
+all members). Verify: ng build passes.
+
+### Status
+2026-09-11 lalady: implemented. The props input in the group create/edit form
+is now wrapped in a .field-helper with a blue "?" badge whose tooltip explains
+that 0 = all members and N changes only N random controls per scene. The
+input's own title is kept. ng build passes (pre-existing c4 warning only).
+
+## lalady randomizer: "Randomize all" dims groups + highlights checkbox
+
+### Plan
+2026-09-11 lalady: when "Randomize all controls" is checked, the groups editor
+form, the saved-groups list, and the presets save-row should all be visually
+dimmed and interactive elements disabled (groups are ignored under randAll).
+Group-list rows get a tooltip explaining "Randomized all controls". The
+checkbox label itself gets a distinct highlight. Verify: ng build passes.
+
+### Status
+2026-09-11 lalady: implemented.
+- "Randomize all controls" label gets a green highlighted state (.rand-all.on)
+  when checked.
+- When randAll is set: the groups editor (.rand-editor, incl. controls grid) and
+  the saved-groups list (.rand-group-list) dim (opacity 0.45); New group, Save,
+  Cancel, the per-row on/mode/Edit/Delete controls, and the group/on-labels are
+  all disabled via [disabled]="... || randAll".
+- Group list rows show a tooltip "Randomized all controls — this group is
+  ignored" while randAll is on (li and the on-toggle both).
+- ng build passes (pre-existing c4 warning only).
+2026-09-11 lalady: follow-up fix — with "Randomize all controls" engaged the
+groups create/edit form was still editable (only the action buttons were
+disabled). Now the name/priority/props inputs, the include/exclude mode
+buttons, and every control-selector checkbox in the editor are [disabled] too,
+matching the dimmed groups list. ng build passes.

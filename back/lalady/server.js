@@ -744,10 +744,11 @@ function normalizeGroup(body) {
   const priority = Number.isInteger(body.priority) ? body.priority : 10;
   const props = Number.isInteger(body.props) && body.props >= 0 ? body.props : 0;
   const mode = body.mode === 'exclude' ? 'exclude' : 'include';
+  const enabled = body.enabled !== false;
   const specKeys = Array.isArray(body.specKeys)
     ? body.specKeys.filter((k) => typeof k === 'string' && /^\d+:.+/.test(k)).slice(0, 200)
     : [];
-  return { name, priority, props, mode, specKeys };
+  return { name, priority, props, mode, enabled, specKeys };
 }
 
 function normalizePreset(body) {
@@ -785,8 +786,16 @@ function bodyOfHex(hex) {
   return out;
 }
 
+// A pedal slot holds exactly one preset at a time: claiming it for `id` clears
+// the stale slot pointer on any OTHER preset still marked for that slot.
+function claimPresetSlot(list, id, rawIdx) {
+  for (const p of list) {
+    if (p.id !== id && p.slot === rawIdx) p.slot = null;
+  }
+}
+
 app.get('/api/randomize/groups', (req, res) => {
-  const groups = randLoad(RAND_GROUPS_FILE).map((g) => ({ mode: 'include', ...g }));
+  const groups = randLoad(RAND_GROUPS_FILE).map((g) => ({ mode: 'include', enabled: true, ...g }));
   res.json({ ok: true, count: groups.length, groups });
 });
 
@@ -832,6 +841,7 @@ app.post('/api/randomize/presets', (req, res) => {
   if (n.slot !== null) {
     const r = persistBody(n.slot, bodyOfHex(n.bodyHex), name);
     if (r.error) return res.status(503).json({ error: r.error });
+    claimPresetSlot(list, null, n.slot);
   }
   const preset = { id: randUuid(), name, bodyHex: n.bodyHex, source: n.source, slot: n.slot, createdAt: now, updatedAt: now };
   list.push(preset);
@@ -851,6 +861,7 @@ app.put('/api/randomize/presets/:id', (req, res) => {
     const r = persistBody(n.slot, bodyOfHex(preset.bodyHex), preset.name);
     if (r.error) return res.status(503).json({ error: r.error });
     preset.slot = n.slot;
+    claimPresetSlot(list, preset.id, n.slot);
   }
   preset.updatedAt = Date.now();
   randSave(RAND_PRESETS_FILE, list);

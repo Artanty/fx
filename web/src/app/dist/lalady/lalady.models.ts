@@ -182,6 +182,7 @@ export interface RandomizeGroup {
   priority: number;
   props: number; // number of random props applied per scene from this group (0 = all)
   mode: 'include' | 'exclude'; // include: randomize these controls; exclude: never randomize them
+  enabled: boolean; // on/off toggle: disabled groups are ignored entirely by the randomizer
   specKeys: string[]; // control-map entries "index:name"
   createdAt: number;
   updatedAt: number;
