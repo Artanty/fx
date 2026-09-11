@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const { findLalady, listSourceAudioDevices } = require('./src/sourceAudioHid');
+const laladyUiLog = require('./src/laladyUiLog');
 const { SourceAudioProtocol } = require('./src/sourceAudio');
 const { loadOsbf, loadOsbfText, serializeOsbf } = require('./src/osbf');
 const { buildPre, parsePre } = require('./src/prePreset');
@@ -172,8 +173,13 @@ const WORKBENCH_CONTROL_SPECS = [
   { index: 32, name: 'Bass Boost Rolloff', type: 'knob', shift: 3, mask: 0xf8, max: 31, liveIndex: null },
   { index: 33, name: 'Mid A Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 32 },
   { index: 34, name: 'Mid A Q', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 33 },
-  { index: 35, name: 'Mid B Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 34 },
-  { index: 36, name: 'Mid B Q', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 35 },
+  // Empirically corrected (hardware write-and-listen): the pedal's real body
+  // layout for the Mid B band is byte 35 = Q, byte 36 = Frequency — the reverse
+  // of the Neuro .pre field order. Before this swap, "Mid B Q" wrote byte 36 and
+  // audibly swept the FREQUENCY (user test). Byte indexes stay 35/36; only the
+  // names are swapped to match the pedal.
+  { index: 35, name: 'Mid B Q', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 34 },
+  { index: 36, name: 'Mid B Frequency', type: 'knob', shift: 0, mask: 0xff, max: 255, liveIndex: 35 },
 
   // Routing & knob assign (bytes 38/39 packed nibbles).
   // 38 knob assigns have no live control -> null; 39 I/O Routing -> live 37.
@@ -504,6 +510,7 @@ app.post('/api/activate', (req, res) => {
   try {
     const reply = p.setActivePreset(idx);
     const page = LALADY_PRESET_BASE + idx * LALADY_PRESET_PITCH;
+    laladyUiLog.stamp('ACTIVATE', `slot=${page.toString(16)} idx=${idx}`);
     res.json({ ok: true, slot: page.toString(16), activeIndex: idx, reply: reply ? reply.join(',') : null });
   } catch (e) {
     resetSharedProto();
@@ -540,6 +547,14 @@ app.post('/api/erase', (req, res) => {
 //
 // Control index == byte index in the 53-byte body (neuroMap DIRECT), e.g.
 // index 2 = left_drive. So body[index] = value changes exactly the knob we want.
+//
+// IMPORTANT: committing a single byte via commitRawPreset RE-ACTIVATES the slot,
+// which reloads the LIVE control table from flash. Any pending edits sent via the
+// LIVE path (trusted live indices 0..15, e.g. live 12 Left Mid B 80 Hz) live only
+// in RAM and would be wiped back to their stored flash value. So before patching,
+// overlay the live control block over the body for the TRUSTED live indices
+// (0..15, skipping unmapped 6/19). Untrusted reads (16..39) can return stale/0xff
+// garbage and are never applied here — the UI bakes those straight into the body.
 app.post('/api/control', (req, res) => {
   const index = parseInt(req.body.index, 10);
   const value = parseInt(req.body.value, 10);
@@ -557,9 +572,17 @@ app.post('/api/control', (req, res) => {
     const rawIdx = active.rawIdx;
     const activePage = active.activePage;
     const body = p.readSlotBody(rawIdx);
+    const live = p.readControlBlock();
+    if (live) {
+      for (let i = 0; i <= 15; i++) {
+        if (i === 6 || i === 19) continue;
+        if (live[i] !== 0xff) body[i] = live[i];
+      }
+    }
     body[index] = value;
     const name = p.readSlotName(rawIdx);
     const written = p.commitRawPreset(rawIdx, body, name);
+    laladyUiLog.stamp('FLASH', `idx=${index} name=${CONTROL_NAMES[index] || '?'} value=${value} readback=${written[index]}`);
     res.json({ ok: true, index, value, readback: written[index], presetIndex: rawIdx, activePage });
   } catch (e) {
     resetSharedProto();
@@ -587,6 +610,7 @@ app.post('/api/control/live', (req, res) => {
   if (!p) return res.status(503).json({ error: 'Source Audio L.A. Lady HID device not found' });
   try {
     p.setControlValue(index, value);
+    laladyUiLog.stamp('LIVE', `idx=${index} name=${CONTROL_NAMES[index] || '?'} value=${value}`);
     res.json({ ok: true, index, value });
   } catch (e) {
     resetSharedProto();
@@ -719,10 +743,11 @@ function normalizeGroup(body) {
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'Group';
   const priority = Number.isInteger(body.priority) ? body.priority : 10;
   const props = Number.isInteger(body.props) && body.props >= 0 ? body.props : 0;
+  const mode = body.mode === 'exclude' ? 'exclude' : 'include';
   const specKeys = Array.isArray(body.specKeys)
     ? body.specKeys.filter((k) => typeof k === 'string' && /^\d+:.+/.test(k)).slice(0, 200)
     : [];
-  return { name, priority, props, specKeys };
+  return { name, priority, props, mode, specKeys };
 }
 
 function normalizePreset(body) {
@@ -761,7 +786,7 @@ function bodyOfHex(hex) {
 }
 
 app.get('/api/randomize/groups', (req, res) => {
-  const groups = randLoad(RAND_GROUPS_FILE);
+  const groups = randLoad(RAND_GROUPS_FILE).map((g) => ({ mode: 'include', ...g }));
   res.json({ ok: true, count: groups.length, groups });
 });
 
@@ -861,24 +886,21 @@ app.post('/api/slots/save', (req, res) => {
       return res.status(400).json({ error: 'idx must be an integer 0..5' });
 
     // Build the full 53-byte body to persist.
-    // Source overlays ONLY the fields with a genuine 1:1 live control. Body and live
-    // numbering agree byte-for-byte for 0..25 (unmapped 6/19 excluded) but DIVERGE
-    // from 26 up, so live bytes must be placed at their BODY index (e.g. live 26
-    // Gate Threshold -> body 27 Noise Gate Threshold; live 30 Bass Freq -> body 31
-    // Bass Shelf Freq). Packed bytes 26/30/32/38 (no 1:1 live byte) and the tail past
-    // the live block keep their flash values; UI overrides re-applied afterwards
-    // carry full composed bytes, so packed sub-fields can never be clobbered here.
+    // Source overlays ONLY the TRUSTED live controls (indices 0..15, unmapped
+    // 6/19 excluded). Body and live numbering agree byte-for-byte for 0..25, but
+    // live reads at 16..39 return STALE/0xff garbage on the L.A. Lady (verified:
+    // save stamped 34:ff->04, 35:f6->96, 36:d1->18 from live tail 049618e4 ->
+    // Mid A/B Q + Mid B Freq yanked to junk, sound got louder). Packed bytes
+    // 26/30/32/38 (no 1:1 live byte) and every byte ≥ 16 keep their flash values;
+    // UI overrides are re-applied afterwards and carry full composed bytes, so
+    // packed sub-fields can never be clobbered.
     const prevBody = p.readSlotBody(rawIdx);
     const body = Buffer.from(prevBody);
     const live = p.readControlBlock();
     if (live) {
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0; i <= 15; i++) {
         if (i === 6 || i === 19) continue;
         if (live[i] !== 0xff) body[i] = live[i];
-      }
-      for (const [bodyIdx, liveIdx] of ACTIVE_COMPARE) {
-        if (bodyIdx === 6 || bodyIdx === 19 || bodyIdx < 26) continue;
-        if (liveIdx < live.length && live[liveIdx] !== 0xff) body[bodyIdx] = live[liveIdx];
       }
     }
     const overrides = req.body.overrides || {};
@@ -897,6 +919,17 @@ app.post('/api/slots/save', (req, res) => {
     const { page, name } = persistBody(rawIdx, body);
 
     const readback = Array.from(p.readSlotBody(rawIdx));
+    const prevHex = Array.from(prevBody).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const afterHex = readback.map((b) => b.toString(16).padStart(2, '0')).join('');
+    const diff = [];
+    for (let i = 0; i < readback.length; i++) {
+      if (prevBody[i] !== readback[i])
+        diff.push(
+          `${i}:${prevBody[i].toString(16).padStart(2, '0')}->${readback[i].toString(16).padStart(2, '0')}`
+        );
+    }
+    laladyUiLog.stamp('SAVE-BEFORE', `slot=${rawIdx} prev=${prevHex} live=${live ? Array.from(live).map((b) => b.toString(16).padStart(2, '0')).join('') : '?'} overrides=${JSON.stringify(overrides)}`);
+    laladyUiLog.stamp('SAVE-AFTER', `slot=${rawIdx} written=${afterHex} name="${name}" diff[${diff.length}]=${diff.join(',') || 'none'}`);
     res.json({ ok: true, presetIndex: rawIdx, activePage: page.toString(16), name, readback });
   } catch (e) {
     resetSharedProto();
@@ -995,6 +1028,30 @@ app.post('/api/restore', (req, res) => {
   }
 });
 
+// UI activity log. The workbench posts every user action here so the file
+// reflects everything happening in the UI. The frontend resets the file on each
+// fresh web session (page load) via /api/log/reset; the backend also resets on
+// boot so a file always covers one continuous session.
+app.post('/api/log', (req, res) => {
+  const lines = Array.isArray(req.body && req.body.lines)
+    ? req.body.lines.filter((l) => typeof l === 'string' && l.length > 0)
+    : typeof req.body && typeof req.body.line === 'string' && req.body.line.length > 0
+      ? [req.body.line]
+      : [];
+  if (!lines.length) return res.status(400).json({ error: 'line must be a non-empty string (or lines[])' });
+  for (const l of lines) {
+    if (l.length <= 1000) laladyUiLog.append(l);
+  }
+  res.json({ ok: true, count: lines.length });
+});
+
+app.post('/api/log/reset', (req, res) => {
+  laladyUiLog.reset();
+  res.json({ ok: true, file: laladyUiLog.logFile });
+});
+
 app.listen(PORT, () => {
+  laladyUiLog.reset();
   console.log('L.A. Lady inspector: http://localhost:' + PORT);
+  console.log('L.A. Lady UI/operation log: ' + laladyUiLog.logFile);
 });

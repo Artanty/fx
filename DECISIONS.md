@@ -2206,11 +2206,11 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 
 ## Status 2026-09-09 web+c4model: LFO numeric tempo input (BPM)
 
-- Added lfo_tempo as a 32-bit LE 'tempo' spec (body 71..74, max 127795200 µs,
+- Added lfo_tempo as a 32-bit LE 'tempo' spec (body 71..74, max 127795200 ï¿½s,
   liveIndex null) in c4Model.js; LFO group extended to byte 71.
-- Frontend renders a numeric BPM input (BPM = 60,000,000 / µs, clamped to the
+- Frontend renders a numeric BPM input (BPM = 60,000,000 / ï¿½s, clamped to the
   official spec max). Read assembles 4 LE bytes from slotParams; write splits
-  BPM -> µs into 4 bytes and commits all four atomically via /api/presets/save
+  BPM -> ï¿½s into 4 bytes and commits all four atomically via /api/presets/save
   overrides {71,72,73,74} (single-byte /api/control would leave the field
   half-written). Tempo excluded from observe/mirror (set-only).
 - Verified: model exports the spec (count 174, index 71 :: lfo_tempo :: tempo);
@@ -2236,7 +2236,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   (c4.models.ts), observe/mirror tempo filters, LABEL_EXACT entry, and all
   tempo write helpers (tempoBpm/onTempoBpmChange/setTempoByte/flushTempo*).
 - Added read-only BPM candidates derived from lfo_speed (byte 65, live 101):
-  linear 0..254/0..300, 1%=1Hz/0.5Hz, µs=max·speed/254, µs=max·(1-speed/254).
+  linear 0..254/0..300, 1%=1Hz/0.5Hz, ï¿½s=maxï¿½speed/254, ï¿½s=maxï¿½(1-speed/254).
   Panel renders under the LFO knobs; no writes are attempted.
 - ng build passes (only pre-existing NG8102 and lalady budget warnings).
 - Next: compare candidates against the pedal to identify the true mapping,
@@ -2251,3 +2251,266 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - ng build passes (pre-existing NG8102 and lalady budget warnings only).
 - Back to baseline for lfo_tempo (body 71..74, set-only 32-bit): deliberately
   not modeled/edited until the real speed->BPM mapping is understood.
+
+## Status - 2026-09-09 web: fix engage button with two One Series pedals connected
+
+- Symptom: L.A. Lady engage button clicks and flips its label but the pedal
+  doesn't toggle; C4 engage works. Both pedals are connected via USB at once.
+- Root cause: LaladyMidiService and C4MidiService both used
+  outs.find(/source ?audio|one ?series/i), so with two Source Audio ports the
+  first port to enumerate wins. The L.A. Lady page could bind to the C4's MIDI
+  port and send its engage CC to the wrong pedal (C4 ignores it on a different
+  channel); C4 worked only because its own port happened to be first.
+- Fix: both services now pickOutputs() - send CC to EVERY Source Audio MIDI
+  output, not just the first match. CC 102 is channel-scoped, so the pedal whose
+  configured channel we send on is the only one that reacts, regardless of port
+  enumeration order.
+- ng build passes (pre-existing NG8102 and lalady budget warnings only).
+- Next: user verifies engage toggles the L.A. Lady while both pedals are
+  connected; if the pedals share a MIDI channel this fix would toggle both, so
+  the per-pedal channel split (L.A. Lady ch 3, C4 ch 6) is required.
+
+## Plan - 2026-09-09 lalady: file-backed action log + save state comparison
+
+- Symptom under investigation: making knob edits then SAVE into a slot changes the
+  sound (unexpected). Need a file log to reproduce the sequence and compare the
+  pedal state before and after a save.
+- Add lalady backend log module mirroring c4 (back/c4/src/c4UiLog.js):
+  back/lalady/src/laladyUiLog.js -> runtime-actions/lalady-ui.log, append/reset/stamp.
+- Add POST /api/log and POST /api/log/reset to back/lalady/server.js; reset log on
+  boot and print its path (mirror c4 boot behavior).
+- Stamp protocol actions in back/lalady/server.js: ACTIVATE, LIVE, FLASH (control),
+  and SAVE. In POST /api/slots/save stamp a BEFORE (prev slot body hex + live control
+  block + overrides applied) and AFTER (readback hex) line, plus a byte DIFF between
+  prev body and readback so unexpected bytes changed by the save are obvious.
+- Frontend web/src/app/dist/lalady: mirror c4 logAction batching -> logBatch +
+  flushLogBatch (250ms debounce, 1200ms retry), api.log()/logReset() in
+  lalady-api.service.ts, logReset on ngOnInit, flushLogBatch on ngOnDestroy. Keep the
+  existing in-memory Action log pane; bump displayed lines to 120 to match c4.
+
+## Status - 2026-09-09 lalady: file-backed action log + save state comparison
+
+- Added back/lalady/src/laladyUiLog.js mirroring c4UiLog.js -> writes
+  runtime-actions/lalady-ui.log (append/reset/stamp, never crashes the server).
+- back/lalady/server.js: POST /api/log + POST /api/log/reset, log reset on boot +
+  path printed on boot. Stamps ACTIVATE/FLASH/LIVE protocol actions.
+- POST /api/slots/save now stamps SAVE-BEFORE (prev slot body hex + live control
+  block hex + JSON of UI overrides) and SAVE-AFTER (written body hex + name +
+  per-byte diff list prev->written) so an unexpected sound change from a save is
+  byte-traceable.
+- Frontend: lalady-api.service.ts gains log()/logReset(); lalady.component.ts
+  mirrors c4 logAction batching (250ms debounce, 1200ms retry, flush on destroy),
+  calls logReset + logs "session start" on ngOnInit; workbench action-log pane now
+  renders 120 lines (was 60).
+- ng build passes (pre-existing NG8102 and lalady budget warnings only); node -c
+  on changed backend files OK.
+- Next: user repeats the knob-edit + Save repro, then we read
+  back/lalady/runtime-actions/lalady-ui.log to compare SAVE-BEFORE/AFTER states.
+
+## Status - 2026-09-09 lalady: mid-EQ writes re-routed live->flash (save "sound changed")
+
+- Log analysis of the user's repro (SAVE slot 4 at 08:27:43): the save wrote a
+  correct body (all 7 changed bytes == intended overrides), but the pedal's live
+  control table read back STALE mid-EQ values (live 32..35 = 1,4,0x96,0x18) at
+  save time while the UI log shows the intended 48/0/152/40. Explanation: the
+  L.A. Lady ignores CTRL_SET for live indices 16..39 (already documented in
+  OBSERVE_UNTRUSTED_LIVE, only 0..15 verified writable). Mid EQ knobs body
+  33/34/35/36 -> live 32/33/34/35 were routed LIVE, so drags were silent and the
+  change only bit when the save wrote flash -> "saving changed the sound".
+- Fix: lalady.component.ts setField() now routes a control through LIVE only when
+  its liveIndex is TRUSTED (0..15); everything else (mid EQ, gate/treble/bass,
+  packed bytes, routing) goes through the proven flash-commit queue, so edits are
+  heard live and Save becomes a no-op for those bytes.
+- ng build passes (pre-existing NG8102 and lalady budget warnings only).
+- Next: user repeats the knob-edit + Save repro and confirms mid-EQ drags are now
+  audible BEFORE save; the file log should stop showing stale live 32..35 reads.
+
+## Status - 2026-09-10 lalady: Mid B Q/Frequency body-byte labels swapped (hardware verifies)
+
+- User report: "when i turn 'mid b q' it affects 'mid b frequency'". The UI log
+  confirmed the turned knob was body byte 36 (SET Mid B Q (36:0) -> FLASH idx=36
+  with readback match), yet the sound swept the FREQUENCY. Conclusion: the fixed
+  body-byte layout of the pedal for the Mid B band is 35 = Q, 36 = Frequency,
+  the OPPOSITE of the Neuro .pre field order that WORKBENCH_CONTROL_SPECS had.
+- Fix: swapped the names at indexes 35/36 in WORKBENCH_CONTROL_SPECS (server.js):
+  35 -> 'Mid B Q', 36 -> 'Mid B Frequency'. Byte indexes unchanged; the knob
+  labels and the byte each writes now agree with the pedal. CONTROL_NAMES (live
+  control-table names) left untouched - it governs the read-only monitor and
+  was not implicated by the user test.
+- Ng build passes (C4 template NG8102 + lalady budget warnings pre-existing).
+- Next: user turns "Mid B Q" -> should now hear Q (bandwidth) change, and "Mid B
+  Frequency" -> should sweep frequency. If Mid A band shows the same swapped
+  symptom, apply the same swap at indexes 33/34.
+
+## Status - 2026-09-10 lalady: flash-commit overlays trusted live block
+
+- User: "when i touch midBfrequency - i hear that value of leftMidB80Hz bypassed.
+  and it starts affecting sound if i then touch it". Cause: /api/control reads the
+  FLASH body, patches one byte, then commitRawPreset RE-ACTIVATES the slot - which
+  reloads the LIVE control table from flash, wiping any pending trusted-LIVE edit
+  (live 12 Left Mid B 80 Hz) that exists only in RAM.
+- Fix: /api/control now overlays the live control block over the body for trusted
+  live indices 0..15 (skipping unmapped 6/19, ignoring 0xff) BEFORE patching the
+  requested byte and committing. Untrusted reads (16..39) are never applied since
+  they can return stale/0xff garbage; the UI bakes those bytes directly into the
+  body. Matches the save-path merge logic.
+- node --check passes on server.js.
+- Next: re-test touch Mid B Frequency -> Left Mid B 80 Hz must NOT jump back.
+
+## Status - 2026-09-10 lalady: apply-lifecycle indicators (per-control badge + commit strip)
+
+- User: flash-committed knobs (mid EQ etc.) lag the handle because of the 300ms
+  debounce + ~2s flash/recall cycle - "sound changes not in same moment knob
+  changes". Asked for an indicator that a change was applied: one widget or a sign
+  on each control.
+- Added BOTH: (1) each control renders a small badge showing its apply lifecycle:
+  pending '...' / writing (pulsing) / applied '?' (fades after 2.8s); (2) a global
+  commit strip above the knob rows showing "N applying..." plus "? <name> applied"
+  for the most recently confirmed write. LIVE-path edits (trusted 0..15) mark
+  applied immediately; FLASH-path edits go pending -> writing -> applied on readback.
+- Implemented in lalady.component.ts (flashPhase map, setFlashPhase, clearFlashPhases,
+  getters flashPendingCount/flashPhaseFor; wired into setField live/flash branches,
+  flushDiscrete success/error, loadSlotParams and ngOnDestroy reset), template badge
+  + commit-strip markup, SCSS styles.
+- ng build passes (pre-existing C4 template NG8102 warning; SCSS now 15.9kB vs
+  12.29kB max budget warning - cosmetic, no error).
+- Next: user drags a mid-EQ knob -> badge should turn pending then pulsing then
+  green checkmark at the moment the sound changes; strip lists pending/applied count.
+
+## Status - 2026-09-10 lalady: apply-badge keyed by field, not body byte
+
+- User: "when i touch bassBoostRolloff - i see other bass controls touched. the
+  same bug we fixed with freq before." Root cause: the apply-lifecycle badge was
+  keyed by BODY BYTE index, and bass_boost_rolloff shares packed byte 32 with
+  Bass Cut Filter + Bass Shelf Slope - so touching any one lit the badge on all
+  three siblings (same for treble byte 30 / knob-assign byte 38).
+- Fix: flashPhase now keyed by field (index:shift) via fieldKey(); setFlashPhase
+  and flashPhaseFor take the ControlSpec; discretePending carries the spec so
+  flushDiscrete marks the exact control 'applied'; superseded sibling phases on
+  the same byte are cleared when a later edit to that byte is queued.
+- ng build passes (pre-existing C4 NG8102 warning + SCSS budget note only).
+- Next: touch Bass Boost Rolloff -> ONLY it shows the badge, Bass Cut Filter and
+  Bass Shelf Slope must stay untouched.
+
+## Status - 2026-09-10 lalady: Mid A/B band titles track the Frequency value
+
+- User: "when i change mid A freq ... title under left mid A XX hz and right mid A
+  XX hz changed. XX = value of mid A freq. same for B". The band LEVEL controls
+  (body 11/12/24/25) had hard-coded names "Left Mid A 126 Hz" / "Left Mid B 80 Hz"
+  from CONTROL_NAMES, so they never reflected the frequency knob.
+- Fix: added controlLabel(spec) in lalady.component.ts - for body 11/24 it renders
+  "Left/Right Mid A <body33 value> Hz", for 12/25 "Left/Right Mid B <body36> Hz"
+  from the current slot param; other controls fall back to spec.name. Template's
+  .kname now uses controlLabel. No Hz scaling exists, so the raw 0..255 native
+  value is shown (matches the knob itself).
+- ng build passes (pre-existing C4 + SCSS budget warnings only).
+
+## Status - 2026-09-10 lalady: Save louder - stale live overlay on untrusted range
+
+- User: "i saved preset and get much louder sound after save". The /api/slots/save
+  merge still copied the FULL live block (0..25 by raw index + ACTIVE_COMPARE
+  27..37) into the persist body. But live indices 16..39 return stale/0xff garbage
+  (established with OBSERVE_UNTRUSTED_LIVE), so Save smeared it over the EQ/gate
+  tail. Caught live: SAVE-AFTER diff 34:ff->04, 35:f6->96, 36:d1->18 from live tail
+  ending 049618e4 -> Mid A Q, Mid B Q, Mid B Freq jumped to junk -> louder sound.
+- Fix: save now overlays ONLY trusted live 0..15 (skipping unmapped 6/19), matching
+  /api/control. Everything byte 16+ keeps its flash body value - which is correct
+  because the FLASH-commit path already persisted those edits at knob-time; UI
+  overrides still apply on top. ACTIVE_COMPARE no longer used for the merge
+  (still used by resolveActiveSlot).
+- node --check passes on server.js.
+- Next: user edits mid EQ then Save -> sound must NOT jump; knob edits kept in flash.
+
+## lalady mergework? - merge workbench and randomize into one view
+
+### Plan
+2026-09-10 lalady: merge the Workbench and Randomize tabs into a single
+workbench view so both are visible side by side (workbench on the left,
+randomizer on the right). No separate Randomize tab anymore.
+
+### Status
+2026-09-10 lalady: merged views.
+- lalady.component.html: Workbench section now wraps its content (slot picker,
+  action log, knob rows) in `<div class="wb-cols"><div class="wb-col wb-work">`
+  (left), and the Randomizer markup (monitor head, rand-player, rand-cols:
+  groups/presets editors) moved inside a sibling `<div class="wb-col wb-rand">`
+  (right). The randomize `<section>` and its `*ngIf activeTab === 'randomize'`
+  are gone; on the merged view only `wb-col wb-work` + `wb-col wb-rand` render.
+- Randomize tab button removed from nav; Workbench button now calls new
+  `openWorkbench()` which sets activeTab and calls `refreshRand()` to ensure
+  randomizer data loads.
+- lalady.component.ts: `activeTab` union dropped `'randomize'`; removed dead
+  `openRandomize()`.
+- lalady.component.scss: `.workbench` gets `.wb-cols` grid
+  (grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr), gap 18px) so
+  workbench column is wider. `.randomize` SCSS selector changed to `.workbench
+  .wb-cols .wb-col.wb-rand` (the `.randomize` class no longer exists on the DOM).
+- Build passes (ng build; only the pre-existing SCSS budget warning remains).
+- Next: confirm the merged view looks right in the browser; if the randomizer's
+  two .rand-col blocks (Groups + Presets) render better stacked than side by
+  side inside the narrower right column, adjust .rand-cols minmax(420px, 1fr).
+
+### Status
+2026-09-10 lalady: made the app full-width.
+- lalady.component.scss `.lalady`: dropped `max-width: 1100px`, now `width: 100%`
+  so tabs/panels span the whole window. The merged workbench+randomizer grid
+  (.wb-cols 1.35fr/1fr) now gets the full viewport width; workbench column stays
+  widest, randomizer right column grows too.
+- ng build passes.
+- Next: eyeball the merged view at full width.
+
+## lalady randomizer include/exclude groups
+
+### Plan
+2026-09-10 lalady: allow marking randomizer groups as "include" (their controls
+get randomized) or "exclude" (their controls are NEVER randomized, even under
+"Randomize all controls"). Give each workbench knob a small buttons to attach
+that control to a group directly (or make a new group from the picker), instead
+of only ticking a giant checkbox list under Groups.
+
+### Status
+2026-09-10 lalady: implemented.
+- server.js normalizeGroup now accepts `mode: 'include' | 'exclude'` (default
+  'include') and persists it; GET /api/randomize/groups backfills `mode`
+  for old records via `{ mode: 'include', ...g }`. Old groups => include (same
+  behavior as before the feature).
+- lalady.models.ts RandomizeGroup gets `mode` field.
+- lalady.component.ts randomTargets(): exclude-group specKeys are removed from
+  the pool first; randAll now skips excluded controls too. Include groups pick
+  `props` members per scene as before.
+- Per-knob picker: each knob has a `âŠ•` button (shows `âŠ• N` when the control is
+  in N groups; turns red when any group excludes it). Opens a popover listing
+  every group with a membership checkbox + âœ“/âœ• mode chip (click chip = flip
+  include/exclude), plus a "new group" input with `+ include` / `+ exclude`
+  buttons. New methods: openGroupPicker, grpPickerIs, specOfExclude, groupsOf,
+  specInGroup, setSpecInGroup (PUT specKeys), toggleGroupMode (PUT mode),
+  createGroupWithSpec (POST).
+- Groups editor: the create/edit form gains an include/exclude toggle; group
+  list rows show an "included"/"excluded" chip + a quick include/exclude button.
+- SCSS: .grp-btn (knob corner), .grp-picker popover, .grp-mode chips,
+  .rand-mode-toggle in editor, .chip.exclude.
+- ng build passes (only the pre-existing SCSS budget warning).
+- Next: confirm in browser that knob âŠ• opens the picker and picker overlap over
+  neighbor knobs is acceptable; excluded controls should visibly never change
+  under Generate/Play.
+
+### Status
+2026-09-10 lalady: added group-edit mode for knob-based membership.
+- Flow: click "New group"/"Edit group" in the Groups panel -> groupEditMode=true.
+  Every workbench knob's grp button becomes a toggle: GREEN âŠ•=add this control,
+  RED âˆ’=already in the group (click removes). Popover is suppressed while in
+  edit mode (openGroupPicker guards on groupEditMode).
+- Clicking a knob toggles randKeysChecked[specKey] locally (no HTTP until Save) â€”
+  same map the Groups editor checkbox grid reads, so counts stay in sync.
+- "Cancel"/Save returns to regular mode (cancelEditGroup flips groupEditMode
+  false; saveGroup calls cancelEditGroup on success, so knobs go back to normal
+  automatically).
+- UI: knobs get .edit-add (green) / .edit-del (red) styles; a .grp-edit-banner
+  shows above the knob rows ("Group edit mode â€” click = add to X / already in
+  group / Cancel").
+- TS: groupEditMode flag, toggleSpecInEditGroup(spec), editGroupHasSpec(spec).
+- Fixed an HTML bug during wiring: literal double-quotes inside the double-quoted
+  [attr.title] binding terminated the tag â€” titles now avoid embedded quotes.
+- ng build passes (pre-existing SCSS budget warning only).
+- Next: verify green/red knob toggles + Save persists memberships, and format
+  the banner as you like.

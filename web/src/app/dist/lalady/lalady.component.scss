@@ -1,6 +1,6 @@
 .lalady {
   padding: 12px 16px;
-  max-width: 1100px;
+  width: 100%;
 }
 
 .tabs {
@@ -271,6 +271,19 @@ table.knobs {
 .workbench {
   padding: 10px 12px;
 
+  // Merged Workbench + Randomizer view: workbench on the left, randomizer on the
+  // right. Columns share one scroll position; each is independently laid out.
+  .wb-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+
+    .wb-col {
+      min-width: 0;
+    }
+  }
+
   h2 {
     font-size: 14px;
     color: #8b8b98;
@@ -472,12 +485,51 @@ table.knobs {
   }
 
   .knob {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 66px;
     user-select: none;
     touch-action: none;
+
+    // Apply-lifecycle badge: pending '…' / writing '⟳' / applied '✓'.
+    .ctl-badge {
+      position: absolute;
+      top: -6px;
+      right: 2px;
+      z-index: 2;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 700;
+      border: 1px solid;
+
+      &.pending {
+        color: #ffd27a;
+        border-color: #8a6d2f;
+        background: #2a2417;
+      }
+
+      &.writing {
+        color: #ffb25e;
+        border-color: #b06a1f;
+        background: #2a2016;
+        animation: pulse 0.9s ease-in-out infinite;
+      }
+
+      &.applied {
+        color: #7ce38e;
+        border-color: #2f7a41;
+        background: #17251b;
+      }
+    }
 
     // Full-width variant for the distortion-engine selects so the engine name
     // is visible without a scroll of the closed dropdown.
@@ -487,6 +539,241 @@ table.knobs {
       .ctl-select {
         max-width: none;
         font-size: 11px;
+      }
+    }
+
+    // Randomizer-group button on each knob.
+    .grp-btn {
+      position: absolute;
+      top: -6px;
+      left: 2px;
+      z-index: 2;
+      min-width: 20px;
+      height: 16px;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      color: #8b8b98;
+      border: 1px solid #35353f;
+      background: #1b1b22;
+
+      &:hover {
+        color: #4da3ff;
+        border-color: #4da3ff;
+      }
+
+      &.open {
+        color: #d7f1ff;
+        border-color: #2f7a9e;
+        background: #13303f;
+        z-index: 6;
+      }
+
+      &.excluded {
+        color: #ff8f93;
+        border-color: rgba(255, 143, 147, 0.55);
+        background: #2e171a;
+      }
+
+      // Group-edit mode: knobs become add (green) / remove (red) toggles for
+      // the group currently being created/edited.
+      &.edit-add {
+        color: #7ce38e;
+        border-color: #2f7a41;
+        background: #17251b;
+        z-index: 6;
+
+        &:hover {
+          background: #1f3a28;
+        }
+      }
+
+      &.edit-del {
+        color: #ff8f93;
+        border-color: #8a2f3f;
+        background: #2a171c;
+        z-index: 6;
+
+        &:hover {
+          background: #3a1f25;
+        }
+      }
+    }
+
+    // Popover listing groups for the open knob's control.
+    .grp-picker {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      width: 300px;
+      padding: 8px 10px;
+      background: #101118;
+      border: 1px solid #3a3a48;
+      border-radius: 8px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+      text-align: left;
+
+      .grp-picker-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #e8e8ee;
+        margin-bottom: 2px;
+      }
+
+      .grp-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 4px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #c9c9d4;
+
+        &:hover {
+          background: #17181f;
+        }
+
+        &.exclude .grp-name {
+          color: #ff9ba0;
+        }
+
+        input {
+          accent-color: #2f7a9e;
+        }
+
+        .grp-name {
+          flex: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      .grp-mode {
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1px 8px;
+        border-radius: 8px;
+        border: 1px solid #2f7a41;
+        color: #7ce38e;
+        background: #17251b;
+        user-select: none;
+
+        &.exclude {
+          border-color: #8a2f3f;
+          color: #ff8f93;
+          background: #2a171c;
+        }
+      }
+
+      .grp-new {
+        display: flex;
+        gap: 4px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #26262e;
+
+        .inp {
+          flex: 1;
+          min-width: 0;
+        }
+
+        button {
+          height: 26px;
+          padding: 0 8px;
+          font-size: 11px;
+          white-space: nowrap;
+        }
+
+        .grp-new-inc {
+          color: #7ce38e;
+          border-color: #2f7a41;
+        }
+
+        .grp-new-exc {
+          color: #ff8f93;
+          border-color: #8a2f3f;
+        }
+      }
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  .grp-edit-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 8px;
+    padding: 6px 10px;
+    border: 1px solid #8a6d2f;
+    border-radius: 6px;
+    background: #241e12;
+    color: #e8e8ee;
+    font-size: 12px;
+
+    strong {
+      color: #ffd27a;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: 4px;
+
+      &.add {
+        background: #2f7a41;
+      }
+
+      &.del {
+        background: #8a2f3f;
+      }
+    }
+
+    button {
+      margin-left: auto;
+      height: 24px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
+  }
+
+  .commit-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    height: 26px;
+    margin: 0 0 4px;
+    padding: 0 8px;
+    overflow: hidden;
+
+    .commit-strip-item {
+      font-size: 11px;
+      color: #c9c9d4;
+      border: 1px solid #35353f;
+      background: #1b1b22;
+      border-radius: 10px;
+      padding: 2px 8px;
+
+      &.ok {
+        color: #7ce38e;
+        border-color: #2f7a41;
+        background: #17251b;
       }
     }
   }
@@ -834,7 +1121,7 @@ table.knobs {
   }
 }
 
-.randomize {
+.workbench .wb-cols .wb-col.wb-rand {
   .monitor-head {
     display: flex;
     align-items: center;
@@ -945,6 +1232,34 @@ table.knobs {
       font-size: 11px;
       display: block;
       margin-bottom: 6px;
+    }
+
+    .rand-mode-toggle {
+      display: inline-flex;
+      gap: 4px;
+
+      .grp-mode {
+        height: 26px;
+        padding: 0 10px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 4px;
+        border: 1px solid #35353f;
+        color: #8b8b98;
+        background: #1b1b22;
+
+        &.on {
+          color: #7ce38e;
+          border-color: #2f7a41;
+          background: #17251b;
+        }
+
+        &.exclude.on {
+          color: #ff8f93;
+          border-color: #8a2f3f;
+          background: #2a171c;
+        }
+      }
     }
   }
 
@@ -1063,6 +1378,12 @@ table.knobs {
     background: #2a2a34;
     color: #8b8b98;
     white-space: nowrap;
+
+    &.exclude {
+      background: #2a171c;
+      color: #ff8f93;
+      border: 1px solid #8a2f3f;
+    }
   }
 
   .rand-save-row {

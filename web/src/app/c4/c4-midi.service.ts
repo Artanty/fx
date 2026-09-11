@@ -22,7 +22,7 @@ export class C4MidiService {
   cc = 102;
 
   private midi: MidiAccess | null = null;
-  private output: MidiOutput | null = null;
+  private outputs: MidiOutput[] = [];
   private ready: Promise<boolean> | null = null;
 
   private init(): Promise<boolean> {
@@ -34,16 +34,23 @@ export class C4MidiService {
       .requestMIDIAccess()
       .then((midi: MidiAccess) => {
         this.midi = midi;
-        this.pickOutput();
-        return !!this.output;
+        this.pickOutputs();
+        return this.outputs.length > 0;
       })
       .catch(() => false);
   }
 
-  private pickOutput(): void {
+  // Target EVERY Source Audio MIDI output, not just the first match: when two
+  // One Series pedals are connected at once, outs.find() binds the button to
+  // whichever port enumerates first — sending this pedal's engage to the wrong
+  // port. CC 102 is channel-scoped, so the pedal whose configured channel we
+  // send on is the only one that reacts.
+  private pickOutputs(): void {
     if (!this.midi || !this.midi.outputs) return;
     const outs = Array.from(this.midi.outputs.values());
-    this.output = outs.find((o) => /source ?audio|one ?series/i.test(o.name || '')) || outs[0] || null;
+    if (!outs.length) return;
+    this.outputs = outs.filter((o) => /source ?audio|one ?series/i.test(o.name || ''));
+    if (!this.outputs.length) this.outputs = [outs[0]];
   }
 
   private get readyPromise(): Promise<boolean> {
@@ -61,9 +68,12 @@ export class C4MidiService {
   // Send a generic CC on the configured channel. value: 0..127.
   async sendCc(cc: number, value: number): Promise<boolean> {
     const ok = await this.readyPromise;
-    if (!ok || !this.output || typeof this.output.send !== 'function') return false;
+    if (!ok || !this.outputs.length) return false;
     const status = 0xb0 | ((this.channel - 1) & 0x0f);
-    this.output.send([status, cc & 0x7f, value & 0x7f]);
+    for (const out of this.outputs) {
+      if (typeof out.send !== 'function') continue;
+      out.send([status, cc & 0x7f, value & 0x7f]);
+    }
     return true;
   }
 

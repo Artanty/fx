@@ -28,7 +28,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
   @ViewChild('restoreFileInput') restoreFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
 
-  activeTab: 'slots' | 'workbench' | 'randomize' | 'observe' | 'inspect' = 'workbench';
+  activeTab: 'slots' | 'workbench' | 'observe' | 'inspect' = 'workbench';
   private pendingImportRow: RowModel | null = null;
 
   rows: RowModel[] = [];
@@ -92,6 +92,72 @@ export class LaladyComponent implements OnInit, OnDestroy {
     return this.actionLog.some((l) => l.includes('CLOBBER'));
   }
   private readonly ACTION_LOG_MAX = 500;
+  // All activity is kept in memory (workbench pane) AND mirrored to a file on
+  // the backend (runtime-actions/lalady-ui.log) so the save-"sound changed"
+  // bug can be traced after the fact (SET/LIVE/FLASH + backend SAVE-BEFORE/
+  // SAVE-AFTER stamps with a byte diff).
+  private logTimer: ReturnType<typeof setTimeout> | null = null;
+  private logBatch: string[] = [];
+
+  // Per-control "was this change applied?" indicator. Flash commits lag the knob
+  // edit (300ms debounce + a ~2s flash/recall cycle), so a knob that "didn't do
+  // anything yet" is confusing. Every control shows a small badge tracking its
+  // apply lifecycle: 'pending' (queued) → 'writing' (flash in progress) → 'applied'
+  // (readback confirmed, fades after APPLIED_KEEP_MS). The global commit strip
+  // mirrors pending count + the most recently applied control.
+  //
+  // Keyed by FIELD (index:shift), NOT body byte: packed bytes like 30/32/38 hold
+  // several controls, and if the badge were byte-scoped every sibling would light
+  // up when one of them is touched.
+  private flashPhase = new Map<string, 'pending' | 'writing' | 'applied'>();
+  private flashPhaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  lastAppliedName: string | null = null;
+  private readonly APPLIED_KEEP_MS = 2800;
+
+  get flashPendingCount(): number {
+    let n = 0;
+    for (const ph of this.flashPhase.values()) if (ph !== 'applied') n++;
+    return n;
+  }
+
+  flashPhaseFor(spec: ControlSpec): string {
+    return this.flashPhase.get(this.fieldKey(spec)) ?? '';
+  }
+
+  private fieldKey(spec: ControlSpec): string {
+    return `${spec.index}:${spec.shift}`;
+  }
+
+  // phase for a control; 'applied' auto-fades after APPLIED_KEEP_MS.
+  private setFlashPhase(spec: ControlSpec, phase: 'pending' | 'writing' | 'applied'): void {
+    const key = this.fieldKey(spec);
+    const t = this.flashPhaseTimers.get(key);
+    if (t) {
+      clearTimeout(t);
+      this.flashPhaseTimers.delete(key);
+    }
+    if (phase === 'applied') {
+      this.flashPhase.set(key, 'applied');
+      this.lastAppliedName = spec.name;
+      this.flashPhaseTimers.set(
+        key,
+        setTimeout(() => {
+          this.flashPhase.delete(key);
+          if (this.lastAppliedName === spec.name) this.lastAppliedName = null;
+          this.flashPhaseTimers.delete(key);
+        }, this.APPLIED_KEEP_MS)
+      );
+    } else {
+      this.flashPhase.set(key, phase);
+    }
+  }
+
+  private clearFlashPhases(): void {
+    for (const t of this.flashPhaseTimers.values()) clearTimeout(t);
+    this.flashPhaseTimers.clear();
+    this.flashPhase.clear();
+    this.lastAppliedName = null;
+  }
   private packedBaseline: Partial<Record<number, number>> = {};
   private packedUserTouched = new Set<number>();
   private observePollCount = 0;
@@ -228,6 +294,8 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.refreshDeviceInfo();
     this.autoSelectActive();
     this.midiEngageSupported = this.midi.isSupported();
+    this.api.logReset().subscribe();
+    this.logAction('session start');
     this.api.controlMap().subscribe({
       next: (r) => {
         this.controlMap = r.controls || [];
@@ -275,9 +343,11 @@ export class LaladyComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.flushLogBatch();
     this.stopMonitor();
     this.stopMirror();
     this.stopRandTimer();
+    this.clearFlashPhases();
   }
 
   // Toggle the pedal's engage/bypass via Web MIDI (CC 102 on the configured
@@ -407,6 +477,11 @@ export class LaladyComponent implements OnInit, OnDestroy {
     } else {
       this.startMonitor();
     }
+  }
+
+  openWorkbench(): void {
+    this.activeTab = 'workbench';
+    this.refreshRand();
   }
 
   openObserve(): void {
@@ -540,6 +615,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
         this.editedOverrides = {};
         this.packedBaseline = {};
         this.packedUserTouched = new Set<number>();
+        this.clearFlashPhases();
         for (const p of s.params) {
           if ([26, 30, 32, 38].includes(p.index)) this.packedBaseline[p.index] = p.value;
         }
@@ -556,6 +632,24 @@ export class LaladyComponent implements OnInit, OnDestroy {
   private logAction(msg: string): void {
     this.actionLog.push(`${new Date().toISOString().slice(11, 19)} ${msg}`);
     if (this.actionLog.length > this.ACTION_LOG_MAX) this.actionLog.shift();
+    this.logBatch.push(msg);
+    if (!this.logTimer) {
+      this.logTimer = setTimeout(() => this.flushLogBatch(), 250);
+    }
+  }
+
+  private flushLogBatch(): void {
+    this.logTimer = null;
+    const batch = this.logBatch.splice(0);
+    if (!batch.length) return;
+    this.api.log(batch).subscribe({
+      error: () => {
+        if (batch.length) {
+          this.logBatch.unshift(...batch);
+          this.logTimer = setTimeout(() => this.flushLogBatch(), 1200);
+        }
+      },
+    });
   }
 
   clearActionLog(): void {
@@ -630,18 +724,23 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // (it would write a whole body byte, clobbering sibling fields). One commit at
   // a time; later edits during the ~2s flash are coalesced and re-sent.
   private discreteTimer: ReturnType<typeof setTimeout> | null = null;
-  private discretePending: { p: SlotParam; byte: number } | null = null;
+  private discretePending: { p: SlotParam; byte: number; spec: ControlSpec } | null = null;
   private discreteInFlight = false;
 
-  // Record a changed field and route the write: fields with a 1:1 live control
-  // (spec.liveIndex, e.g. body 27 Gate Threshold -> live 26, body 26 Filter
-  // Gate -> live 38) go realtime via CTRL_SET at the LIVE index; body-only
-  // packed fields (30/32/38) go to the flash-commit queue.
+  // Record a changed field and route the write: fields with a TRUSTED 1:1 live
+  // control (spec.liveIndex in 0..15, e.g. Left Drive -> live 2) go realtime via
+  // CTRL_SET at the LIVE index. The L.A. Lady ignores CTRL_SET for live indices
+  // 16..39 (reads stale 0/255 garbage there — see OBSERVE_UNTRUSTED_LIVE), so
+  // everything else (mid EQ 33/34/35/36 -> live 32..35, gate/treble/bass ->
+  // live 26..30/36, packed 30/32/38, I/O routing) goes to the flash-commit queue
+  // via the proven lossless patch, so the edit is HEARD and Save is a no-op.
   private setField(spec: ControlSpec, p: SlotParam, uiValue: number): void {
     const native = Math.max(0, Math.min(spec.max, uiValue));
     const prevField = this.fieldValue(spec, p);
     const prevByte = p.value;
     const byte = (p.value & ~spec.mask) | ((native << spec.shift) & spec.mask);
+    const useLive =
+      spec.liveIndex != null && !LaladyComponent.OBSERVE_UNTRUSTED_LIVE.has(spec.liveIndex);
     p.value = byte;
     if ([26, 30, 32, 38].includes(spec.index)) {
       this.packedBaseline[spec.index] = byte;
@@ -652,14 +751,25 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.logAction(
       `SET ${spec.name} (${spec.index}:${spec.shift}) field ${prevField}->${native} byte 0x${prevByte
         .toString(16)
-        .padStart(2, '0')}->0x${byte.toString(16).padStart(2, '0')} ${spec.liveIndex != null ? 'LIVE#' + spec.liveIndex : 'FLASH'}`
+        .padStart(2, '0')}->0x${byte.toString(16).padStart(2, '0')} ${
+        useLive ? 'LIVE#' + spec.liveIndex : 'FLASH'
+      }`
     );
-    if (spec.liveIndex != null) {
+    if (useLive) {
+      this.setFlashPhase(spec, 'applied');
       this.queueLive(spec, native);
       return;
     }
     this.logPackedHealth();
-    this.discretePending = { p, byte };
+    // A superseded sibling edit on the same packed byte (another field of the
+    // same body byte queued since) is folded into the composed byte this write
+    // will commit — its badge must not stay stuck half-lit.
+    const thisKey = this.fieldKey(spec);
+    for (const k of Array.from(this.flashPhase.keys())) {
+      if (k !== thisKey && k.startsWith(spec.index + ':')) this.flashPhase.delete(k);
+    }
+    this.setFlashPhase(spec, 'pending');
+    this.discretePending = { p, byte, spec };
     if (this.discreteTimer) return;
     this.discreteTimer = setTimeout(() => {
       this.discreteTimer = null;
@@ -672,11 +782,13 @@ export class LaladyComponent implements OnInit, OnDestroy {
     if (!v || this.discreteInFlight) return;
     this.discreteInFlight = true;
     this.discretePending = null;
+    this.setFlashPhase(v.spec, 'writing');
     this.api.control({ index: v.p.index, value: v.byte }).subscribe({
       next: (r) => {
         this.discreteInFlight = false;
         if ([26, 30, 32, 38].includes(v.p.index)) this.packedBaseline[v.p.index] = v.byte;
         if (r && typeof r.readback === 'number') {
+          this.setFlashPhase(v.spec, 'applied');
           if (!this.discretePending || this.discretePending.p.index !== v.p.index) {
             const pr = this.paramFor(v.p.index);
             if (pr) pr.value = r.readback;
@@ -693,6 +805,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
       },
       error: (e) => {
         this.discreteInFlight = false;
+        this.flashPhase.delete(this.fieldKey(v.spec));
         this.slotError = 'Commit failed: ' + (e.message ?? e);
       },
     });
@@ -729,6 +842,23 @@ export class LaladyComponent implements OnInit, OnDestroy {
   // so the long engine names are legible instead of cramped into a 66px column.
   isEngineSpec(spec: ControlSpec): boolean {
     return spec.type === 'select' && (spec.index === 4 || spec.index === 17);
+  }
+
+  // Dynamic knob titles for the Mid A/B band LEVEL controls (body 11/12/24/25):
+  // the "Left Mid A 126 Hz" style label should track the current value of the
+  // corresponding Mid Frequency knob (body 33 = Mid A Frequency, body 36 = Mid B
+  // Frequency), so turning the frequency is reflected in the whole band's title.
+  // No Hz scaling exists — the raw 0..255 native byte value is shown.
+  controlLabel(spec: ControlSpec): string {
+    if (spec.index === 11 || spec.index === 24) {
+      const prefix = spec.index === 24 ? 'Right' : 'Left';
+      return `${prefix} Mid A ${this.paramFor(33)?.value ?? 0} Hz`;
+    }
+    if (spec.index === 12 || spec.index === 25) {
+      const prefix = spec.index === 25 ? 'Right' : 'Left';
+      return `${prefix} Mid B ${this.paramFor(36)?.value ?? 0} Hz`;
+    }
+    return spec.name;
   }
 
   // Field-scoped "modified" highlight: only the field the user actually changed
@@ -1011,7 +1141,13 @@ export class LaladyComponent implements OnInit, OnDestroy {
   randNewName = '';
   randNewPriority = 10;
   randNewProps = 0;
+  randNewMode: 'include' | 'exclude' = 'include';
   randKeysChecked: Record<string, boolean> = {};
+  groupEditMode = false; // knobs turn into add/remove toggles while a group is open
+
+  // Per-control group picker (workbench knob "grp" button).
+  groupPickerSpec: ControlSpec | null = null;
+  groupPickerNewName = '';
 
   // Preset save state.
   randSaveName = '';
@@ -1024,11 +1160,6 @@ export class LaladyComponent implements OnInit, OnDestroy {
 
   get randCheckCount(): number {
     return Object.values(this.randKeysChecked).filter(Boolean).length;
-  }
-
-  openRandomize(): void {
-    this.activeTab = 'randomize';
-    this.refreshRand();
   }
 
   refreshRand(): void {
@@ -1105,15 +1236,22 @@ export class LaladyComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Which control-map specs this scene touches: every spec when randAll, else the
-  // per-group selections (definite number of random props per group, or all).
+  // Which control-map specs this scene touches. Excluded groups lock their
+  // controls (never randomized, even with randAll). Include groups contribute a
+  // definite number of random props per group (or all their members).
   private randomTargets(): ControlSpec[] {
-    if (this.randAll) return [...this.controlMap];
-    const targets = new Map<string, ControlSpec>();
     const specByKey = new Map<string, ControlSpec>();
     for (const spec of this.controlMap) specByKey.set(this.specKey(spec), spec);
+    const excluded = new Set<string>();
     for (const g of this.randSortedGroups) {
-      const members = g.specKeys.map((k) => specByKey.get(k)).filter((s): s is ControlSpec => !!s);
+      if (g.mode === 'exclude') for (const k of g.specKeys) excluded.add(k);
+    }
+    const avail = (spec: ControlSpec): boolean => !excluded.has(this.specKey(spec));
+    if (this.randAll) return this.controlMap.filter(avail);
+    const targets = new Map<string, ControlSpec>();
+    for (const g of this.randSortedGroups) {
+      if (g.mode !== 'include') continue;
+      const members = g.specKeys.map((k) => specByKey.get(k)).filter((s): s is ControlSpec => !!s && avail(s));
       if (!members.length) continue;
       const pick = g.props > 0 ? Math.min(g.props, members.length) : members.length;
       const pool = [...members];
@@ -1215,7 +1353,10 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.randNewName = '';
     this.randNewPriority = 10;
     this.randNewProps = 0;
+    this.randNewMode = 'include';
     this.randKeysChecked = {};
+    this.groupPickerSpec = null;
+    this.groupEditMode = true;
   }
 
   editGroup(g: RandomizeGroup): void {
@@ -1223,14 +1364,19 @@ export class LaladyComponent implements OnInit, OnDestroy {
     this.randNewName = g.name;
     this.randNewPriority = g.priority;
     this.randNewProps = g.props;
+    this.randNewMode = g.mode === 'exclude' ? 'exclude' : 'include';
     this.randKeysChecked = {};
     for (const k of g.specKeys) this.randKeysChecked[k] = true;
+    this.groupPickerSpec = null;
+    this.groupEditMode = true;
   }
 
   cancelEditGroup(): void {
     this.randEditingId = null;
     this.randNewName = '';
     this.randKeysChecked = {};
+    this.groupPickerSpec = null;
+    this.groupEditMode = false;
   }
 
   saveGroup(): void {
@@ -1245,6 +1391,7 @@ export class LaladyComponent implements OnInit, OnDestroy {
       name: this.randNewName.trim() || 'Group',
       priority: this.randNewPriority,
       props: this.randNewProps,
+      mode: this.randNewMode,
       specKeys,
     };
     const done = () => {
@@ -1261,6 +1408,109 @@ export class LaladyComponent implements OnInit, OnDestroy {
     } else {
       this.api.randomizeGroupCreate(body).subscribe({ next: done, error: failed });
     }
+  }
+
+  // In group-edit mode clicking a knob's grp button toggles that control in the
+  // group being edited (green = add, red = already in -> remove). No popover,
+  // no API call until Save.
+  toggleSpecInEditGroup(spec: ControlSpec): void {
+    const key = this.specKey(spec);
+    this.randKeysChecked[key] = !this.randKeysChecked[key];
+    this.groupPickerSpec = null;
+  }
+
+  editGroupHasSpec(spec: ControlSpec): boolean {
+    return !!this.randKeysChecked[this.specKey(spec)];
+  }
+
+  // --- Per-control group picker (workbench knob "grp" button) -------------
+  // Groups belong to the control map keyed by "index:name". The picker lets you
+  // attach any single knob/control to an include or exclude group, or spin a new
+  // group up from the picker itself.
+  openGroupPicker(spec: ControlSpec): void {
+    if (this.groupEditMode) return;
+    const key = this.specKey(spec);
+    const cur = this.groupPickerSpec ? this.specKey(this.groupPickerSpec) : null;
+    this.groupPickerSpec = cur === key ? null : spec;
+    this.groupPickerNewName = '';
+  }
+
+  grpPickerIs(spec: ControlSpec): boolean {
+    return !!this.groupPickerSpec && this.specKey(this.groupPickerSpec) === this.specKey(spec);
+  }
+
+  specOfExclude(spec: ControlSpec): boolean {
+    return this.randGroups.some((g) => g.mode === 'exclude' && g.specKeys.includes(this.specKey(spec)));
+  }
+
+  groupsOf(spec: ControlSpec): RandomizeGroup[] {
+    const key = this.specKey(spec);
+    return this.randGroups.filter((g) => g.specKeys.includes(key));
+  }
+
+  specInGroup(spec: ControlSpec, g: RandomizeGroup): boolean {
+    return g.specKeys.includes(this.specKey(spec));
+  }
+
+  setSpecInGroup(spec: ControlSpec, g: RandomizeGroup, inGroup: boolean): void {
+    const key = this.specKey(spec);
+    const specKeys = inGroup
+      ? [...g.specKeys, key]
+      : g.specKeys.filter((k) => k !== key);
+    this.randBusy = true;
+    this.randError = null;
+    this.api
+      .randomizeGroupUpdate(g.id, { specKeys })
+      .subscribe({
+        next: () => {
+          this.randBusy = false;
+          this.refreshRand();
+        },
+        error: (e) => {
+          this.randBusy = false;
+          this.randError = 'Group update failed: ' + ((e as { message?: string }).message ?? e);
+        },
+      });
+  }
+
+  createGroupWithSpec(spec: ControlSpec, name: string, mode: 'include' | 'exclude'): void {
+    if (!this.controlMap.length) return;
+    this.randBusy = true;
+    this.randError = null;
+    const body = {
+      name: (name.trim() || (mode === 'exclude' ? 'Excluded' : 'Group')),
+      priority: 10,
+      props: 0,
+      mode,
+      specKeys: [this.specKey(spec)],
+    };
+    this.api.randomizeGroupCreate(body).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.groupPickerSpec = null;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group create failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  toggleGroupMode(g: RandomizeGroup): void {
+    const mode: 'include' | 'exclude' = g.mode === 'exclude' ? 'include' : 'exclude';
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizeGroupUpdate(g.id, { mode }).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group mode update failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
   }
 
   deleteGroup(g: RandomizeGroup): void {

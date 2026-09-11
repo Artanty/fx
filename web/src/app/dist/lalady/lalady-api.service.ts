@@ -116,6 +116,15 @@ export class LaladyApiService {
     return this.http.post<SlotSaveResult>(`${BASE}/api/slots/save`, req);
   }
 
+  log(lines: string | string[]): Observable<{ ok: boolean; count?: number }> {
+    const payload = Array.isArray(lines) ? { lines } : { line: lines };
+    return this.http.post<{ ok: boolean; count?: number }>(`${BASE}/api/log`, payload);
+  }
+
+  logReset(): Observable<{ ok: boolean; file?: string }> {
+    return this.http.post<{ ok: boolean; file?: string }>(`${BASE}/api/log/reset`, {});
+  }
+
   restore(osbfText: string): Observable<RestoreResult> {
     return this.http.post<RestoreResult>(`${BASE}/api/restore`, { text: osbfText });
   }
