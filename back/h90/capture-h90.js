@@ -1,7 +1,7 @@
 const fs = require('fs');
 const midi = require('midi');
 
-const outLog = '/tmp/h90_capture.txt';
+const outLog = process.env.H90_CAPTURE_LOG || require('path').join(__dirname, 'h90-capture.log');
 const inp = new midi.Input();
 const out = new midi.Output();
 

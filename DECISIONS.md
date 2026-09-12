@@ -2913,3 +2913,67 @@ applies on mobile. Verified: ng build passes (same pre-existing warnings only).
   then click Revert and confirm the log shows 'REVERT: flashing N byte(s)' and the
   pedal returns to the saved sound on every click, including right after an edit
   that just fired a batch commit.
+
+
+## Plan - 2026-09-12 h90: drop decrypt/RE tooling; SikuliX knob-turn controller (web-driven)
+
+User decision: STOP all H90 decrypt/reverse-engineering work. Delete the entire
+read/write-protocol RE apparatus from back/h90 and replace it with a practical
+controller that turns the pedal's preset knobs by driving the native
+`H90 Control.exe` GUI with SikuliX (image/OCR), exposed through the existing
+web `/h90` tab (preset detail page).
+
+Scope:
+1. Delete (git rm) all decrypt/RE code + artifacts: h90_*.py analysis tools
+   (angr/capstone/deflate-decode/fbwalk/replay/serialize variants), h90-captures/
+   (frames, zlib disasm, dict constraints), h90-recon/ (write-reconstruction
+   scripts + lst90_json corpus + decoded bins), tests/ (dict-recover regression),
+   test_h90_dict_recover.py, SCHW/import notes H90-IMPORT-NOTES.md, the BLE/MIDI
+   capture+proxy/replay harness (swift files, capture-proxy-long.js, test-*.js,
+   probe-h90*.js), devs*.py, upx4.tar.xz. Keep: server.js, package.*, build_db.py,
+   list-ports.js, h90-send.js, the two capture-h90* listeners (with the Windows
+   log-path fix) and the whole sikulix/ tree.
+2. New back/h90/sikulix/projects/knob-driver.sikuli: OCR driver with two modes -
+   --scan (list visible knob labels in the parameters region) and a turn mode
+   (optional --preset <frag> row click, then --knob <label> --turns N sequences,
+   drag-turning each knob). Reuses the sidebar-anchor preset-click logic from
+   click-preset.sikuli.
+3. back/h90/server.js: POST /api/h90/knob (turn: spawns the driver, streams output)
+   and POST /api/h90/knob/scan (returns discovered knob labels). Spawn guards for
+   missing jars/JRE + timeout.
+4. web /h90 preset detail: Knob controller panel (preset anchor optional, Scan
+   knobs, per-knob +/- stepper + Turn, driver output log) wired via ApiService.
+
+Verify: git status shows exactly the intended delete set; node --check server.js +
+capture-h90.js; ng build development clean; user runs the driver against the live
+app + pedal on the visible desktop.
+
+
+## Progress - 2026-09-12 h90: decrypt/RE tooling dropped; SikuliX knob-turn controller in place
+
+- Deleted the whole read/write-protocol RE apparatus (git rm): h90_*.py analysis
+  tools, h90-captures/ (frames, zlib disasm, dict constraints, expect harness),
+  h90-recon/ (write reconstruction + lst90_json corpus + decoded bins),
+  tests/ + test_h90_dict_recover.py, H90-IMPORT-NOTES.md, the BLE/proxy/replay
+  capture harness (swift files, capture-proxy-long.js, test-*.js, probe-h90*.js),
+  devs*.py, upx4.tar.xz. Kept: server.js, package.*, build_db.py, list-ports.js,
+  h90-send.js, both capture-h90* listeners, and the whole sikulix/ tree.
+- Fixed the capture listener log paths for Windows: capture-h90.js now uses
+  process.env.H90_CAPTURE_LOG or <repo>/back/h90/h90-capture.log (was hardcoded
+  /tmp/h90_capture.txt); capture-h90-long.js defaults to h90-inbound.log.
+- New projektu driver back/h90/sikulix/projects/knob-driver.sikuli/knob-driver.py:
+  OCR modes --scan (dumps visible knob labels in the parameters region as
+  `KNOB: <frag> @ x,y,w,h` lines) and a turn mode with optional --preset <frag>
+  row click + repeated --knob <label> --turns N pairs (drag-turns the dial, dy
+  px per step, --above calibrates label->dial offset). reuses the sidebar-anchor
+  preset-click logic from click-preset.sikuli.
+- server.js: + POST /api/h90/knob/scan and POST /api/h90/knob, spawning the
+  jar/JRE under back/h90/sikulix with windowsHide, capturing stdout, 90s
+  timeout, busy-guard (409) and 503 when the SikuliX runtime isn't installed.
+- web /h90 preset detail page: Knob controller panel (optional preset anchor,
+  Scan knobs, per-knob -1/+1 turns stepper + Turn, Turn all, driver output log);
+  ApiService gained scanH90Knobs()/turnH90Knobs().
+- Verify: node --check clean on back/h90 JS; ng build development passes (only
+  the pre-existing c4 NG8102 warning). On-machine calibration still needed:
+  knob label->dial offset (--above) and drag direction/size (--dy) to be tuned
+  live with capture-h90.js running.

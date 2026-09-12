@@ -2,7 +2,7 @@ const midi = require('midi');
 const fs = require('fs');
 
 const PORT_NAME = 'XC-05987 Bluetooth';
-const LOG = process.argv[2] || '/tmp/h90_inbound.txt';
+const LOG = process.argv[2] || require('path').join(__dirname, 'h90-inbound.log');
 
 const input = new midi.Input();
 input.ignoreTypes(false, false, false);

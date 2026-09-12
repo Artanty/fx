@@ -72,5 +72,36 @@
         <span *ngIf="patch.license"> &middot; {{ patch.license }}</span>
       </p>
     </section>
+
+    <section class="panel knob-panel">
+      <h2>Knob controller</h2>
+      <p class="hint">
+        Turns the pedal's knobs by driving the H90 Control app with SikuliX. The
+        backend must run on the machine that has H90 Control open on the visible desktop.
+      </p>
+      <div class="knob-bar">
+        <input
+          class="knob-preset"
+          placeholder="preset to click first (e.g. reso, oct) - optional"
+          [value]="presetAnchor"
+          (input)="presetAnchor = $any($event.target).value"
+        />
+        <button class="btn" (click)="scanKnobs()" [disabled]="knobBusy">Scan knobs</button>
+        <button class="btn" (click)="turnAllKnobs()" [disabled]="knobBusy || !knobs.length">Turn all</button>
+      </div>
+      <div *ngIf="knobError" class="knob-error">{{ knobError }}</div>
+      <div *ngIf="knobs.length" class="knob-list">
+        <div class="knob-row" *ngFor="let k of knobs">
+          <span class="knob-name" title="OCR label detected in the parameters area">{{ k.name }}</span>
+          <div class="stepper">
+            <button class="btn small" (click)="decrTurns(k)" [disabled]="knobBusy">-1</button>
+            <span class="turns" title="negative turns spin the other way">{{ k.turns }}</span>
+            <button class="btn small" (click)="incrTurns(k)" [disabled]="knobBusy">+1</button>
+          </div>
+          <button class="btn primary" (click)="turnKnob(k)" [disabled]="knobBusy">Turn</button>
+        </div>
+      </div>
+      <pre *ngIf="knobLog" class="knob-log">{{ knobLog }}</pre>
+    </section>
   </div>
 </ng-container>

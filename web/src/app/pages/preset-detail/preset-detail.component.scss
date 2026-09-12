@@ -146,3 +146,94 @@
   color: #8a8a95;
   a { color: #ffb454; text-decoration: none; &:hover { text-decoration: underline; } }
 }
+
+.knob-panel {
+  .knob-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 14px 0 4px;
+
+    .knob-preset {
+      flex: 1 1 240px;
+      background: #101015;
+      border: 1px solid #2a2a32;
+      border-radius: 8px;
+      color: #f0f0f4;
+      padding: 8px 12px;
+      font-size: 13px;
+      &::placeholder { color: #6a6a75; }
+      &:focus { outline: none; border-color: #ffb454; }
+    }
+  }
+
+  .btn {
+    background: #26262e;
+    border: 1px solid #3a3a44;
+    color: #e5e5ee;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    &:hover:not(:disabled) { background: #30303a; border-color: #ffb454; }
+    &:disabled { opacity: 0.45; cursor: default; }
+    &.small { padding: 4px 9px; font-size: 12px; }
+    &.primary { background: #ffb454; border-color: #ffb454; color: #1b1b21;
+      &:hover:not(:disabled) { background: #ffc26f; } }
+  }
+
+  .knob-error { color: #ff7b7b; font-size: 13px; margin: 10px 0 0; }
+
+  .knob-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .knob-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #22222a;
+    border: 1px solid #2a2a32;
+    border-radius: 8px;
+    padding: 8px 12px;
+
+    .knob-name {
+      flex: 1;
+      font-size: 13px;
+      color: #d5d5de;
+      word-break: break-word;
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      .turns {
+        min-width: 24px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #ffb454;
+      }
+    }
+  }
+
+  .knob-log {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #101015;
+    border: 1px solid #2a2a32;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #b5b5c0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 260px;
+    overflow: auto;
+  }
+}

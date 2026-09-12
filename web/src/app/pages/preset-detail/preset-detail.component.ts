@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ApiService } from '../../services/api.service';
+import { ApiService, H90TurnRequest } from '../../services/api.service';
 import { PatchDetail } from '../../models';
 
 @Component({
@@ -16,6 +16,12 @@ export class PresetDetailComponent implements OnInit {
   patch: PatchDetail | null = null;
   error: string | null = null;
   loading = true;
+
+  knobs: { name: string; turns: number }[] = [];
+  presetAnchor = '';
+  knobBusy = false;
+  knobError: string | null = null;
+  knobLog = '';
 
   constructor(private route: ActivatedRoute, private api: ApiService, private cdr: ChangeDetectorRef) {}
 
@@ -59,5 +65,67 @@ export class PresetDetailComponent implements OnInit {
     if (b < 1024) return b + ' B';
     if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
     return (b / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  scanKnobs(): void {
+    this.knobBusy = true;
+    this.knobError = null;
+    this.knobLog = 'Scanning visible knobs...';
+    this.api.scanH90Knobs().subscribe({
+      next: (r) => {
+        this.knobBusy = false;
+        this.knobLog = r.log || '(no driver output)';
+        this.knobs = r.knobs.map((name) => ({ name, turns: 1 }));
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.knobBusy = false;
+        this.knobLog = '';
+        this.knobError = e?.error?.error || e?.message || 'request failed';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  incrTurns(k: { turns: number }): void {
+    k.turns += 1;
+  }
+
+  decrTurns(k: { turns: number }): void {
+    k.turns -= 1;
+  }
+
+  turnKnob(k: { name: string; turns: number }): void {
+    const body: H90TurnRequest = { knobs: [{ name: k.name, turns: k.turns }] };
+    if (this.presetAnchor.trim()) body.preset = this.presetAnchor.trim();
+    this.runKnobDriver(body);
+  }
+
+  turnAllKnobs(): void {
+    if (this.knobs.length === 0) return;
+    const body: H90TurnRequest = { knobs: this.knobs.map((k) => ({ name: k.name, turns: k.turns })) };
+    if (this.presetAnchor.trim()) body.preset = this.presetAnchor.trim();
+    this.runKnobDriver(body);
+  }
+
+  private runKnobDriver(body: H90TurnRequest): void {
+    this.knobBusy = true;
+    this.knobError = null;
+    this.knobLog = 'Running SikuliX driver...';
+    this.api.turnH90Knobs(body).subscribe({
+      next: (r) => {
+        this.knobBusy = false;
+        this.knobLog = r.log || '(no driver output)';
+        if (r.stderr) this.knobLog += '\nstderr: ' + r.stderr;
+        if (!r.ok) this.knobError = 'Driver exited with code ' + r.code;
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.knobBusy = false;
+        this.knobLog = '';
+        this.knobError = e?.error?.error || e?.message || 'request failed';
+        this.cdr.markForCheck();
+      },
+    });
   }
 }

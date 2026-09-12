@@ -2,6 +2,7 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 
 let midi = null;
 try {
@@ -252,6 +253,120 @@ app.post("/api/h90/preset", (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+const SX_DIR = path.join(__dirname, "sikulix");
+const SX_JRE = path.join(SX_DIR, "jre", "bin", "java.exe");
+const SX_JAR = path.join(SX_DIR, "sikulixide-2.0.5-win.jar");
+const KNOB_PROJECT = path.join(SX_DIR, "projects", "knob-driver.sikuli");
+const KNOB_SCRIPT = path.join(KNOB_PROJECT, "knob-driver.py");
+const KNOB_RE = /^KNOB: (.+?) @ \d+,\d+,\d+,\d+$/;
+
+let sikulixBusy = false;
+
+function sikulixAvailable() {
+  return fs.existsSync(SX_JRE) && fs.existsSync(SX_JAR) && fs.existsSync(KNOB_SCRIPT);
+}
+
+function runSikulix(args, timeoutMs) {
+  return new Promise((resolve) => {
+    const child = spawn(
+      SX_JRE,
+      ["-Xms256m", "-Xmx1024m", "-XX:+UseG1GC", "-jar", SX_JAR, "-r", KNOB_PROJECT, "--", ...args],
+      { cwd: SX_DIR, windowsHide: true }
+    );
+    let out = "";
+    let err = "";
+    let timer = null;
+    const finish = (code) => {
+      if (timer) clearTimeout(timer);
+      resolve({ code, out, err });
+    };
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err += d));
+    child.on("close", finish);
+    child.on("error", (e) => {
+      err += e.message;
+      finish(-1);
+    });
+    timer = setTimeout(() => {
+      try { child.kill(); } catch (e) {}
+      err += " (timed out)";
+      finish(-2);
+    }, timeoutMs || 90000);
+  });
+}
+
+app.post("/api/h90/knob/scan", async (_req, res) => {
+  try {
+    if (!sikulixAvailable()) {
+      return res.status(503).json({
+        error:
+          "SikuliX runtime not set up here (needs the visible desktop running H90 Control). Run back/h90/sikulix/setup.ps1.",
+      });
+    }
+    if (sikulixBusy) return res.status(409).json({ error: "another knob action is still running" });
+    sikulixBusy = true;
+    try {
+      const r = await runSikulix(["--scan"]);
+      const knobs = r.out
+        .split(/\r?\n/)
+        .filter((l) => l.startsWith("KNOB: "))
+        .map((l) => {
+          const m = KNOB_RE.exec(l);
+          return m ? m[1] : l;
+        })
+        .filter((v, i, arr) => arr.indexOf(v) === i);
+      res.json({ ok: r.code === 0, knobs, log: r.out });
+    } finally {
+      sikulixBusy = false;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/h90/knob", async (req, res) => {
+  try {
+    if (!sikulixAvailable()) {
+      return res.status(503).json({
+        error:
+          "SikuliX runtime not set up here (needs the visible desktop running H90 Control). Run back/h90/sikulix/setup.ps1.",
+      });
+    }
+    const body = req.body || {};
+    const preset = typeof body.preset === "string" && body.preset.trim() ? String(body.preset).trim() : null;
+    const dy = Number.isInteger(body.dy) ? body.dy : null;
+    const above = Number.isInteger(body.above) ? body.above : null;
+    const knobs = Array.isArray(body.knobs) ? body.knobs : [];
+    if (!knobs.length) {
+      return res.status(400).json({ error: "knobs must be a non-empty array of { name, turns }" });
+    }
+    const cleaned = knobs.map((k, i) => {
+      if (!k || typeof k.name !== "string" || !k.name.trim()) {
+        throw new Error("knobs[" + i + "].name must be a non-empty string");
+      }
+      const turns = Number.isInteger(k.turns) ? k.turns : 0;
+      if (turns === 0) throw new Error("knobs[" + i + "].turns must be a non-zero integer");
+      return { name: k.name.trim(), turns };
+    });
+
+    if (sikulixBusy) return res.status(409).json({ error: "another knob action is still running" });
+    sikulixBusy = true;
+    try {
+      const args = [];
+      if (preset) args.push("--preset", preset);
+      if (dy !== null) args.push("--dy", String(dy));
+      if (above !== null) args.push("--above", String(above));
+      for (const k of cleaned) args.push("--knob", k.name, "--turns", String(k.turns));
+      const r = await runSikulix(args);
+      res.json({ ok: r.code === 0, code: r.code, log: r.out, stderr: r.err });
+    } finally {
+      sikulixBusy = false;
+    }
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`H90 API listening on http://localhost:${PORT}`);

@@ -12,6 +12,26 @@ export interface SendH90Response {
   bytes: number[];
 }
 
+export interface H90KnobScanResponse {
+  ok: boolean;
+  knobs: string[];
+  log: string;
+}
+
+export interface H90TurnRequest {
+  preset?: string;
+  dy?: number;
+  above?: number;
+  knobs: { name: string; turns: number }[];
+}
+
+export interface H90TurnResponse {
+  ok: boolean;
+  code: number;
+  log: string;
+  stderr?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   constructor(private http: HttpClient) {}
@@ -34,6 +54,14 @@ export class ApiService {
 
   sendToH90(program: number, channel: number, port?: number | null): Observable<SendH90Response> {
     return this.http.post<SendH90Response>('/api/h90/preset', { program, channel, port: port ?? null });
+  }
+
+  scanH90Knobs(): Observable<H90KnobScanResponse> {
+    return this.http.post<H90KnobScanResponse>('/api/h90/knob/scan', {});
+  }
+
+  turnH90Knobs(body: H90TurnRequest): Observable<H90TurnResponse> {
+    return this.http.post<H90TurnResponse>('/api/h90/knob', body);
   }
 
   getPatches(params: PatchParams): Observable<PatchesResponse> {
