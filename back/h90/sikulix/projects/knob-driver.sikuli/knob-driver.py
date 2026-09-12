@@ -76,7 +76,14 @@ def focus_window():
     except Exception as ex:
         d("focus err: %s" % ex)
     time.sleep(1)
-    win = app.window()
+    try:
+        win = app.window()
+    except Exception as ex:
+        d("ERROR: H90 Control window not available (%s) - is the app running?" % str(ex)[:120])
+        sys.exit(1)
+    if not win:
+        d("ERROR: H90 Control window not available - is the app running?")
+        sys.exit(1)
     d("window: %s" % win)
     return win
 
@@ -147,7 +154,10 @@ def turn(point, turns, dy):
 
 
 def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    raw = sys.argv[1:]
+    if raw and raw[0] == "--":
+        raw = raw[1:]
+    argv = raw
     scan, preset, dy, above, knobs = parse_args(argv)
     d("args: scan=%s preset=%s dy=%d above=%d knobs=%s" % (scan, preset, dy, above, knobs))
 
