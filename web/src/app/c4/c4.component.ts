@@ -9,6 +9,8 @@ import {
   LiveControls,
   MidiMap,
   PresetSummary,
+  RandomizeGroup,
+  RandomizePreset,
   SlotParam,
   SlotParams,
 } from './c4.models';
@@ -38,6 +40,65 @@ export class C4Component implements OnInit, OnDestroy {
   slotsDirty = false;
   private paramsSnapshot: SlotParam[] = [];
   private editedOverrides: Record<number, number> = {};
+
+  // Per-control "was this change applied?" indicator (same as L.A. Lady). Flash
+  // commits lag the knob edit (300ms debounce + a ~2s flash/recall cycle), so a
+  // knob that "didn't do anything yet" is confusing. Every control shows a small
+  // badge tracking its apply lifecycle: 'pending' (queued) → 'writing' (flash in
+  // progress) → 'applied' (readback confirmed, fades after APPLIED_KEEP_MS). The
+  // global commit strip mirrors pending count + the most recently applied control.
+  //
+  // Keyed by FIELD (index:shift), NOT body byte: packed bytes hold several
+  // controls, so a byte-scoped badge would light every sibling at once.
+  private flashPhase = new Map<string, 'pending' | 'writing' | 'applied'>();
+  private flashPhaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  lastAppliedName: string | null = null;
+  private readonly APPLIED_KEEP_MS = 2800;
+
+  get flashPendingCount(): number {
+    let n = 0;
+    for (const ph of this.flashPhase.values()) if (ph !== 'applied') n++;
+    return n;
+  }
+
+  flashPhaseFor(spec: ControlSpec): string {
+    return this.flashPhase.get(this.fieldKey(spec)) ?? '';
+  }
+
+  private fieldKey(spec: ControlSpec): string {
+    return `${spec.index}:${spec.shift}`;
+  }
+
+  // Set the apply phase for a control; 'applied' auto-fades after APPLIED_KEEP_MS.
+  private setFlashPhase(spec: ControlSpec, phase: 'pending' | 'writing' | 'applied'): void {
+    const key = this.fieldKey(spec);
+    const t = this.flashPhaseTimers.get(key);
+    if (t) {
+      clearTimeout(t);
+      this.flashPhaseTimers.delete(key);
+    }
+    if (phase === 'applied') {
+      this.flashPhase.set(key, 'applied');
+      this.lastAppliedName = spec.name;
+      this.flashPhaseTimers.set(
+        key,
+        setTimeout(() => {
+          this.flashPhase.delete(key);
+          if (this.lastAppliedName === spec.name) this.lastAppliedName = null;
+          this.flashPhaseTimers.delete(key);
+        }, this.APPLIED_KEEP_MS)
+      );
+    } else {
+      this.flashPhase.set(key, phase);
+    }
+  }
+
+  private clearFlashPhases(): void {
+    for (const t of this.flashPhaseTimers.values()) clearTimeout(t);
+    this.flashPhaseTimers.clear();
+    this.flashPhase.clear();
+    this.lastAppliedName = null;
+  }
 
   // Control map (GET /api/control-map): how each body byte decomposes into
   // UI controls. spec.index is the body byte; spec.liveIndex (when present)
@@ -253,11 +314,13 @@ export class C4Component implements OnInit, OnDestroy {
       },
       error: () => (this.controlMap = []),
     });
+    this.refreshRand();
   }
 
   ngOnDestroy(): void {
     this.stopMonitor();
     this.stopMirror();
+    this.stopRandTimer();
     this.flushLogBatch();
   }
 
@@ -344,6 +407,7 @@ export class C4Component implements OnInit, OnDestroy {
     this.logAction(`TAB ${tab}`);
     if (tab === 'observe') this.startMonitor();
     if (tab === 'inspect') this.openInspect();
+    if (tab === 'workbench') this.refreshRand();
   }
 
   private loadPresetParams(idx: number): void {
@@ -355,6 +419,8 @@ export class C4Component implements OnInit, OnDestroy {
         this.paramsSnapshot = s.params.map((p) => ({ ...p }));
         this.slotsDirty = false;
         this.editedOverrides = {};
+        this.clearFlashPhases();
+        this.syncRandPresetSlots();
         this.logAction(`LOAD preset ${idx} (${s.name || 'unnamed'})`);
       },
       error: (e) => {
@@ -389,31 +455,602 @@ export class C4Component implements OnInit, OnDestroy {
       });
   }
 
+  // Restore the workbench to the loaded snapshot AND re-persist that snapshot
+  // to the slot.  On C4 every knob edit is auto-committed to flash at knob-time,
+  // so a UI-only revert always loses to the already-flashed edits; we must write
+  // the snapshot bytes back.  Serialize behind any in-flight flash commit so the
+  // edited write can never land after our restore.  Mutates existing param
+  // objects in place (the knob/seq cache is keyed on slotParams identity).
   revertPreset(): void {
     if (!this.slotParams) return;
-    this.slotParams.params = this.paramsSnapshot.map((p) => ({ ...p }));
+    const overrides: Record<number, number> = {};
+    for (const p of this.slotParams.params) {
+      const snap = this.paramsSnapshot.find((sp) => sp.index === p.index);
+      if (snap) {
+        overrides[p.index] = snap.value;
+        p.value = snap.value;
+      }
+    }
     this.slotsDirty = false;
     this.editedOverrides = {};
-    this.logAction('REVERT: workbench returned to snapshot');
+    this.clearFlashPhases();
+    if (this.discreteTimer) {
+      clearTimeout(this.discreteTimer);
+      this.discreteTimer = null;
+    }
+    this.discreteDirty = false;
+    if (this.discreteInFlight) {
+      // A flash commit is mid-flight; queue the restore so it executes after
+      // that commit settles (otherwise the edited write can override ours).
+      this.pendingRevert = overrides;
+      this.logAction('REVERT: view restored; flash restore queued behind in-flight commit');
+      return;
+    }
+    this.pendingRevert = null;
+    this.commitRevert(overrides);
   }
 
+  private pendingRevert: Record<number, number> | null = null;
+
+  private commitRevert(overrides: Record<number, number>): void {
+    this.logAction(`REVERT: flashing ${Object.keys(overrides).length} byte(s) back to the saved preset`);
+    this.api.slotSave({ idx: this.selectedPresetIdx!, overrides }).subscribe({
+      next: () => this.logAction('REVERT: saved-preset flash restore committed'),
+      error: (e) => (this.slotError = 'Revert flash restore failed: ' + (e.message ?? e)),
+    });
+  }
+
+  // Visual-only zero: sets every workbench knob to 0 WITHOUT queueing any
+  // commit (editedOverrides stays empty).  Sound is untouched here — turning a
+  // knob afterwards commits ONLY that knob's byte, not the whole zeroed set.
+  // Revert restores the snapshot.  Mutates existing param objects in place so
+  // the knob/seq display (keyed on slotParams identity) actually updates.
   allParamsZero(): void {
     if (!this.slotParams) return;
     this.slotError = null;
-    const sentLive = new Set<number>();
+    for (const p of this.slotParams.params) p.value = 0;
+    this.slotsDirty = true;
+    this.logAction('ZERO all workbench bytes (visual only, not committed)');
+  }
+
+  // --- Randomizer ----------------------------------------------------------
+  // Generate random scenes over the workbench's current params and hear them
+  // instantly (realtime). Scene history supports back/forward, and groups +
+  // saved presets persist to backend JSON files via /api/randomize/*.
+  randGroups: RandomizeGroup[] = [];
+  randPresets: RandomizePreset[] = [];
+  randBusy = false;
+  randError: string | null = null;
+
+  randAll = false;
+  randIntervalSec = 5;
+  randPlaying = false;
+  randAlgo: 'uniform' | 'center' | 'extremes' | 'drift' = 'uniform';
+  readonly RAND_ALGOS: { value: string; text: string }[] = [
+    { value: 'uniform', text: 'Uniform' },
+    { value: 'center', text: 'Center' },
+    { value: 'extremes', text: 'Extremes' },
+    { value: 'drift', text: 'Drift' },
+  ];
+
+  randScenes: number[][] = [];
+  randSceneIdx = -1;
+  private randTimer: ReturnType<typeof setInterval> | null = null;
+  randCountdown = 0;
+
+  // Group editor state.
+  randEditingId: string | null = null;
+  randNewName = '';
+  randNewPriority = 10;
+  randNewProps = 0;
+  randNewMode: 'include' | 'exclude' = 'include';
+  randKeysChecked: Record<string, boolean> = {};
+  groupEditMode = false; // knobs turn into add/remove toggles while a group is open
+
+  // Per-control group picker (workbench knob "grp" button).
+  groupPickerSpec: ControlSpec | null = null;
+  groupPickerNewName = '';
+
+  // Preset save state.
+  randSaveName = '';
+  randPresetSlots: number[] = [];
+
+  // Sorted by priority ascending (lower = first); stable tie-break by name.
+  get randSortedGroups(): RandomizeGroup[] {
+    return [...this.randGroups].sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name));
+  }
+
+  get randCheckCount(): number {
+    return Object.values(this.randKeysChecked).filter(Boolean).length;
+  }
+
+  refreshRand(): void {
+    this.api.randomizeGroups().subscribe({
+      next: (r) => (this.randGroups = r.groups || []),
+      error: () => (this.randGroups = []),
+    });
+    this.api.randomizePresets().subscribe({
+      next: (r) => {
+        this.randPresets = r.presets || [];
+        this.syncRandPresetSlots();
+      },
+      error: () => (this.randPresets = []),
+    });
+  }
+
+  // Target-location defaults: a preset that has never been saved to a C4 slot
+  // follows the workbench's currently selected preset; pinned rows keep theirs.
+  private syncRandPresetSlots(): void {
+    this.randPresetSlots = this.randPresets.map((p) => p.slot ?? this.selectedPresetIdx ?? 0);
+  }
+
+  specKey(spec: ControlSpec): string {
+    return spec.index + ':' + spec.name;
+  }
+
+  randSpecTag(spec: ControlSpec): string {
+    switch (spec.type) {
+      case 'select':
+        return 'sel';
+      case 'toggle':
+        return 'tog';
+      case 'segmented':
+        return 'seg';
+      default:
+        return 'knb';
+    }
+  }
+
+  // Current 128-byte body from the loaded preset params (source of truth for
+  // scene generation/saving — the workbench state is what you hear and see).
+  private bodyValues(): number[] {
+    const out = new Array<number>(this.BODY_LEN).fill(0);
+    if (this.slotParams) {
+      for (const p of this.slotParams.params) out[p.index] = p.value;
+    }
+    return out;
+  }
+
+  private randInt(min: number, maxExclusive: number): number {
+    return Math.floor(Math.random() * (maxExclusive - min)) + min;
+  }
+
+  // Field value for a spec under the selected algorithm. Non-knobs (select,
+  // segmented, toggle) always resolve to a legal option so an illegal field
+  // value is impossible.
+  private fieldFor(spec: ControlSpec, current: number): number {
+    if (spec.type === 'select' || spec.type === 'segmented') {
+      const opts = (spec.options || []).filter((o) => o.value <= spec.max);
+      return opts.length ? opts[this.randInt(0, opts.length)].value : 0;
+    }
+    if (spec.type === 'toggle') return this.randInt(0, 2);
+    switch (this.randAlgo) {
+      case 'center': {
+        const mid = Math.round(spec.max / 2);
+        const band = Math.max(1, Math.round(spec.max / 6));
+        return Math.max(0, Math.min(spec.max, mid + this.randInt(-band, band + 1)));
+      }
+      case 'extremes':
+        return this.randInt(0, 2) === 0 ? 0 : spec.max;
+      case 'drift': {
+        const step = Math.max(1, Math.ceil(spec.max / 12));
+        let v = current + this.randInt(-step, step + 1);
+        if (v === current) v = Math.random() < 0.5 ? Math.max(0, current - step) : Math.min(spec.max, current + step);
+        return Math.max(0, Math.min(spec.max, v));
+      }
+      case 'uniform':
+      default:
+        return this.randInt(0, spec.max + 1);
+    }
+  }
+
+  // Which control-map specs this scene touches. Disabled groups are ignored.
+  // Excluded groups lock their controls (never randomized, even with randAll).
+  // Include groups contribute a definite number of random props per group (or
+  // all their members).
+  private randomTargets(): ControlSpec[] {
+    const specByKey = new Map<string, ControlSpec>();
+    for (const spec of this.controlMap) specByKey.set(this.specKey(spec), spec);
+    const excluded = new Set<string>();
+    for (const g of this.randSortedGroups) {
+      if (g.enabled === false) continue;
+      if (g.mode === 'exclude') for (const k of g.specKeys) excluded.add(k);
+    }
+    const avail = (spec: ControlSpec): boolean => !excluded.has(this.specKey(spec));
+    if (this.randAll) return this.controlMap.filter(avail);
+    const targets = new Map<string, ControlSpec>();
+    for (const g of this.randSortedGroups) {
+      if (g.enabled === false) continue;
+      if (g.mode !== 'include') continue;
+      const members = g.specKeys.map((k) => specByKey.get(k)).filter((s): s is ControlSpec => !!s && avail(s));
+      if (!members.length) continue;
+      const pick = g.props > 0 ? Math.min(g.props, members.length) : members.length;
+      const pool = [...members];
+      for (let i = 0; i < Math.min(pick, pool.length); i++) {
+        const j = this.randInt(i, pool.length);
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      for (let i = 0; i < Math.min(pick, pool.length); i++) targets.set(this.specKey(pool[i]), pool[i]);
+    }
+    return [...targets.values()];
+  }
+
+  private randomizeBody(base: number[], targets: ControlSpec[]): number[] {
+    const body = base.slice();
+    for (const spec of targets) {
+      const p = this.paramFor(spec.index);
+      const current = p ? this.fieldValue(spec, p) : 0;
+      const field = this.fieldFor(spec, current);
+      body[spec.index] = (body[spec.index] & ~spec.mask) | ((field << spec.shift) & spec.mask);
+    }
+    return body;
+  }
+
+  private pushScene(body: number[]): void {
+    this.randScenes = this.randScenes.slice(0, this.randSceneIdx + 1);
+    this.randScenes.push(body);
+    this.randSceneIdx = this.randScenes.length - 1;
+  }
+
+  // Apply a scene body to the workbench: update the param bytes + editedOverrides
+  // and commit the full body to flash (C4 ignores CTRL_SET, so the only way to
+  // hear a change is via the ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET commit path).
+  private applyScene(body: number[]): void {
+    if (!this.slotParams) return;
+    this.slotError = null;
+    const overrides: Record<number, number> = {};
     for (const p of this.slotParams.params) {
-      p.value = 0;
-      this.editedOverrides[p.index] = 0;
-      this.slotsDirty = true;
-      const specs = this.controlSpecsByIndex.get(p.index) || [];
-      for (const s of specs) {
-        if (s.liveIndex != null && !sentLive.has(s.liveIndex)) {
-          sentLive.add(s.liveIndex);
-          this.queueLive(s, 0);
-        }
+      if (p.value !== body[p.index]) {
+        p.value = body[p.index];
+        this.editedOverrides[p.index] = body[p.index];
+        this.slotsDirty = true;
+        overrides[p.index] = body[p.index];
       }
     }
-    this.logAction(`ZERO all ${this.BODY_LEN} bytes live=${sentLive.size}`);
+    if (!Object.keys(overrides).length) return;
+    this.logAction(`SCENE commit ${Object.keys(overrides).length} bytes`);
+    this.api.slotSave({ overrides }).subscribe({
+      next: () => this.logAction(`SCENE committed`),
+      error: (e) => (this.slotError = 'Scene commit failed: ' + (e.message ?? e)),
+    });
+  }
+
+  generateScene(): void {
+    if (!this.slotParams) {
+      this.randError = 'Load a preset first (Workbench tab) — randomizing needs a base sound.';
+      return;
+    }
+    const targets = this.randomTargets();
+    if (!targets.length) {
+      this.randError = this.randAll
+        ? 'No controls loaded.'
+        : 'No groups defined — add a group with controls, or tick "Randomize all controls".';
+      return;
+    }
+    this.randError = null;
+    const body = this.randomizeBody(this.bodyValues(), targets);
+    this.pushScene(body);
+    this.applyScene(body);
+  }
+
+  stepScene(dir: -1 | 1): void {
+    const next = this.randSceneIdx + dir;
+    if (next < 0 || next >= this.randScenes.length) return;
+    this.randSceneIdx = next;
+    this.applyScene(this.randScenes[next]);
+  }
+
+  togglePlay(): void {
+    if (this.randPlaying) {
+      this.stopRandTimer();
+      this.randPlaying = false;
+      this.randCountdown = 0;
+      return;
+    }
+    this.randPlaying = true;
+    this.generateScene();
+    this.randCountdown = this.randIntervalSec;
+    this.randTimer = setInterval(() => {
+      if (!this.randPlaying) return;
+      this.randCountdown--;
+      if (this.randCountdown <= 0) {
+        this.randCountdown = this.randIntervalSec;
+        this.generateScene();
+      }
+    }, 1000);
+  }
+
+  private stopRandTimer(): void {
+    if (this.randTimer) {
+      clearInterval(this.randTimer);
+      this.randTimer = null;
+    }
+  }
+
+  // --- Group CRUD ----------------------------------------------------------
+  startAddGroup(): void {
+    this.randEditingId = null;
+    this.randNewName = '';
+    this.randNewPriority = 10;
+    this.randNewProps = 0;
+    this.randNewMode = 'include';
+    this.randKeysChecked = {};
+    this.groupPickerSpec = null;
+    this.groupEditMode = true;
+  }
+
+  editGroup(g: RandomizeGroup): void {
+    this.randEditingId = g.id;
+    this.randNewName = g.name;
+    this.randNewPriority = g.priority;
+    this.randNewProps = g.props;
+    this.randNewMode = g.mode === 'exclude' ? 'exclude' : 'include';
+    this.randKeysChecked = {};
+    for (const k of g.specKeys) this.randKeysChecked[k] = true;
+    this.groupPickerSpec = null;
+    this.groupEditMode = true;
+  }
+
+  cancelEditGroup(): void {
+    this.randEditingId = null;
+    this.randNewName = '';
+    this.randKeysChecked = {};
+    this.groupPickerSpec = null;
+    this.groupEditMode = false;
+  }
+
+  saveGroup(): void {
+    const specKeys = Object.keys(this.randKeysChecked).filter((k) => this.randKeysChecked[k]);
+    if (!specKeys.length) {
+      this.randError = 'Select at least one control for the group.';
+      return;
+    }
+    this.randBusy = true;
+    this.randError = null;
+    const body = {
+      name: this.randNewName.trim() || 'Group',
+      priority: this.randNewPriority,
+      props: this.randNewProps,
+      mode: this.randNewMode,
+      specKeys,
+    };
+    const done = () => {
+      this.randBusy = false;
+      this.cancelEditGroup();
+      this.refreshRand();
+    };
+    const failed = (e: unknown) => {
+      this.randBusy = false;
+      this.randError = 'Group save failed: ' + ((e as { message?: string }).message ?? e);
+    };
+    if (this.randEditingId) {
+      this.api.randomizeGroupUpdate(this.randEditingId, body).subscribe({ next: done, error: failed });
+    } else {
+      this.api.randomizeGroupCreate(body).subscribe({ next: done, error: failed });
+    }
+  }
+
+  // In group-edit mode clicking a knob's grp button toggles that control in the
+  // group being edited (green = add, red = already in -> remove). No popover,
+  // no API call until Save.
+  toggleSpecInEditGroup(spec: ControlSpec): void {
+    const key = this.specKey(spec);
+    this.randKeysChecked[key] = !this.randKeysChecked[key];
+    this.groupPickerSpec = null;
+  }
+
+  editGroupHasSpec(spec: ControlSpec): boolean {
+    return !!this.randKeysChecked[this.specKey(spec)];
+  }
+
+  // --- Per-control group picker (workbench knob "grp" button) -------------
+  // Groups belong to the control map keyed by "index:name". The picker lets you
+  // attach any single knob/control to an include or exclude group, or spin a new
+  // group up from the picker itself.
+  openGroupPicker(spec: ControlSpec): void {
+    if (this.groupEditMode) return;
+    const key = this.specKey(spec);
+    const cur = this.groupPickerSpec ? this.specKey(this.groupPickerSpec) : null;
+    this.groupPickerSpec = cur === key ? null : spec;
+    this.groupPickerNewName = '';
+  }
+
+  grpPickerIs(spec: ControlSpec): boolean {
+    return !!this.groupPickerSpec && this.specKey(this.groupPickerSpec) === this.specKey(spec);
+  }
+
+  specOfExclude(spec: ControlSpec): boolean {
+    return this.randGroups.some(
+      (g) => g.enabled !== false && g.mode === 'exclude' && g.specKeys.includes(this.specKey(spec))
+    );
+  }
+
+  groupsOf(spec: ControlSpec): RandomizeGroup[] {
+    const key = this.specKey(spec);
+    return this.randGroups.filter((g) => g.specKeys.includes(key));
+  }
+
+  specInGroup(spec: ControlSpec, g: RandomizeGroup): boolean {
+    return g.specKeys.includes(this.specKey(spec));
+  }
+
+  setSpecInGroup(spec: ControlSpec, g: RandomizeGroup, inGroup: boolean): void {
+    const key = this.specKey(spec);
+    const specKeys = inGroup
+      ? [...g.specKeys, key]
+      : g.specKeys.filter((k) => k !== key);
+    this.randBusy = true;
+    this.randError = null;
+    this.api
+      .randomizeGroupUpdate(g.id, { specKeys })
+      .subscribe({
+        next: () => {
+          this.randBusy = false;
+          this.refreshRand();
+        },
+        error: (e) => {
+          this.randBusy = false;
+          this.randError = 'Group update failed: ' + ((e as { message?: string }).message ?? e);
+        },
+      });
+  }
+
+  createGroupWithSpec(spec: ControlSpec, name: string, mode: 'include' | 'exclude'): void {
+    if (!this.controlMap.length) return;
+    this.randBusy = true;
+    this.randError = null;
+    const body = {
+      name: (name.trim() || (mode === 'exclude' ? 'Excluded' : 'Group')),
+      priority: 10,
+      props: 0,
+      mode,
+      specKeys: [this.specKey(spec)],
+    };
+    this.api.randomizeGroupCreate(body).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.groupPickerSpec = null;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group create failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  toggleGroupEnabled(g: RandomizeGroup, on: boolean): void {
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizeGroupUpdate(g.id, { enabled: on }).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group on/off update failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  toggleGroupMode(g: RandomizeGroup): void {
+    const mode: 'include' | 'exclude' = g.mode === 'exclude' ? 'include' : 'exclude';
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizeGroupUpdate(g.id, { mode }).subscribe({
+      next: () => {
+        this.randBusy = false;
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group mode update failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  deleteGroup(g: RandomizeGroup): void {
+    if (!confirm(`Delete group "${g.name}"?`)) return;
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizeGroupDelete(g.id).subscribe({
+      next: () => {
+        this.randBusy = false;
+        if (this.randEditingId === g.id) this.cancelEditGroup();
+        this.refreshRand();
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Group delete failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  // --- Preset CRUD ---------------------------------------------------------
+  private hexOfBody(body: number[]): string {
+    return body.map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  private bodyOfHex(hex: string): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.slice(i, i + 2), 16));
+    return out;
+  }
+
+  saveRandPreset(): void {
+    if (!this.slotParams) return;
+    const name = this.randSaveName.trim() || `rand-${this.randPresets.length + 1}`;
+    this.randBusy = true;
+    this.randError = null;
+    this.api
+      .randomizePresetCreate({ name, source: 'randomizer', bodyHex: this.hexOfBody(this.bodyValues()) })
+      .subscribe({
+        next: () => {
+          this.randBusy = false;
+          this.randSaveName = '';
+          this.refreshRand();
+        },
+        error: (e) => {
+          this.randBusy = false;
+          this.randError = 'Preset save failed: ' + ((e as { message?: string }).message ?? e);
+        },
+      });
+  }
+
+  loadPreset(p: RandomizePreset): void {
+    const body = this.bodyOfHex(p.bodyHex);
+    if (body.length !== this.BODY_LEN || !this.slotParams) {
+      this.randError = 'Cannot load preset — bad body or no preset loaded.';
+      return;
+    }
+    this.randError = null;
+    this.pushScene(body);
+    this.applyScene(body);
+  }
+
+  savePresetToSlot(p: RandomizePreset, presetIdx: number): void {
+    this.randBusy = true;
+    this.randError = null;
+    this.api.randomizePresetUpdate(p.id, { saveToSlot: presetIdx, name: p.name }).subscribe({
+      next: () => {
+        this.randBusy = false;
+        const po = this.presetOptions.find((x) => x.idx === presetIdx);
+        if (po) po.name = p.name;
+        this.refreshRand();
+        this.loadPresetParams(presetIdx);
+      },
+      error: (e) => {
+        this.randBusy = false;
+        this.randError = 'Preset → location save failed: ' + ((e as { message?: string }).message ?? e);
+      },
+    });
+  }
+
+  renamePreset(p: RandomizePreset): void {
+    const name = prompt('Rename preset', p.name);
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === p.name) return;
+    this.api.randomizePresetUpdate(p.id, { name: trimmed }).subscribe({
+      next: () => this.refreshRand(),
+      error: (e) => (this.randError = 'Preset rename failed: ' + ((e as { message?: string }).message ?? e)),
+    });
+  }
+
+  deletePreset(p: RandomizePreset): void {
+    if (!confirm(`Delete preset "${p.name}"?`)) return;
+    this.api.randomizePresetDelete(p.id).subscribe({
+      next: () => this.refreshRand(),
+      error: (e) => (this.randError = 'Preset delete failed: ' + ((e as { message?: string }).message ?? e)),
+    });
+  }
+
+  fmtTs(ts: number): string {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   // --- Live mirror / observe --------------------------------------------------
@@ -559,10 +1196,17 @@ export class C4Component implements OnInit, OnDestroy {
     return this.isSeqStep(spec) ? 48 : spec.max;
   }
 
-  // Record a changed field and route the write: fields with a 1:1 live control
-  // (whole-byte, spec.liveIndex) go realtime via CTRL_SET; packed/body-only
-  // fields (no live) go to a debounced flash commit of the FULL composed byte.
+  // Record a changed field and route the write.
+  // On the C4, CTRL_SET (0x70) is silently ignored by the firmware — every
+  // change must go through the flash-commit path (ACTIVE_STORE + ACTIVE_WRITE
+  // + setActivePreset).  ALL pending edited bytes are batched into a single
+  // slotSave({overrides}) call so multiple knob turns within the debounce
+  // window are committed together — avoiding lost edits and spurious preset
+  // re-activations.
   private setField(spec: ControlSpec, p: SlotParam, uiValue: number): void {
+    // A knob edit after Revert but before a queued flash restore cancels that
+    // restore — the user is re-editing, we must not stomp it.
+    this.pendingRevert = null;
     const native = Math.max(0, Math.min(spec.max, uiValue));
     const prevField = this.fieldValue(spec, p);
     const prevByte = p.value;
@@ -573,13 +1217,17 @@ export class C4Component implements OnInit, OnDestroy {
     this.logAction(
       `SET ${spec.name} (${spec.index}:${spec.shift}) field ${prevField}->${native} byte 0x${prevByte
         .toString(16)
-        .padStart(2, '0')}->0x${byte.toString(16).padStart(2, '0')} ${spec.liveIndex != null ? 'LIVE#' + spec.liveIndex : 'FLASH'}`
+        .padStart(2, '0')}->0x${byte.toString(16).padStart(2, '0')} FLASH`
     );
-    if (spec.liveIndex != null) {
-      this.queueLive(spec, native);
-      return;
+    // A superseded sibling edit on the same packed byte (another field of the
+    // same body byte queued since) is folded into the composed byte this write
+    // will commit — its badge must not stay stuck half-lit.
+    const thisKey = this.fieldKey(spec);
+    for (const k of Array.from(this.flashPhase.keys())) {
+      if (k !== thisKey && k.startsWith(spec.index + ':')) this.flashPhase.delete(k);
     }
-    this.discretePending = { p, byte };
+    this.setFlashPhase(spec, 'pending');
+    this.discreteDirty = true;
     if (this.discreteTimer) return;
     this.discreteTimer = setTimeout(() => {
       this.discreteTimer = null;
@@ -587,80 +1235,58 @@ export class C4Component implements OnInit, OnDestroy {
     }, 300);
   }
 
-  // Realtime: CTRL_SET at the control's LIVE index (whole-byte fields).
-  private liveTimer: ReturnType<typeof setTimeout> | null = null;
-  private livePending = new Map<number, { spec: ControlSpec; value: number }>();
-  private queueLive(spec: ControlSpec, value: number): void {
-    this.livePending.set(spec.liveIndex!, { spec, value });
-    if (this.liveTimer) return;
-    this.liveTimer = setTimeout(() => {
-      this.liveTimer = null;
-      for (const [liveIndex, { value: v }] of this.livePending) {
-        this.logAction(`LIVE idx=${liveIndex} val=${v}`);
-        this.api.controlLive({ index: liveIndex, value: v }).subscribe({
-          error: (e) => (this.slotError = 'Realtime set failed: ' + (e.message ?? e)),
-        });
-      }
-      this.livePending.clear();
-    }, 40);
-  }
-
-  // Debounced flash commit for packed/bit-field controls: writes the FULL byte
-  // (composed from the sibling bits already in p.value) via /api/control.
+  // Debounced flash commit: batches ALL pending editedOverrides bytes into a
+  // single slotSave call, committing them all in one flash write + preset
+  // re-activation.  This prevents lost edits when multiple knobs are turned
+  // within the debounce window and avoids the audible "jumping" caused by
+  // individual preset re-activations.
   private discreteTimer: ReturnType<typeof setTimeout> | null = null;
-  private discretePending: { p: SlotParam; byte: number } | null = null;
+  private discreteDirty = false;
   private discreteInFlight = false;
 
   private flushDiscrete(): void {
-    const v = this.discretePending;
-    if (!v || this.discreteInFlight) return;
+    if (this.discreteInFlight || !this.discreteDirty) return;
+    const keys = Object.keys(this.editedOverrides);
+    if (!keys.length) return;
     this.discreteInFlight = true;
-    this.discretePending = null;
-    this.api.control({ index: v.p.index, value: v.byte }).subscribe({
-      next: (r) => {
+    this.discreteDirty = false;
+    const overrides: Record<number, number> = {};
+    const specsToMark: ControlSpec[] = [];
+    for (const key of keys) {
+      const idx = Number(key);
+      overrides[idx] = this.editedOverrides[idx];
+      for (const s of this.controlSpecsByIndex.get(idx) || []) {
+        if (this.flashPhase.get(this.fieldKey(s)) === 'pending') specsToMark.push(s);
+      }
+    }
+    for (const s of specsToMark) this.setFlashPhase(s, 'writing');
+    this.logAction(`FLASH batch commit ${Object.keys(overrides).length} byte(s)`);
+    this.api.slotSave({ overrides }).subscribe({
+      next: () => {
         this.discreteInFlight = false;
-        if (r && typeof r.readback === 'number') {
-          if (!this.discretePending || this.discretePending.p.index !== v.p.index) {
-            const pr = this.paramFor(v.p.index);
-            if (pr) pr.value = r.readback;
-          }
-          this.logAction(`FLASH byte ${v.p.index} 0x${v.byte.toString(16).padStart(2, '0')} readback=0x${r.readback.toString(16).padStart(2, '0')}`);
+        for (const s of specsToMark) this.setFlashPhase(s, 'applied');
+        if (this.pendingRevert) {
+          // A revert was requested while this commit was in flight; its
+          // snapshot restore must land AFTER the edited write so the pedal
+          // really returns to the saved preset.
+          const r = this.pendingRevert;
+          this.pendingRevert = null;
+          this.commitRevert(r);
+          return;
         }
         this.flushDiscrete();
-        this.resendLiveOverrides();
       },
       error: (e) => {
         this.discreteInFlight = false;
+        for (const s of specsToMark) this.flashPhase.delete(this.fieldKey(s));
         this.slotError = 'Commit failed: ' + (e.message ?? e);
+        if (this.pendingRevert) {
+          const r = this.pendingRevert;
+          this.pendingRevert = null;
+          this.commitRevert(r);
+        }
       },
     });
-  }
-
-  // After a flash commit re-activates the preset the pedal reloads all live
-  // controls from flash, which overwrites any transient CTRL_SET values the
-  // user set via knobs but hasn't persisted yet.  Re-send every live control
-  // that the user edited this session so their changes survive the re-activation.
-  // Delayed 300ms to allow the firmware to finish loading the preset from flash
-  // before we re-send CTRL_SET values, which could otherwise be overwritten.
-  private resendLiveOverrides(): void {
-    setTimeout(() => {
-      const sent = new Set<number>();
-      for (const key of Object.keys(this.editedOverrides)) {
-        const bodyIdx = Number(key);
-        const byteVal = this.editedOverrides[bodyIdx];
-        const specs = this.controlSpecsByIndex.get(bodyIdx) || [];
-        for (const s of specs) {
-          if (s.liveIndex != null && !sent.has(s.liveIndex)) {
-            sent.add(s.liveIndex);
-            const fieldVal = (byteVal & s.mask) >>> s.shift;
-            this.api.controlLive({ index: s.liveIndex, value: fieldVal }).subscribe({
-              error: (e) => (this.slotError = 'Re-send failed: ' + (e.message ?? e)),
-            });
-          }
-        }
-      }
-      if (sent.size) this.logAction(`RE-SEND ${sent.size} live controls after flash commit`);
-    }, 300);
   }
 
   onSelectChange(spec: ControlSpec, p: SlotParam, field: number): void {

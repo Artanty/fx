@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const { findC4, listSourceAudioDevices } = require('./src/c4Hid');
 const { C4Protocol } = require('./src/c4Protocol');
@@ -299,6 +300,171 @@ app.post('/api/presets/save', (req, res) => {
   } catch (e) {
     collectErrors(res, e);
   }
+});
+
+// --- Randomizer: control groups + saved scenes (JSON local DB) ---------------
+const RAND_DATA_DIR = path.join(__dirname, 'randomizer-data');
+const RAND_GROUPS_FILE = path.join(RAND_DATA_DIR, 'groups.json');
+const RAND_PRESETS_FILE = path.join(RAND_DATA_DIR, 'presets.json');
+
+function randLoad(file) {
+  try {
+    const list = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function randSave(file, list) {
+  fs.mkdirSync(RAND_DATA_DIR, { recursive: true });
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
+  try {
+    fs.unlinkSync(file);
+  } catch {
+    /* first save */
+  }
+  fs.renameSync(tmp, file);
+}
+
+function randUuid() {
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function normalizeGroup(body) {
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'Group';
+  const priority = Number.isInteger(body.priority) ? body.priority : 10;
+  const props = Number.isInteger(body.props) && body.props >= 0 ? body.props : 0;
+  const mode = body.mode === 'exclude' ? 'exclude' : 'include';
+  const enabled = body.enabled !== false;
+  const specKeys = Array.isArray(body.specKeys)
+    ? body.specKeys.filter((k) => typeof k === 'string' && /^\d+:.+/.test(k)).slice(0, 200)
+    : [];
+  return { name, priority, props, mode, enabled, specKeys };
+}
+
+function normalizePreset(body) {
+  const bodyHex =
+    typeof body.bodyHex === 'string' && /^[0-9a-fA-F]{256}$/.test(body.bodyHex) ? body.bodyHex.toLowerCase() : null;
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null;
+  const source = typeof body.source === 'string' && body.source.trim() ? body.source.trim() : 'scene';
+  const slot =
+    body.saveToSlot !== undefined &&
+    body.saveToSlot !== null &&
+    Number.isInteger(body.saveToSlot) &&
+    body.saveToSlot >= 0 &&
+    body.saveToSlot < C4_PRESET_COUNT
+      ? body.saveToSlot
+      : null;
+  return { bodyHex, name, source, slot };
+}
+
+// Persist a full 128-byte body into preset location `rawIdx` (0..127) through
+// the same commitRawPreset -> recall path the workbench Save uses, optionally
+// naming the location.
+function persistBody(rawIdx, body, nameOverride) {
+  const p = getSharedProto();
+  if (!p) return { error: 'Source Audio C4 Synth HID device not found' };
+  const name = nameOverride || cleanName(p.getPresetName(rawIdx).toString('ascii'));
+  p.commitRawPreset(rawIdx, body, name);
+  return { page: (C4_PRESET_BASE + rawIdx * C4_PRESET_PITCH).toString(16), name };
+}
+
+function bodyOfHex(hex) {
+  const out = [];
+  for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.slice(i, i + 2), 16));
+  return out;
+}
+
+// A preset location holds exactly one preset at a time: claiming it for `id`
+// clears the stale slot pointer on any OTHER preset still marked for it.
+function claimPresetSlot(list, id, rawIdx) {
+  for (const p of list) {
+    if (p.id !== id && p.slot === rawIdx) p.slot = null;
+  }
+}
+
+app.get('/api/randomize/groups', (req, res) => {
+  const groups = randLoad(RAND_GROUPS_FILE).map((g) => ({ mode: 'include', enabled: true, ...g }));
+  res.json({ ok: true, count: groups.length, groups });
+});
+
+app.post('/api/randomize/groups', (req, res) => {
+  const g = normalizeGroup(req.body);
+  const now = Date.now();
+  const group = { id: randUuid(), ...g, createdAt: now, updatedAt: now };
+  const list = randLoad(RAND_GROUPS_FILE);
+  list.push(group);
+  randSave(RAND_GROUPS_FILE, list);
+  res.json({ ok: true, group });
+});
+
+app.put('/api/randomize/groups/:id', (req, res) => {
+  const list = randLoad(RAND_GROUPS_FILE);
+  const group = list.find((g) => g.id === req.params.id);
+  if (!group) return res.status(404).json({ error: 'group not found' });
+  const g = normalizeGroup(req.body);
+  Object.assign(group, g, { updatedAt: Date.now() });
+  randSave(RAND_GROUPS_FILE, list);
+  res.json({ ok: true, group });
+});
+
+app.delete('/api/randomize/groups/:id', (req, res) => {
+  const list = randLoad(RAND_GROUPS_FILE);
+  const next = list.filter((g) => g.id !== req.params.id);
+  if (next.length === list.length) return res.status(404).json({ error: 'group not found' });
+  randSave(RAND_GROUPS_FILE, next);
+  res.json({ ok: true });
+});
+
+app.get('/api/randomize/presets', (req, res) => {
+  const list = randLoad(RAND_PRESETS_FILE);
+  res.json({ ok: true, count: list.length, presets: list });
+});
+
+app.post('/api/randomize/presets', (req, res) => {
+  const n = normalizePreset(req.body);
+  if (!n.bodyHex) return res.status(400).json({ error: 'bodyHex must be 256 hex chars (128 bytes)' });
+  const list = randLoad(RAND_PRESETS_FILE);
+  const now = Date.now();
+  const name = n.name || `rand-${list.length + 1}`;
+  if (n.slot !== null) {
+    const r = persistBody(n.slot, bodyOfHex(n.bodyHex), name);
+    if (r.error) return res.status(503).json({ error: r.error });
+    claimPresetSlot(list, null, n.slot);
+  }
+  const preset = { id: randUuid(), name, bodyHex: n.bodyHex, source: n.source, slot: n.slot, createdAt: now, updatedAt: now };
+  list.push(preset);
+  randSave(RAND_PRESETS_FILE, list);
+  res.json({ ok: true, preset });
+});
+
+app.put('/api/randomize/presets/:id', (req, res) => {
+  const list = randLoad(RAND_PRESETS_FILE);
+  const preset = list.find((p) => p.id === req.params.id);
+  if (!preset) return res.status(404).json({ error: 'preset not found' });
+  const n = normalizePreset(req.body);
+  if (n.bodyHex) preset.bodyHex = n.bodyHex;
+  if (n.name) preset.name = n.name;
+  if (n.source) preset.source = n.source;
+  if (n.slot !== null) {
+    const r = persistBody(n.slot, bodyOfHex(preset.bodyHex), preset.name);
+    if (r.error) return res.status(503).json({ error: r.error });
+    preset.slot = n.slot;
+    claimPresetSlot(list, preset.id, n.slot);
+  }
+  preset.updatedAt = Date.now();
+  randSave(RAND_PRESETS_FILE, list);
+  res.json({ ok: true, preset });
+});
+
+app.delete('/api/randomize/presets/:id', (req, res) => {
+  const list = randLoad(RAND_PRESETS_FILE);
+  const next = list.filter((p) => p.id !== req.params.id);
+  if (next.length === list.length) return res.status(404).json({ error: 'preset not found' });
+  randSave(RAND_PRESETS_FILE, next);
+  res.json({ ok: true });
 });
 
 // EEPROM live map + MIDI map for the Inspect-lite view.

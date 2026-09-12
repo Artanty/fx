@@ -71,6 +71,14 @@
   <!-- WORKBENCH -->
   <div *ngIf="activeTab === 'workbench' && slotParams" class="wb-layout">
     <div class="szone wb-main" [style.--wg-rows]="wgRows">
+      <!-- Group-edit mode banner: knobs become include/exclude toggles -->
+      <div class="grp-edit-banner" *ngIf="groupEditMode">
+        <strong>Group edit mode</strong>
+        <span class="dot add"></span> click = add to
+        <strong>{{ randNewName || 'this group' }}</strong>
+        <span class="dot del"></span> already in group (click removes)
+        <button class="refresh" (click)="cancelEditGroup()">Cancel</button>
+      </div>
       <!-- Block visibility toggle bar (top row) -->
       <div class="block-bar">
         <button
@@ -87,6 +95,10 @@
           (click)="toggleLog()"
           [title]="(logOpen ? 'Hide' : 'Show') + ' operation log'"
         >log</button>
+        <div class="commit-strip">
+          <span class="commit-strip-item" *ngIf="flashPendingCount">{{ flashPendingCount }} applying…</span>
+          <span class="commit-strip-item ok" *ngIf="lastAppliedName">✓ {{ lastAppliedName }} applied</span>
+        </div>
       </div>
 
       <ng-container *ngFor="let group of knobGroups">
@@ -137,6 +149,61 @@
               [class.knob-wide]="isEngineSpec(it.spec)"
               [class.modified]="fieldChanged(it.spec, it.p)"
             >
+              <span
+                *ngIf="flashPhaseFor(it.spec)"
+                class="ctl-badge"
+                [class.pending]="flashPhaseFor(it.spec) === 'pending'"
+                [class.writing]="flashPhaseFor(it.spec) === 'writing'"
+                [class.applied]="flashPhaseFor(it.spec) === 'applied'"
+                [attr.title]="'body byte ' + it.spec.index + ': ' + flashPhaseFor(it.spec)"
+              >{{ flashPhaseFor(it.spec) === 'applied' ? '✓' : flashPhaseFor(it.spec) === 'writing' ? '⟳' : '…' }}</span>
+              <button
+                class="grp-btn"
+                [class.open]="!groupEditMode && grpPickerIs(it.spec)"
+                [class.excluded]="!groupEditMode && specOfExclude(it.spec)"
+                [class.edit-add]="groupEditMode && !editGroupHasSpec(it.spec)"
+                [class.edit-del]="groupEditMode && editGroupHasSpec(it.spec)"
+                (click)="groupEditMode ? toggleSpecInEditGroup(it.spec) : openGroupPicker(it.spec); $event.stopPropagation()"
+                [attr.title]="groupEditMode
+                  ? (editGroupHasSpec(it.spec)
+                      ? 'Remove from group: ' + (randNewName || randEditingId)
+                      : 'Add to group: ' + (randNewName || randEditingId))
+                  : (groupsOf(it.spec).length ? 'In ' + groupsOf(it.spec).length + ' randomizer group(s) — click to edit' : 'Click to add this control to a randomizer group (include/exclude)')"
+              >{{ groupEditMode ? (editGroupHasSpec(it.spec) ? '−' : '+') : (groupsOf(it.spec).length ? '⊕ ' + groupsOf(it.spec).length : '⊕') }}</button>
+              <div class="grp-picker" *ngIf="grpPickerIs(it.spec)" (click)="$event.stopPropagation()">
+                <div class="grp-picker-title">
+                  {{ it.spec.name }}
+                  <span class="muted">byte {{ it.spec.index }}</span>
+                </div>
+                <p class="muted" style="margin:2px 0 6px;font-size:11px;">✓ randomize this control · ✕ never randomize it. Each row is a group you already made.</p>
+                <label class="grp-row" *ngFor="let g of randSortedGroups" [class.exclude]="g.mode === 'exclude'">
+                  <input
+                    type="checkbox"
+                    [checked]="specInGroup(it.spec, g)"
+                    [disabled]="randBusy"
+                    (change)="setSpecInGroup(it.spec, g, $any($event.target).checked)"
+                  />
+                  <span class="grp-name">{{ g.name }}</span>
+                  <span class="chip" title="priority">{{ g.priority }}</span>
+                  <span
+                    class="grp-mode"
+                    [class.exclude]="g.mode === 'exclude'"
+                    (click)="toggleGroupMode(g); $event.stopPropagation()"
+                    [attr.title]="g.mode === 'exclude' ? 'Excluded — click to include' : 'Included — click to exclude'"
+                  >{{ g.mode === 'exclude' ? '✕' : '✓' }}</span>
+                </label>
+                <p class="muted" *ngIf="!randSortedGroups.length" style="margin:6px 0;font-size:11px;">No groups yet — create your first in the Randomizer panel on the right.</p>
+                <div class="grp-new">
+                  <input
+                    class="inp"
+                    [(ngModel)]="groupPickerNewName"
+                    (keyup.enter)="createGroupWithSpec(it.spec, groupPickerNewName, 'include')"
+                    placeholder="new group name"
+                  />
+                  <button class="grp-new-inc" [disabled]="randBusy" (click)="createGroupWithSpec(it.spec, groupPickerNewName, 'include')">+ include</button>
+                  <button class="grp-new-exc" [disabled]="randBusy" (click)="createGroupWithSpec(it.spec, groupPickerNewName, 'exclude')">+ exclude</button>
+                </div>
+              </div>
               <div *ngIf="it.spec.type !== 'toggle' && it.spec.type !== 'select'" class="kbody">
                 <div
                   class="knob-inner"
@@ -152,7 +219,7 @@
                       class="arc"
                       cx="20" cy="20" r="16"
                       [attr.transform]="'rotate(' + arcRotate() + ' 20 20)'"
-                      stroke-dasharray="arcDash(it.spec, it.p)"
+                      [attr.stroke-dasharray]="arcDash(it.spec, it.p)"
                     ></circle>
                     <line
                       class="pointer"
@@ -213,6 +280,187 @@
 </span></pre>
       </div>
     </aside>
+
+    <!-- Randomizer right column (L.A. Lady style: workbench + randomizer side by side) -->
+    <div class="szone wrand wb-rand">
+      <div class="monitor-head">
+        <h2>Randomizer</h2>
+      <span class="muted" *ngIf="slotParams">scene {{ randScenes.length ? randSceneIdx + 1 : 0 }} / {{ randScenes.length }}</span>
+    </div>
+    <p class="muted" style="margin:0 0 8px;">Generate random scenes from the loaded workbench sound and hear them instantly (realtime). Step back/forward
+      through the scenes you built, run an auto-randomize every 3/5/7/10s, and save the good ones as named presets or to a C4 preset location.</p>
+    <p class="err" *ngIf="randError">{{ randError }}</p>
+    <p class="muted" *ngIf="randBusy">Working…</p>
+
+    <div class="rand-player">
+      <button
+        class="action-btn generate"
+        [disabled]="randBusy || !slotParams"
+        (click)="generateScene()"
+        title="Generate and apply a random scene now"
+      >Generate</button>
+      <button
+        class="action-btn"
+        [class.on]="randPlaying"
+        [disabled]="randBusy || !slotParams"
+        (click)="togglePlay()"
+        [attr.title]="randPlaying ? 'Pause the auto-randomizer' : 'Auto-randomize every ' + randIntervalSec + 's'"
+      >{{ randPlaying ? '⏸ Pause' : '▶ Play' }}</button>
+      <span
+        class="rand-count"
+        [class.low]="randCountdown <= 3"
+        *ngIf="randPlaying && randCountdown > 0"
+        [attr.title]="'Random params change in ' + randCountdown + 's'"
+      >{{ randCountdown }}s</span>
+
+      <label class="rand-inline">
+        every
+        <select [(ngModel)]="randIntervalSec" [disabled]="randPlaying" title="Auto-randomize interval">
+          <option [ngValue]="3">3s</option>
+          <option [ngValue]="5">5s</option>
+          <option [ngValue]="7">7s</option>
+          <option [ngValue]="10">10s</option>
+        </select>
+      </label>
+
+      <label class="rand-inline">
+        algorithm
+        <select [(ngModel)]="randAlgo" title="Randomization algorithm">
+          <option *ngFor="let a of RAND_ALGOS" [ngValue]="a.value">{{ a.text }}</option>
+        </select>
+      </label>
+
+      <label class="rand-inline rand-all" [class.on]="randAll">
+        <input type="checkbox" [(ngModel)]="randAll" />
+        Randomize all controls
+      </label>
+
+      <span class="picker-divider"></span>
+      <button class="refresh" (click)="stepScene(-1)" [disabled]="randSceneIdx <= 0" title="Go back to the previous scene">‹ Prev</button>
+      <button class="refresh" (click)="stepScene(1)" [disabled]="randSceneIdx >= randScenes.length - 1" title="Go forward to the next scene">Next ›</button>
+    </div>
+
+    <div class="rand-cols">
+      <div class="rand-col">
+        <div class="monitor-head">
+          <h3>Groups</h3>
+          <button class="refresh" (click)="startAddGroup()" [disabled]="randBusy || randAll" title="Start a new group">New group</button>
+        </div>
+        <p class="muted" style="margin:0 0 8px;">Groups pick controls to randomize. <strong>Included</strong> groups randomize their
+          controls; <strong>excluded</strong> groups lock their controls (never randomized, even with "all").
+          Props = how many of the group's controls change per scene (0 = all). Priority orders groups
+          (lower = first).</p>
+
+        <div class="rand-editor" [class.dim]="randAll">
+          <div class="rand-fields">
+            <input class="inp" [(ngModel)]="randNewName" [disabled]="randAll" placeholder="group name" />
+            <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewPriority" [disabled]="randAll" title="priority (lower = first)" placeholder="priority" />
+            <span
+              class="field-helper"
+              [attr.title]="'How many of this group\'s controls change per generated scene. 0 = all members; e.g. 3 changes only 3 random controls per scene.'"
+            >
+              <input class="inp num" type="number" min="0" step="1" [(ngModel)]="randNewProps" [disabled]="randAll" title="props randomized per scene (0 = all)" placeholder="props (0=all)" />
+              <span class="helper" aria-hidden="true">?</span>
+            </span>
+            <div class="rand-mode-toggle" title="Include = randomize these controls; Exclude = never randomize them">
+              <button type="button" class="grp-mode" [class.on]="randNewMode !== 'exclude'" [disabled]="randAll" (click)="randNewMode = 'include'">✓ include</button>
+              <button type="button" class="grp-mode exclude" [class.on]="randNewMode === 'exclude'" [disabled]="randAll" (click)="randNewMode = 'exclude'">✕ exclude</button>
+            </div>
+          </div>
+          <span class="muted rand-picker-hint">{{ randCheckCount }}/{{ controlMap.length }} controls selected</span>
+          <div class="rand-specs">
+            <label class="rand-spec" *ngFor="let spec of controlMap">
+              <input
+                type="checkbox"
+                [checked]="randKeysChecked[specKey(spec)]"
+                [disabled]="randAll"
+                (change)="randKeysChecked[specKey(spec)] = $any($event.target).checked"
+              />
+              <span class="rand-tag" [class]="'rand-tag-' + randSpecTag(spec)">{{ randSpecTag(spec) }}</span>
+              {{ spec.name }}
+            </label>
+          </div>
+          <div class="rand-edit-actions">
+            <button class="action-btn" (click)="saveGroup()" [disabled]="randBusy || randAll || randCheckCount === 0">
+              {{ randEditingId ? 'Update group' : 'Save group' }}
+            </button>
+            <button class="refresh" *ngIf="randEditingId" (click)="cancelEditGroup()" [disabled]="randAll">Cancel</button>
+          </div>
+        </div>
+
+        <ul class="rand-group-list" [class.dim]="randAll">
+          <li
+            *ngFor="let g of randSortedGroups"
+            [class.off]="g.enabled === false"
+            [attr.title]="randAll ? 'Randomized all controls — this group is ignored' : (g.enabled === false ? 'Off — randomizer skips this group' : g.name)"
+          >
+            <label
+              class="rand-g-on"
+              [attr.title]="randAll ? 'Randomized all controls' : (g.enabled === false ? 'Off — randomizer skips this group' : 'On — randomizer uses this group')"
+            >
+              <input
+                type="checkbox"
+                [checked]="g.enabled !== false"
+                [disabled]="randBusy || randAll"
+                (change)="toggleGroupEnabled(g, $any($event.target).checked)"
+              />
+              <span>on</span>
+            </label>
+            <span class="rand-g-name">{{ g.name }}</span>
+            <span class="chip" [class.exclude]="g.mode === 'exclude'" [title]="g.mode === 'exclude' ? 'Never randomized' : 'Randomized'">{{ g.mode === 'exclude' ? 'excluded' : 'included' }}</span>
+            <span class="chip">prio {{ g.priority }}</span>
+            <span class="chip">{{ g.specKeys.length }} ctl</span>
+            <span class="chip" *ngIf="g.props > 0">{{ g.props }} props</span>
+            <span class="spacer"></span>
+            <button class="refresh" (click)="toggleGroupMode(g)" [disabled]="randBusy || randAll" [attr.title]="g.mode === 'exclude' ? 'Include this group' : 'Exclude this group'">{{ g.mode === 'exclude' ? 'include' : 'exclude' }}</button>
+            <button class="refresh" (click)="editGroup(g)" [disabled]="randBusy || randAll">Edit</button>
+            <button class="danger action-btn" (click)="deleteGroup(g)" [disabled]="randBusy || randAll">Delete</button>
+          </li>
+          <li *ngIf="!randSortedGroups.length" class="muted empty">No groups yet.</li>
+        </ul>
+      </div>
+
+      <div class="rand-col">
+        <div class="monitor-head">
+          <h3>Presets</h3>
+          <span class="muted" *ngIf="randPresets.length">{{ randPresets.length }} saved</span>
+        </div>
+        <p class="muted" style="margin:0 0 8px;">Save the scene you currently hear as a named preset (stored locally on the
+          backend). Unnamed saves get the next &quot;rand-N&quot; name.</p>
+
+        <div class="rand-save-row">
+          <input class="inp" [(ngModel)]="randSaveName" [placeholder]="'rand-' + (randPresets.length + 1)" (keyup.enter)="saveRandPreset()" />
+          <button class="action-btn generate" (click)="saveRandPreset()" [disabled]="randBusy || !slotParams">Save as preset</button>
+        </div>
+
+        <table class="slots rand-presets" *ngIf="randPresets.length">
+          <thead>
+            <tr>
+              <th>name</th>
+              <th>created</th>
+              <th>actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of randPresets; let i = index">
+              <td>{{ p.name }}</td>
+              <td class="muted">{{ fmtTs(p.createdAt) }}</td>
+              <td class="actions">
+                <button (click)="loadPreset(p)" [disabled]="randBusy || !slotParams">Load</button>
+                <button (click)="renamePreset(p)" [disabled]="randBusy">Rename</button>
+                <button class="danger" (click)="deletePreset(p)" [disabled]="randBusy">Delete</button>
+                <select class="slot-mini" [(ngModel)]="randPresetSlots[i]" title="Target C4 preset location">
+                  <option *ngFor="let po of presetOptions" [ngValue]="po.idx">#{{ po.idx }}</option>
+                </select>
+                <button (click)="savePresetToSlot(p, randPresetSlots[i])" [disabled]="randBusy">→ preset</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="muted empty" *ngIf="!randPresets.length">No presets saved yet.</p>
+      </div>
+    </div>
+  </div>
   </div>
 
   <!-- OBSERVE -->

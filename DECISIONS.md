@@ -2519,7 +2519,7 @@ of only ticking a giant checkbox list under Groups.
 
 ### Plan
 2026-09-11 lalady: (1) In the Groups editor's controls-selected list every row
-appends "byte <index>" next to the effect name — remove that noise. (2) In the
+appends "byte <index>" next to the effect name ï¿½ remove that noise. (2) In the
 created-groups list, add an "on" toggle per group so a group can be turned off
 temporarily (it stops being randomized; an exclude group also stops locking its
 controls) without deleting it. enabled persists to the backend and defaults
@@ -2546,7 +2546,7 @@ groups and keep randomized controls consistent.
 ### Status
 2026-09-11 lalady: fixed saved randomizer groups not showing on session start.
 - Root cause: activeTab initializes to 'workbench', so the workbench tab renders
-  without ever firing openWorkbench() — the only call to refreshRand(). Groups
+  without ever firing openWorkbench() ï¿½ the only call to refreshRand(). Groups
   and presets therefore stayed empty until the user clicked the Workbench tab or
   saved a new group.
 - Fix: call refreshRand() from ngOnInit (alongside refresh/refreshDeviceInfo),
@@ -2578,9 +2578,9 @@ resets right after each Generate.
 2026-09-11 lalady: the presets table's "slot" column shows the pedal slot each
 preset was last written to. Because a pedal slot holds one preset at a time,
 writing a next preset to the same slot left the previous preset also marked with
-that slot — both displayed slot=2. Fix: when a preset claims a slot (POST/PUT
+that slot ï¿½ both displayed slot=2. Fix: when a preset claims a slot (POST/PUT
 with saveToSlot), clear the slot on any other preset still pointing at it.
-Verify: node --check + in-app check that the overwritten preset shows "—" after
+Verify: node --check + in-app check that the overwritten preset shows "ï¿½" after
 refresh.
 
 ### Status
@@ -2610,7 +2610,7 @@ build passes; after clicking "-> slot" the workbench loads that slot and its
 header shows the preset name, while the Slots tab updates too.
 
 ### Status
-2026-09-11 lalady: considered —
+2026-09-11 lalady: considered ï¿½
 - The write path ALREADY saves the name: persistBody(...) is called with
   preset.name (PUT) / the new preset name (POST), and writePreset commits the
   85-byte slot body (53 data + 32 name) with read-back verify (validated by
@@ -2654,11 +2654,262 @@ checkbox label itself gets a distinct highlight. Verify: ng build passes.
   the saved-groups list (.rand-group-list) dim (opacity 0.45); New group, Save,
   Cancel, the per-row on/mode/Edit/Delete controls, and the group/on-labels are
   all disabled via [disabled]="... || randAll".
-- Group list rows show a tooltip "Randomized all controls — this group is
+- Group list rows show a tooltip "Randomized all controls ï¿½ this group is
   ignored" while randAll is on (li and the on-toggle both).
 - ng build passes (pre-existing c4 warning only).
-2026-09-11 lalady: follow-up fix — with "Randomize all controls" engaged the
+2026-09-11 lalady: follow-up fix ï¿½ with "Randomize all controls" engaged the
 groups create/edit form was still editable (only the action buttons were
 disabled). Now the name/priority/props inputs, the include/exclude mode
 buttons, and every control-selector checkbox in the editor are [disabled] too,
 matching the dimmed groups list. ng build passes.
+
+## doc: randomizer reference + C4 Synth port guide
+
+### Plan
+2026-09-11: write two READMEs to make porting the L.A. Lady randomizer to the
+C4 Synth pedal easy and low-risk: (1) back/lalady/docs/randomizer.md ï¿½ reference
+doc for the existing implementation (data model, backend endpoints/persistence,
+frontend state/methods/algorithms, UI pieces, exact file paths); (2)
+back/c4/docs/randomizer-port.md ï¿½ a step-by-step port checklist mapping every
+L.A. Lady file/method to the C4 backend (128 presets, 128-byte body, port 3222)
+and C4 frontend, including the specific constants/regexes that must change.
+Verify: both docs render and cross-link; ng check unaffected (docs only).
+
+### Status
+2026-09-11: created back/lalady/docs/randomizer.md (reference architecture: data
+model, backend helpers+endpoints w/ line anchors, frontend state/methods,
+algorithms, UI pieces, file paths) and back/c4/docs/randomizer-port.md (C4 port
+checklist: existing C4 capabilities, deltas table 53->128 bytes / 6->128 presets
+/ 106->256 hex, backend step, frontend steps, verification, open questions).
+Result: docs only; no build/typecheck impact. Cross-linked both. Pending user
+answers to the two open questions (tab vs inline, c4Rand* naming) before any
+port code is written.
+
+## implement: C4 randomizer UI
+
+### Plan
+2026-09-11: port the L.A. Lady randomizer into the C4 UI (reference docs just
+written: back/lalady/docs/randomizer.md and back/c4/docs/randomizer-port.md).
+Choices (following port-doc recommendations): Randomizer as its own C4 tab;
+keep the rand-prefixed state names matching lalady verbatim for easy diffing.
+Scope: (1) back/c4/server.js - add randomizer-data persistence, helpers
+(randLoad/randSave/randUuid/normalizeGroup/normalizePreset/bodyOfHex/
+claimPresetSlot/persistBodyC4 via commitRawPreset+getPresetName), 8 endpoints;
+bodyHex 256 chars, saveToSlot 0..127. (2) web/src/app/c4/c4.models.ts -
+RandomizeGroup/RandomizePreset/RandomizePresetCreate/RandomizeList. (3)
+c4-api.service.ts - randomize* methods. (4) c4.component.ts - rand state +
+methods (bodyValues from slotParams 128 bytes, applyScene via queueLive,
+randomTargets/fieldFor/randomizeBody, scene play/countdown, group+preset CRUD),
+refreshRand on ngOnInit and tab open. (5) c4.component.html/.scss - Randomizer
+tab + rand-player + groups editor/list + presets table + styles. Verify:
+node --check, ng build.
+
+### Status
+2026-09-11: C4 randomizer implemented end-to-end. backend/c4/server.js: added
+randomizer-data JSON DB (groups/presets), fs require, helpers randLoad/Save/Uuid,
+normalizeGroup, normalizePreset (256-hex bodyHex regex, saveToSlot 0..127),
+persistBody via p.commitRawPreset + getPresetName (recalls automatically), bodyOfHex,
+claimPresetSlot, and the 8 /api/randomize/* endpoints. c4.models.ts: added
+RandomizeGroup/RandomizePreset/RandomizePresetCreate/RandomizeList. c4-api.service.ts:
+randomize* CRUD methods. c4.component.ts: added a 4th 'randomizer' tab; ported the
+full randomizer section (state + methods: refreshRand, randomTargets, fieldFor
+algos, randomizeBody, pushScene/applyScene via queueLive, generateScene,
+stepScene, togglePlay countdown, group CRUD + per-knob grp picker, preset CRUD);
+BODY_LEN=128 in bodyValues/loadPreset; refreshRand on ngOnInit + tab open;
+stopRandTimer in ngOnDestroy; renamed the randomizer save to saveRandPreset
+(avoids colliding with the existing workbench savePreset). c4.component.html:
+Randomizer tab + full UI (player/countdown/algo/randAll, groups editor+list,
+presets table with per-row C4 preset-location dropdown), grp-edit banner,
+per-knob grp-btn + grp-picker in the workbench. c4.component.scss: promoted
+.inp/.chip/.refresh/.danger to top level, .knob position:relative, grp-btn/
+grp-picker/banner styles, and the full .wrand randomizer styles. Verified:
+node --check back/c4/server.js OK, ng build passes (only pre-existing NG8102 +
+budget warnings). Not committed.
+
+### Status
+2026-09-11: Merged the C4 randomizer into the workbench (L.A. Lady two-column
+layout). html: removed the Randomizer tab button; moved the entire
+.wrand block inside .wb-layout as a .wb-rand column (sibling of
+.wb-main and .action-log); updated the per-knob picker hint text to
+refer to the "Randomizer panel on the right". ts: removed 'randomizer' from
+the activeTab union; setTab now calls refreshRand() when entering the
+workbench (and removed the now-dead tab === 'randomizer' branch). scss:
+added .wb-rand { flex: 0 0 460px; min-width: 340px; margin-bottom: 0; }
+under .wb-main; added &.wb-rand .rand-cols { grid-template-columns: 1fr; }
+inside .wrand so groups and presets stack vertically in the narrow column.
+On screens <900px the flex-direction column (existing media query) still stacks
+workbench and randomizer vertically; the .rand-cols single-column rule also
+applies on mobile. Verified: ng build passes (same pre-existing warnings only).
+
+## Progress - 2026-09-11 web: C4 CTRL_SET silently ignored ï¿½ route all writes through flash commit
+
+- User: "i dont hear c4synth changes on knobs change"
+- Log analysis: LIVE writes (CTRL_SET 0x70) fire without backend errors, but no
+  audible change on the pedal; FLASH commits (ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET
+  via /api/control) work perfectly with readback confirmation.
+- Root cause: the C4 firmware silently ignores CTRL_SET (0x70) for live parameter
+  updates.  The L.A. Lady pedal supports CTRL_SET, but the C4 does not.  Every
+  whole-byte knob change was routed through queueLive() > CTRL_SET which had no
+  effect; only packed fields (already on the flash path) were audible.
+- Fix: removed the if (spec.liveIndex != null) { queueLive; return } branch from
+  setField() â€” ALL knob changes now go through the debounced 300ms
+  flushDiscrete() > api.control() > commitRawPreset() flash-commit path.
+  Updated applyScene() (randomizer) to commit the full changed body via
+  api.slotSave({overrides}) so scenes are audible immediately.  Updated
+  allParamsZero() to commit via slotSave instead of queueLive.  The
+  queueLive/resendLiveOverrides code remains (harmless, useful for logging
+  if the firmware situation changes).
+- Verify: ng build passes (pre-existing warnings only).
+
+## Plan - 2026-09-11 web: C4 knob apply feedback + batched flash commit
+- User: "1.add processing display (when control is applied to pedal after knob
+  change) like in lalady. 2.when i turn gain 1 - sound is jumping. when i turn
+  'mix' it seems some others 'knobs' reseted. watch logs fix it".
+- Bug analysis: discretePending held only ONE {p, byte}. Turning gain1 then mix
+  within the 300ms debounce overwrote the first change â€” it was never committed
+  to flash, and the next single-byte /api/control commit recalled the preset
+  (setActivePreset) from a flash body that lacked it, so the knob audibly
+  "jumped" / other knobs "reset".  Each single-byte commit also fired its own
+  full ACTIVE_STORE/ACTIVE_WRITE/ACTIVE_SET cycle (~1s+), compounding the effect.
+- Fix: recode setField/flushDiscrete to batch ALL pending editedOverrides bytes
+  into ONE api.slotSave({overrides}) commit (single in-flight guard), removing
+  the single-slot discretePending; delete the now-dead queueLive/livePending/
+  liveTimer/resendLiveOverrides (CTRL_SET is ignored on C4), and drop
+  resendLiveOverrides() from applyScene().
+- Display: port the L.A. Lady per-control apply badge (.ctl-badge, phases
+  pending/writing/applied, keyed index:shift, APPLIED_KEEP_MS 2800 auto-fade)
+  + global commit strip (flashPendingCount / lastAppliedName) into the C4
+  workbench, with @keyframes pulse.
+
+## Status - 2026-09-11 web: C4 knob batch commit + apply badge implemented
+- Done: setField() now marks its field 'pending' (clearing sibling fields on the
+  same packed byte), stores the byte in editedOverrides, and arms a 300ms
+  debounce; flushDiscrete() gathers ALL editedOverrides bytes and commits them
+  in one slotSave({overrides}) call, marking affected fields 'writing' then
+  'applied' on success (or dropping the badge on error).  Single-flight
+  discreteInFlight guard prevents overlapping commits; new edits during flight
+  re-arm a follow-up flush (discreteDirty).
+- Cleanup: removed dead queueLive()/livePending/liveTimer, discretePending
+  single-slot field with its per-byte /api/control path, and resendLiveOverrides()
+  (CTRL_SET ignored on C4).  applyScene() no longer calls resendLiveOverrides().
+- UI: added .ctl-badge (pending/writing/applied, @keyframes pulse) to every
+  workbench knob and a .commit-strip (flashPendingCount + lastAppliedName) under
+  the block-bar in c4.component.html/.scss.  clearFlashPhases() runs on
+  load/revert so stale badges never persist.
+- Layout fix: the commit-strip was first placed as a direct child of .wb-main â€”
+  at >=1600px that grid is column-major with a fixed row count, so an extra
+  full-width grid cell pushed all control blocks around ("control blocks now
+  chaotic").  Moved the strip INSIDE .block-bar (width:100%, wraps to its own
+  line after the chips).  .block-bar remains the single grid-column:1/-1 cell,
+  so the 2-column flow is restored.
+- Verify: ng build passes (pre-existing warnings only: NG8102 nullish coalescing
+  on c4.component.html:36, SCSS budgets for lalady + c4).  User to re-test turning
+  gain1 + mix rapidly and confirm batch commit in the C4 runtime log and no
+  knob jumping.
+
+## Status - 2026-09-11 web: C4 randomizer audible but knobs frozen - static stroke attribute
+- User: "when randomizer works i hear the changes but knobs dont change visually".
+  Scenes commit fine (log: SCENE commit/committed, flash commits apply, sound
+  changes) but the knob arc never moved.
+- Root cause: c4.component.html knob <circle class="arc"> was rendered with
+  `stroke-dasharray="arcDash(it.spec, it.p)"` -- a STATIC attribute, not an
+  Angular binding. Angular set the literal text "arcDash(it.spec, it.p)" once and
+  never re-evaluated it, so the knob fill arc froze at its initial value even
+  though p.value changed (the pointer [attr.x2]/[attr.y2] and .kvalue text DID
+  update). The static arc made the whole knob look inert during randomizer play.
+- Fix: changed to `[attr.stroke-dasharray]="arcDash(it.spec, it.p)"` so the arc
+  tracks p.value on every CD pass, matching the existing [attr.*] pointer bindings.
+- Verify: ng build passes (pre-existing warnings only).  User to re-run the
+  randomizer and confirm the knob arcs now move with the audible scenes.
+
+## Status - 2026-09-11 web: C4 changed knobs get light-gold border + arc like lalady
+- User: "make changed knobs light-bordered like in lalady ui".  lalady renders
+  .kbody.modified with the knob arc in gold (#ffd27a, lalady.component.scss l.790).
+  C4 only colored the .kname label gold, so a modified knob body looked unchanged.
+- Fix (c4.component.scss): `.knob.modified .kbody { border-color: #ffd27a }` +
+  `.knob.modified .arc { stroke: #ffd27a }` -- modified knobs now get a light-gold
+  ring AND a gold fill arc, matching lalady at a glance.  .kname gold kept.
+- Verify: ng build passes (pre-existing warnings only).  User to turn any knob and
+  confirm the knob body lights gold around the border + arc.
+
+## Status - 2026-09-11 web: C4 random preset target slot defaults to current slot
+- User: "when i save random generated preset - i want current slot will be selected
+  by default in 'target c4 preset location' select".  randPresetSlots (the per-row
+  target-slot select in the rand-preset table) defaulted to `p.slot ?? 0`, so a
+  freshly saved preset (slot: null) always showed location #0 regardless of the
+  workbench's current preset.
+- Fix (c4.component.ts refreshRand): default unresolved rows to the selected slot,
+  `p.slot ?? this.selectedPresetIdx ?? 0`.  Rows that were already pushed to a C4
+  slot keep their stored slot since backend persists it on savePresetToSlot.
+- Verify: ng build passes (pre-existing warnings only).  User to save a random
+  preset with the workbench on a non-zero preset and confirm the target-location
+  select rows now show the current slot.
+
+## Status - 2026-09-11 web: C4 rand-preset target slot still showed #0 after slot switch
+- User: on #4 but saved random preset table still showed #0 in the target-location
+  select.  Root cause: randPresetSlots was computed ONCE in refreshRand() (initial
+  call happened while selectedPresetIdx was still null/0) and never re-synced when
+  the Location select later activated #4.
+- Fix (c4.component.ts): extracted syncRandPresetSlots() (p.slot ?? selectedPresetIdx
+  ?? 0) used by refreshRand(), and called it again from loadPresetParams() so any
+  slot change (Location select / activate / savePresetToSlot reload) re-defaults
+  unpinned rows to the current slot.  Pinned rows (backend slot set) keep theirs.
+- Verify: ng build passes (pre-existing warnings only).  User to switch to #4 then
+  re-check the table: unpinned presets' target-location select must show 4.
+
+## Status - 2026-09-11 web: C4 Revert button no-op - stale knob cache, not the buttons
+- User: "revert button does nothing".  revertPreset() swapped in a brand-new array
+  `this.slotParams.params = snapshot.map({...})`.  But the knob/seq display cache
+  (_knobRowsCache) is keyed on slotParams IDENTITY (which never changes on revert),
+  and every cached {spec, p} still pointed at the OLD param objects - so the workbench
+  kept showing the edited values; the click looked like a no-op.
+- Fix: mutate each existing param object in place from paramsSnapshot (by index),
+  keeping array and objects identical; then clear slotsDirty/editedOverrides/flash
+  phases as before.  UI now reverts.
+- Verify: ng build passes (pre-existing warnings only).  User to drag a knob, hit
+  Revert, and confirm the workbench returns to the loaded snapshot.
+
+## Status - 2026-09-11 web: C4 'all 0' zeroes workbench WITHOUT saving to slot
+- User: "button 'all 0' saves to slot zeroed values. i want it just to change all
+  to 0, not save".  allParamsZero() issued api.slotSave({overrides}) immediately,
+  committing a fully-zeroed body to flash (and recalling the preset).
+- Fix: allParamsZero() now only mutates each param object in place to 0 (keeps the
+  knob cache valid), marks editedOverrides + slotsDirty, and logs
+  'ZERO all workbench bytes (not committed)'.  Committing is left to Save; Revert
+  restores the snapshot.
+- Verify: ng build passes (pre-existing warnings only).  User to click 'all 0',
+  confirm knobs zero on the workbench with no flash write in the log, then Save or
+  Revert.
+
+## Status - 2026-09-11 web: C4 'all 0' visual-only - knob turn no longer flushes zeros
+- User: "'all 0' only visually touch all the knobs, sound remains the same. but if
+  to touch knob after it - zero0knobs-state aplied".  Previous fix stopped the
+  immediate slotSave but allParamsZero() STILL wrote every byte (as 0) into
+  editedOverrides; turning any knob afterwards made flushDiscrete() batch-commit
+  ALL 128 zeroed bytes to flash, so the whole zeroed state hit the pedal.
+- Fix: allParamsZero() now only zeroes the param objects in place (p.value = 0,
+  slotsDirty stays true, log 'visual only, not committed'); editedOverrides is left
+  untouched so the next knob turn commits ONLY that byte.  Save still persists via
+  whichever editedOverrides exist; Revert restores the snapshot.
+- Verify: ng build passes (pre-existing warnings only).  User: click 'all 0',
+  knobs zero visually with no flash write; turn a knob -> only that knob's byte is
+  committed, the other zeroed knobs stay visual-only.
+
+
+## Status - 2026-09-11 server: C4 Revert now restores the saved preset to flash
+- User: "revert reverts to saved preset not every time. watch logs".  Log showed
+  knob edits auto-committing to flash at knob-time (`FLASH batch commit N byte(s)`)
+  while `REVERT: workbench returned to snapshot` was UI-only - the pedal kept
+  playing the edited body, and a 300ms debounced commit in flight during revert
+  could land AFTER the revert (hence "not every time").
+- Fix: revertPreset() now builds overrides from paramsSnapshot, restores UI in
+  place (cache-safe), cancels the debounce timer, clears discreteDirty, and
+  re-persists the snapshot bytes to flash via slotSave({idx: selectedPresetIdx,
+  overrides}).  If a commit is in flight it is queued in pendingRevert and run from
+  the flushDiscrete next/error handler only after that write settles; a fresh knob
+  edit after Revert cancels pendingRevert so a queued restore can't stomp new
+  edits.
+- Verify: ng build passes (pre-existing NG8102 warning only).  User to edit knobs
+  then click Revert and confirm the log shows 'REVERT: flashing N byte(s)' and the
+  pedal returns to the saved sound on every click, including right after an edit
+  that just fired a batch commit.

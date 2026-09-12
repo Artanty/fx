@@ -221,6 +221,13 @@ button {
   margin: 0;
 }
 
+// Randomizer right column, merged into the workbench (like L.A. Lady).
+.wb-rand {
+  flex: 0 0 460px;
+  min-width: 340px;
+  margin-bottom: 0;
+}
+
 // Block visibility chip bar (top row).
 .block-bar {
   display: flex;
@@ -276,9 +283,35 @@ button {
   }
 }
 
+.commit-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+
+  .commit-strip-item {
+    font-size: 11px;
+    color: #c9c9d4;
+    border: 1px solid #35353f;
+    background: #1b1b22;
+    border-radius: 10px;
+    padding: 2px 8px;
+
+    &.ok {
+      color: #7ce38e;
+      border-color: #2f7a41;
+      background: #17251b;
+    }
+  }
+}
+
 .knob-group {
   position: relative;
-  margin-bottom: 8px;
   border: 1px solid #2a2a34;
   border-radius: 6px;
   padding: 6px 8px 8px 24px;
@@ -396,6 +429,7 @@ button {
 }
 
 .knob {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -432,6 +466,18 @@ button {
   border: 1px solid #35353f;
   background: #1b1b22;
   cursor: default;
+
+  &:hover {
+    border-color: #4a4a58;
+  }
+}
+
+.knob.modified .kbody {
+  border-color: #ffd27a;
+}
+
+.knob.modified .arc {
+  stroke: #ffd27a;
 }
 
 .knob-inner {
@@ -749,7 +795,8 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: repeat(var(--wg-rows, 1), auto);
     grid-auto-flow: column;
-    gap: 10px;
+    column-gap: 10px;
+    row-gap: 0;
     align-items: start;
 
     .block-bar {
@@ -759,5 +806,696 @@ button {
 
   .knob-group {
     margin-bottom: 0;
+  }
+}
+
+// --- Randomizer ------------------------------------------------------------
+// Per-knob randomizer group button + picker (absolute within the knob cell).
+.knob {
+  .grp-btn {
+    position: absolute;
+    top: -6px;
+    left: 2px;
+    z-index: 2;
+    min-width: 20px;
+    height: 16px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    color: #8b8b98;
+    border: 1px solid #35353f;
+    background: #1b1b22;
+
+    &:hover {
+      color: #4da3ff;
+      border-color: #4da3ff;
+    }
+
+    &.open {
+      color: #d7f1ff;
+      border-color: #2f7a9e;
+      background: #13303f;
+      z-index: 6;
+    }
+
+    &.excluded {
+      color: #ff8f93;
+      border-color: rgba(255, 143, 147, 0.55);
+      background: #2e171a;
+    }
+
+    // Group-edit mode: knobs become add (green) / remove (red) toggles.
+    &.edit-add {
+      color: #7ce38e;
+      border-color: #2f7a41;
+      background: #17251b;
+      z-index: 6;
+
+      &:hover {
+        background: #1f3a28;
+      }
+    }
+
+    &.edit-del {
+      color: #ff8f93;
+      border-color: #8a2f3f;
+      background: #2a171c;
+      z-index: 6;
+
+      &:hover {
+        background: #3a1f25;
+      }
+    }
+  }
+
+  .ctl-badge {
+    position: absolute;
+    top: -6px;
+    right: 2px;
+    z-index: 2;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 700;
+    border: 1px solid;
+
+    &.pending {
+      color: #ffd27a;
+      border-color: #8a6d2f;
+      background: #2a2417;
+    }
+
+    &.writing {
+      color: #ffb25e;
+      border-color: #b06a1f;
+      background: #2a2016;
+      animation: pulse 0.9s ease-in-out infinite;
+    }
+
+    &.applied {
+      color: #7ce38e;
+      border-color: #2f7a41;
+      background: #17251b;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  // Popover listing groups for the open knob's control.
+  .grp-picker {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: 300px;
+    padding: 8px 10px;
+    background: #101118;
+    border: 1px solid #3a3a48;
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+    text-align: left;
+
+    .grp-picker-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e8e8ee;
+      margin-bottom: 2px;
+    }
+
+    .grp-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 4px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #c9c9d4;
+
+      &:hover {
+        background: #17181f;
+      }
+
+      &.exclude .grp-name {
+        color: #ff9ba0;
+      }
+
+      input {
+        accent-color: #2f7a9e;
+      }
+
+      .grp-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .grp-mode {
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 8px;
+      border: 1px solid #2f7a41;
+      color: #7ce38e;
+      background: #17251b;
+      user-select: none;
+
+      &.exclude {
+        border-color: #8a2f3f;
+        color: #ff8f93;
+        background: #2a171c;
+      }
+    }
+
+    .grp-new {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #26262e;
+
+      .inp {
+        flex: 1;
+        min-width: 0;
+      }
+
+      button {
+        height: 26px;
+        padding: 0 8px;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .grp-new-inc {
+        color: #7ce38e;
+        border-color: #2f7a41;
+      }
+
+      .grp-new-exc {
+        color: #ff8f93;
+        border-color: #8a2f3f;
+      }
+    }
+  }
+}
+
+.grp-edit-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid #8a6d2f;
+  border-radius: 6px;
+  background: #241e12;
+  color: #e8e8ee;
+  font-size: 12px;
+
+  strong {
+    color: #ffd27a;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+
+    &.add {
+      background: #2f7a41;
+    }
+
+    &.del {
+      background: #8a2f3f;
+    }
+  }
+
+  .refresh {
+    margin-left: auto;
+  }
+}
+
+// Randomizer tab layout.
+.wrand {
+  .monitor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+
+    h2 {
+      margin: 0;
+      font-size: 14px;
+      color: #8b8b98;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 13px;
+      color: #c9c9d4;
+    }
+  }
+
+  .rand-player {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid #2a2a34;
+    border-radius: 8px;
+    background: #15151b;
+    margin-bottom: 14px;
+
+    .generate,
+    .action-btn {
+      height: 32px;
+      padding: 0 16px;
+      font-weight: 600;
+    }
+
+    .generate {
+      background: #1d5572;
+      border-color: #2f7a9e;
+      color: #d7f1ff;
+
+      &:hover:not(:disabled) {
+        background: #24678a;
+      }
+    }
+  }
+
+  .rand-count {
+    min-width: 42px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #4da3ff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #2f5a80;
+    background: #10202e;
+
+    &.low {
+      color: #ffbe50;
+      border-color: #6b5224;
+      background: #1f1820;
+    }
+  }
+
+  .rand-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #8b8b98;
+
+    select {
+      background: #1b1b22;
+      border: 1px solid #35353f;
+      color: #c9c9d4;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 12px;
+    }
+
+    &.rand-all {
+      cursor: pointer;
+
+      input {
+        accent-color: #2f7a9e;
+      }
+
+      &.on {
+        color: #7ce38e;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid #2f7a41;
+        background: #17251b;
+        box-shadow: 0 0 0 1px rgba(124, 227, 142, 0.25), 0 0 10px rgba(124, 227, 142, 0.25);
+      }
+    }
+  }
+
+  .picker-divider {
+    width: 1px;
+    align-self: stretch;
+    background: #2a2a34;
+    margin: 0 2px;
+  }
+
+  .rand-editor.dim,
+  .rand-group-list.dim {
+    opacity: 0.45;
+    filter: saturate(0.6);
+    transition: opacity 0.15s ease;
+  }
+
+  .rand-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 14px;
+    align-items: start;
+
+    .rand-col {
+      min-width: 0;
+    }
+  }
+
+  // Merged into the workbench: keep the groups/presets stacked in the narrow
+  // right column instead of two side-by-side sub-columns.
+  &.wb-rand .rand-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .rand-editor {
+    border: 1px solid #2a2a34;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+
+    .rand-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+
+      .inp:first-child {
+        flex: 1 1 160px;
+        min-width: 120px;
+      }
+
+      .inp.num {
+        width: 84px;
+      }
+
+      .field-helper {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+
+        .helper {
+          width: 14px;
+          height: 14px;
+          font-size: 9px;
+          font-weight: 700;
+          line-height: 13px;
+          text-align: center;
+          border-radius: 50%;
+          border: 1px solid #4da3ff;
+          color: #4da3ff;
+          background: #10202e;
+          cursor: help;
+          user-select: none;
+        }
+      }
+    }
+
+    .rand-picker-hint {
+      font-size: 11px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .rand-mode-toggle {
+      display: inline-flex;
+      gap: 4px;
+
+      .grp-mode {
+        height: 26px;
+        padding: 0 10px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 4px;
+        border: 1px solid #35353f;
+        color: #8b8b98;
+        background: #1b1b22;
+
+        &.on {
+          color: #7ce38e;
+          border-color: #2f7a41;
+          background: #17251b;
+        }
+
+        &.exclude.on {
+          color: #ff8f93;
+          border-color: #8a2f3f;
+          background: #2a171c;
+        }
+      }
+    }
+  }
+
+  .rand-specs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2px 10px;
+    max-height: 240px;
+    overflow: auto;
+    border: 1px solid #26262e;
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: #0d0f15;
+  }
+
+  .rand-spec {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #c9c9d4;
+    cursor: pointer;
+    padding: 1px 0;
+
+    input {
+      accent-color: #2f7a9e;
+    }
+  }
+
+  .rand-tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0 4px;
+    border-radius: 3px;
+    border: 1px solid #35353f;
+    color: #8b8b98;
+    line-height: 14px;
+  }
+
+  .rand-tag-knb { color: #7be3a0; border-color: rgba(123, 227, 160, 0.4); }
+  .rand-tag-sel { color: #4da3ff; border-color: rgba(77, 163, 255, 0.4); }
+  .rand-tag-seg { color: #ffbe50; border-color: rgba(255, 190, 80, 0.4); }
+  .rand-tag-tog { color: #ff8f93; border-color: rgba(255, 143, 147, 0.4); }
+
+  .rand-edit-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+
+    .action-btn {
+      height: 30px;
+      font-weight: 600;
+      padding: 0 14px;
+    }
+  }
+
+  .rand-group-list {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid #2a2a34;
+      border-radius: 6px;
+      margin-bottom: 6px;
+
+      &.off {
+        opacity: 0.45;
+
+        .rand-g-name {
+          color: #8b8b98;
+        }
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      button {
+        height: 26px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+    }
+
+    .empty {
+      font-size: 12px;
+      padding: 8px 2px;
+    }
+  }
+
+  .rand-g-on {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #8b8b98;
+    cursor: pointer;
+    user-select: none;
+
+    input {
+      accent-color: #7ce38e;
+      width: 14px;
+      height: 14px;
+      margin: 0;
+    }
+
+    span {
+      color: #7ce38e;
+    }
+  }
+
+  .rand-g-name {
+    font-weight: 600;
+    color: #e8e8ee;
+  }
+
+  .rand-save-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+
+    .inp {
+      flex: 1;
+    }
+
+    button {
+      height: 30px;
+      font-weight: 600;
+      padding: 0 14px;
+    }
+  }
+
+  table.slots {
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid #26262e;
+      vertical-align: middle;
+      font-size: 13px;
+    }
+
+    th {
+      color: #8b8b98;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+
+  .rand-presets {
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+
+      button {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 11px;
+      }
+    }
+
+    .slot-mini {
+      background: #1b1b22;
+      border: 1px solid #35353f;
+      color: #c9c9d4;
+      border-radius: 4px;
+      font-size: 11px;
+      height: 24px;
+      padding: 0 4px;
+    }
+  }
+
+  .empty {
+    color: #8b8b98;
+    margin: 20px 0;
+  }
+}
+
+button.danger {
+  background: #3a1f22;
+  border-color: #5c3036;
+  color: #ff8f93;
+
+  &:hover:not(:disabled) {
+    background: #4d2a30;
+  }
+}
+
+.refresh {
+  background: #1d2a4a;
+  border-color: #2f4474;
+}
+
+.inp {
+  background: #1b1b22;
+  border: 1px solid #35353f;
+  color: #e8e8ee;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: #4da3ff;
+  }
+}
+
+.chip {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #2a2a34;
+  color: #8b8b98;
+  white-space: nowrap;
+
+  &.exclude {
+    background: #2a171c;
+    color: #ff8f93;
+    border: 1px solid #8a2f3f;
   }
 }

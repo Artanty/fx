@@ -145,3 +145,42 @@ export interface EepromData {
   boundCount: number;
   error?: string;
 }
+
+// Randomizer: named scene presets + control groups, persisted by the backend
+// in back/c4/randomizer-data/ (local DB today, remote DB later).
+export interface RandomizeGroup {
+  id: string;
+  name: string;
+  priority: number;
+  props: number; // number of random props applied per scene from this group (0 = all)
+  mode: 'include' | 'exclude'; // include: randomize these controls; exclude: never randomize them
+  enabled: boolean; // on/off toggle: disabled groups are ignored entirely by the randomizer
+  specKeys: string[]; // control-map entries "index:name"
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RandomizePreset {
+  id: string;
+  name: string;
+  bodyHex: string; // 256 hex chars = 128-byte preset body
+  source: string;
+  slot?: number | null; // last C4 preset location this scene was saved to
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RandomizePresetCreate {
+  name?: string;
+  source?: string;
+  saveToSlot?: number | null;
+  bodyHex: string;
+}
+
+export interface RandomizeList<T> {
+  ok: boolean;
+  count: number;
+  error?: string;
+  groups?: T[];
+  presets?: T[];
+}

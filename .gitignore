@@ -16,8 +16,9 @@ back/h90/presets.db
 back/h90/api_cache.json
 back/h90/patchstorage/
 
-# L.A. Lady randomizer local DB (created at runtime by back/lalady/server.js)
+# Pedal randomizer local DB (created at runtime by the backends)
 back/lalady/randomizer-data/
+back/c4/randomizer-data/
 
 # SikuliX runtime (jars + portable JRE - fetch with back/h90/sikulix/setup.ps1)
 back/h90/sikulix/sikulixide-*.jar
