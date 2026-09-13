@@ -2977,3 +2977,113 @@ app + pedal on the visible desktop.
   the pre-existing c4 NG8102 warning). On-machine calibration still needed:
   knob label->dial offset (--above) and drag direction/size (--dy) to be tuned
   live with capture-h90.js running.
+
+## Plan - 2026-09-13 h90: change an effect's knob value via UI Automation (no UI)
+
+User goal: set the "wet mix" knob of the currently-loaded "Band Delay" (Delay)
+preset in the native H90 Control app WITHOUT building any web UI - just prove
+we can read+change an effect property end-to-end.
+
+Approach: Windows UI Automation (pywinauto 0.6.9, already installed) against
+the running H90 Control.exe (PID 4972). This is the exact technique the former
+server/h90_ui.py verified live (2026-08-28): every JUCE knob shows as a
+co-located Slider (rotary) + Edit (value readout) + Text (label) in the UIA
+tree, and mouse-dragging the slider center drives it, with on-the-fly px-per-
+value calibration. Playwright is not applicable (native app, not web).
+
+Steps:
+1. Write a probe driver (back/h90/uia_driver.py) that attaches to the H90
+   Control window, walks the UIA tree, and lists parameter groups: label +
+   current value (Edit readout). Identify "Wet Mix" (Band Delay) + its value.
+2. --set: drag the knob's slider by calibrated px to land the target value;
+   verify via the Edit readout + (optionally) capture-h90.js MIDI RX line.
+3. Run it live: read current Wet Mix, then set a clearly-different value and
+   read back.
+
+Verification: --list shows Wet Mix; --set changes it and the readout (and any
+capture-h90.log traffic) reflects the new value; no UI/tab built.
+
+## Progress - 2026-09-13 h90: change effect knob value via UIA - DONE
+
+Outcome: fully working, no UI needed.
+
+- uia_driver.py evolved from the planned drag-based approach to a cleaner one:
+  the JUCE Slider DOES expose UIA RangeValue (0..1) via comtypes
+  (IUIAutomationRangeValuePattern.SetValue) - no mouse drag required.
+- Key discovery: RV-0..1 -> readout mapping is NOT linear; it is a JUCE skew
+  curve (fits approx 100*rv^1.65). So --set calibrates with two endpoint
+  probes (rv 1.0 -> readout 100, rv 0.0 -> readout 0), restores the original,
+  then bisects rv until the live readout matches the target (+-0.5).
+- Fixed collect_params region filter (must x>=536 to drop the sidebar
+  Bank/User edits that were polluting pairing); readouts were initially stale
+  because r["value"] was cached - now re-read live via get_value() after each
+  probe/set.
+- Live result (H90 Control PID 4972, Band Delay preset): Wet Mix 47 -> 70
+  verified by readout; round-trip 70 -> 15 -> 70 all converge exactly
+  (readout matches every time). Left at 70.
+- capture-h90.js listener is running but logs no RX frames (JUCE/WinMM port
+  error in err log is app noise); on-screen readout is the ground truth.
+- Next ideas if wanted: per-knob skew caching to set in 1 shot instead of
+  bisecting, or porting to the web knob panel as a UIA-based backend.
+
+## Plan - 2026-09-13 h90: pre-discover all Band Delay knobs + save reusable knob map
+
+User goal: say "change <param> to <value>" at some future time and have it applied
+with no re-discovery. So now: discover every knob of the loaded Band Delay preset
+in the running H90 Control app, calibrate each (min/max/skew) FIRST TIME so
+future sets are a single SetValue, and persist the lookup table to disk.
+User approved full calibration now (knobs will briefly swing min/max once, audible).
+
+Approach: extend back/h90/uia_driver.py with --discover. Reuse collect_params()
+walk, key each param uniquely (label + col-bucket + row; blocks: A=left editor
+x<1150, B=right editor x>=1150, global=bottom y>=1500). For each numeric slider
+knob: probe rv 1.0 (=hi), rv 0.0 (=lo), rv 0.5 (skew mid), restore original rv,
+fit JUCE skew value ~ lo+(hi-lo)*rv^k. Save back/h90/knob-map.json (stable,
+overwritten) + timestamped copy in back/h90/snapshots/. Enums (Delay A '1/4',
+Filter Type, Delay Mix expr, Kill Dry combobox, Bypass button) recorded with
+settable:false. --set then: load map, locate slider by stored coords, single
+SetValue rv=((t-lo)/(hi-lo))^(1/k), verify readout; bisection fallback.
+
+Verification: --discover prints map summary; --set "Wet Mix" 40 -> readout 40;
+--set "HotKnob" 50 -> readout 50; second set of same knob uses cached k (fast).
+
+## Progress - 2026-09-13 h90: knob map discovered + saved - DONE
+
+--discover in back/h90/uia_driver.py now: walks the UIA tree, buckets params by
+screen block (A=left editor x<1150, B=right x>=1150, global=bottom y>=1500),
+and calibrates every SETTABLE numeric knob once (rv 1.0 -> hi, rv 0.0 -> lo,
+rv 0.5 -> skew mid, restore original; value ~ lo+(hi-lo)*rv^k). Result:
+
+- back/h90/knob-map.json (stable, overwritten each discover) with 19 knobs:
+  15 SETTABLE with lo/hi/k + rv + key "label | block | ex,ey", 4 enum/stepped
+  (Delay A/B '1/4', Delay Mix 'A10+B10', Filter Type 'Band Pass') settable:false,
+  plus 24 captured controls (bypass/save/menu buttons, Kill Dry ComboBox "Global").
+- timestamped copy: back/h90/snapshots/band-delay-20260913-184100.json
+- Calibration highlights: Wet Mix range [0..100] k=1.60; In/Out Gain [-60..+12] dB
+  k=1.0 (rv .833 = 0dB); Feedback [0..110]; Mod Speed [0..5.01] Hz k=4.58;
+  HotKnob/ModDepth/Resonance linear. 4 numeric rows use the pairing fixture
+  (Tempo Mode row shows a gain readout; the 'readme' global HotKnob is a mispairab
+   leftover) - keys/coords remain honest ground truth for re-location.
+
+--set now fast path: loads knob-map.json, re-locates slider by stored coords,
+single SetValue rv=((t-lo)/(hi-lo))^(1/k), verifies readout. Verified live:
+Wet Mix -> 40 (rv .564 k 1.599, readout ' 40'), HotKnob|B -> 50 (readout '50'),
+HotKnob|global -> 60 (readout '60'), and duplicate 'HotKnob' label resolves
+ambiguously to first settable match with candidates printed (or disambiguate via
+the full "label | block | x,y" key). Bisection remains the fallback when the map
+is absent or a fast set fails.
+
+## Plan - 2026-09-13 h90: assign MIDI CC 0..9 to all 10 Preset A (Band Delay) controls
+User: iterate over the loaded Band Delay preset's A-slot knobs, bind each via the
+app's per-knob External Mapping popup to MIDI CC +1 each (Wet Mix=CC0 ... Filter
+Type=CC9), source = MIDI CC, then report a table (type, effect, control, cc, values).
+Learnings this round: the mapping popup is a SECOND top-level 'H90 Control' dialog
+(rect ~ L250,T681,R1079,B1222); main window UIA tree collapses while it is open;
+'Esc' closes an open dropdown and restores the tree; source combobox rows are plain
+buttons (Off..Aux Switch wrap, MIDI CC at index 3); the '<'/'>' buttons step the CC
+number without opening dropdowns; a program re-load reverts CC mapping to 'Off'
+(current program is unsaved INIT Program, slot 05).
+Steps: for each of the 10 knobs (label,cc): label-click to reveal the rangeButton,
+open the mapping popup, click '>' until Control Source = MIDI CC, step CC number
+to target via '>'/'<', record result, close via closeButton. Then reopen all to
+verify. Then dump enum option names (drag-cycling + manual guidance) for the table.

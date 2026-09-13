@@ -4,7 +4,11 @@ The H90 must be on the visible desktop with the pedal connected. Pass args after
 "--" (java -jar ... -r knob-driver.sikuli -- ...):
 
   --scan                  print the visible knob labels in the parameters region
+  --text                  dump all OCR text on the window (one line per region)
   --preset <frag>         optional: click that preset row first (sidebar, OCR)
+  --find <label>          print matches (coords) for a label WITHOUT clicking
+  --click <label>         optional: OCR-click the given label anywhere in the window
+  --band <px>             restrict find/click OCR to the top <px> of the window
   --knob <label> [--turns N]
                           turn knob <label> by N steps (repeatable; N may be negative)
   --dy <px>               vertical drag pixels per step (sign = direction, default 10)
@@ -38,7 +42,11 @@ SIDEBAR_W = 330
 
 def parse_args(argv):
     scan = False
+    dump_text = False
     preset = None
+    find_labels = []
+    click_label = None
+    band = 0
     dy = 10
     above = 60
     knobs = []
@@ -47,9 +55,20 @@ def parse_args(argv):
         a = argv[i]
         if a == "--scan":
             scan = True
+        elif a == "--text":
+            dump_text = True
         elif a == "--preset":
             i += 1
             preset = argv[i]
+        elif a == "--find":
+            i += 1
+            find_labels.append(argv[i])
+        elif a == "--click":
+            i += 1
+            click_label = argv[i]
+        elif a == "--band":
+            i += 1
+            band = int(argv[i])
         elif a == "--dy":
             i += 1
             dy = int(argv[i])
@@ -65,7 +84,7 @@ def parse_args(argv):
                 i += 2
             knobs.append((label, turns))
         i += 1
-    return scan, preset, dy, above, knobs
+    return scan, dump_text, preset, find_labels, click_label, band, dy, above, knobs
 
 
 def focus_window():
@@ -153,18 +172,86 @@ def turn(point, turns, dy):
         time.sleep(0.3)
 
 
+def window_region(win):
+    return Region(win.x, win.y, win.w, win.h)
+
+
+def search_region(win, band):
+    r = window_region(win)
+    if band and band > 0:
+        r = Region(r.x, r.y, r.w, min(band, r.h))
+    return r
+
+
+def find_text(win, label, band):
+    r = search_region(win, band)
+    try:
+        ms = r.findAllList(label)
+    except Exception as ex:
+        d("  find %r err: %s" % (label, str(ex)[:120]))
+        return []
+    out = []
+    for m in ms or []:
+        d("  MATCH %r at (%d,%d) %dx%d" % (label, m.x, m.y, m.w, m.h))
+        out.append(m)
+    return out
+
+
+def dump_text(win):
+    r = window_region(win)
+    try:
+        lines = r.collectLinesText()
+        items = lines or []
+        d("--- OCR lines (%d) ---" % len(items))
+        buf = []
+        for item in items:
+            try:
+                s = str(item)
+            except Exception:
+                s = "?"
+            buf.append(s.encode("ascii", "replace").decode("ascii"))
+        d("\n".join(buf))
+        d("--- OCR lines end ---")
+    except Exception as ex:
+        d("--text (lines) err: %s" % str(ex)[:300])
+
+
+def click_text(win, label, band):
+    ms = find_text(win, label, band)
+    if not ms:
+        d("  click %r: not found (band=%d)" % (label, band))
+        return False
+    m = sorted(ms, key=lambda mm: (mm.w, mm.y))[-1]
+    p = Location(m.x + m.w / 2, m.y + m.h / 2)
+    click(p)
+    d("  clicked %r at (%d,%d) -> (%d,%d)" % (label, m.x, m.y, p.x, p.y))
+    time.sleep(1)
+    return True
+
+
 def main():
     raw = sys.argv[1:]
     if raw and raw[0] == "--":
         raw = raw[1:]
     argv = raw
-    scan, preset, dy, above, knobs = parse_args(argv)
-    d("args: scan=%s preset=%s dy=%d above=%d knobs=%s" % (scan, preset, dy, above, knobs))
+    scan, dump_text, preset, find_labels, click_label, band, dy, above, knobs = parse_args(argv)
+    d("args: scan=%s text=%s preset=%s find=%s click=%s band=%d dy=%d above=%d knobs=%s"
+      % (scan, dump_text, preset, find_labels, click_label, band, dy, above, knobs))
 
     win = focus_window()
 
     if preset:
         click_preset(win, preset)
+
+    if find_labels:
+        for lab in find_labels:
+            find_text(win, lab, band)
+
+    if click_label:
+        click_text(win, click_label, band)
+
+    if dump_text:
+        dump_text(win)
 
     if scan:
         d("scanning knobs in parameters region...")
@@ -172,8 +259,8 @@ def main():
         d("scan done")
         return
 
-    if not knobs:
-        d("ERROR: nothing to do - pass --knob ... --turns N (and/or --scan)")
+    if not knobs and not (scan or dump_text or find_labels or click_label):
+        d("ERROR: nothing to do - pass --knob ... --turns N, --scan, --text, --find, --click")
         sys.exit(1)
 
     for label, n in knobs:
