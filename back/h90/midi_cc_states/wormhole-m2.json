@@ -1,0 +1,177 @@
+{
+  "effect": "Wormhole",
+  "display": "Wormhole m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Length",
+      "cc": 51,
+      "values": " 50.0 l.y.",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Diameter",
+      "cc": 52,
+      "values": " 100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Entry Field",
+      "cc": 53,
+      "values": "50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Pre Delay",
+      "cc": 54,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Low Decay",
+      "cc": 55,
+      "values": " 96.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "High Decay",
+      "cc": 56,
+      "values": " 96.0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Stability",
+      "cc": 57,
+      "values": " 0.0%",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Stab Rate",
+      "cc": 58,
+      "values": "  10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Warp Accel",
+      "cc": 59,
+      "values": "5.000 s",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Warp Factor",
+      "cc": 60,
+      "values": " 7.50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Warp Mix",
+      "cc": 61,
+      "values": " 100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Warp Bass",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Warp Treble",
+      "cc": 63,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "In Gain",
+      "cc": 64,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "Out Gain",
+      "cc": 65,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Bypass",
+      "cc": 66,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Tails",
+      "cc": 67,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Tempo Mode",
+      "cc": 68,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Wormhole",
+      "control": "HotKnob",
+      "cc": 69,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Wormhole",
+      "control": "Kill Dry",
+      "cc": 70,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "effect": "RingMod",
+  "display": "RingMod m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Intensity",
+      "cc": 50,
+      "values": "99",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Type",
+      "cc": 51,
+      "values": "Ring",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Pitch",
+      "cc": 52,
+      "values": "Unused",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Speed",
+      "cc": 53,
+      "values": " 662 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Shape",
+      "cc": 54,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Tone",
+      "cc": 55,
+      "values": "49",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Depth Mod",
+      "cc": 56,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Speed Mod",
+      "cc": 57,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Mod Sens",
+      "cc": 58,
+      "values": " 86",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Mod Source",
+      "cc": 59,
+      "values": "Envelope",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Manual Mod",
+      "cc": 60,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "RingMod",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "RingMod",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "effect": "Vintage Delay",
+  "display": "Vintage Delay m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Wet Mix",
+      "cc": 50,
+      "values": " 47",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vintage Delay",
+      "control": "Delay Mix",
+      "cc": 51,
+      "values": "A10+B10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Delay A",
+      "cc": 52,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Delay B",
+      "cc": 53,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Feedback A",
+      "cc": 54,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Feedback B",
+      "cc": 55,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Bits",
+      "cc": 56,
+      "values": " 20",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Mod Depth",
+      "cc": 57,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Mod Speed",
+      "cc": 58,
+      "values": "0.36 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Filter",
+      "cc": 59,
+      "values": " 86",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vintage Delay",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vintage Delay",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vintage Delay",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vintage Delay",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vintage Delay",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

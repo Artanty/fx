@@ -1,0 +1,153 @@
+{
+  "effect": "CrushStation",
+  "display": "CrushStation m2",
+  "slot": "m2",
+  "slug": "dist",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 94",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Drive",
+      "cc": 51,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Sustain",
+      "cc": 52,
+      "values": "Post Dist 33",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Sag",
+      "cc": 53,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Octaves",
+      "cc": 54,
+      "values": "Down:0+Up:0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Grit",
+      "cc": 55,
+      "values": " 35 ",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Bass",
+      "cc": 56,
+      "values": " 20",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Mid",
+      "cc": 57,
+      "values": "-28",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Mid Freq",
+      "cc": 58,
+      "values": " 823 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Treble",
+      "cc": 59,
+      "values": "-19",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Gate Thresh",
+      "cc": 60,
+      "values": "-65.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

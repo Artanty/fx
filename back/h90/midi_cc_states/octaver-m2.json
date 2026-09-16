@@ -1,0 +1,145 @@
+{
+  "effect": "Octaver",
+  "display": "Octaver m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Mix",
+      "cc": 50,
+      "values": "59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Octaver",
+      "control": "Pitch Mix",
+      "cc": 51,
+      "values": "A10+B7",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Octaver",
+      "control": "Oct-Fuzz Mix",
+      "cc": 52,
+      "values": "oct:...........fz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Envelope",
+      "cc": 53,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Sensitivity",
+      "cc": 54,
+      "values": " 49",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Fuzz",
+      "cc": 55,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Filter A",
+      "cc": 56,
+      "values": "30",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Filter B",
+      "cc": 57,
+      "values": "37",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Resonance A",
+      "cc": 58,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Resonance B",
+      "cc": 59,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Octaver",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Octaver",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Octaver",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Octaver",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Octaver",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

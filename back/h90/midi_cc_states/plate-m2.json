@@ -1,0 +1,145 @@
+{
+  "effect": "Plate",
+  "display": "Plate m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 26",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Decay",
+      "cc": 51,
+      "values": " 2.48 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Size",
+      "cc": 52,
+      "values": " 84",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Pre Delay",
+      "cc": 53,
+      "values": "  32 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Low Damp",
+      "cc": 54,
+      "values": " 73",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "High Damp",
+      "cc": 55,
+      "values": " 73",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Distance",
+      "cc": 56,
+      "values": " 79",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Diffusion",
+      "cc": 57,
+      "values": " 88",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Mod Level",
+      "cc": 58,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Tone",
+      "cc": 59,
+      "values": "-32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Plate",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Plate",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Plate",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Plate",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Plate",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

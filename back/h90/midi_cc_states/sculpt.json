@@ -1,0 +1,160 @@
+{
+  "effect": "Sculpt",
+  "slot": "m1",
+  "slug": "dist",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Mix",
+      "cc": 0,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Band Mix",
+      "cc": 1,
+      "values": "Lo63+Hi99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "X-Over",
+      "cc": 2,
+      "values": " 574 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Low Drive",
+      "cc": 3,
+      "values": " 34 ",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Low Boost",
+      "cc": 4,
+      "values": "Pre Dist  47",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "High Drive",
+      "cc": 5,
+      "values": " 86",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Filter Pre",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Filter Post",
+      "cc": 7,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Env Filter",
+      "cc": 8,
+      "values": "Sens   0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Compressor",
+      "cc": 9,
+      "values": "Pre Dist 24",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Gate Thresh",
+      "cc": 10,
+      "values": "-65.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Stereo Mode",
+      "cc": 11,
+      "values": "Dual Mono",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 13,
+      "values": "3.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 16,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 17,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 18,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

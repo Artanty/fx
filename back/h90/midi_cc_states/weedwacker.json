@@ -1,0 +1,152 @@
+{
+  "effect": "WeedWacker",
+  "slot": "m1",
+  "slug": "dist",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Gate Thresh",
+      "cc": 1,
+      "values": "-75.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Drive 1",
+      "cc": 2,
+      "values": "  65",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Tone 1",
+      "cc": 3,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Mids 1",
+      "cc": 4,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Level 1",
+      "cc": 5,
+      "values": " 0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Stage 2",
+      "cc": 6,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Drive 2",
+      "cc": 7,
+      "values": "  50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Tone 2",
+      "cc": 8,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Mids 2",
+      "cc": 9,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Level 2",
+      "cc": 10,
+      "values": "-2.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

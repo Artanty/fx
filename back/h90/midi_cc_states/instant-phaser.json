@@ -1,0 +1,144 @@
+{
+  "effect": "Instant Phaser",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "Depth",
+      "cc": 0,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "Feedback",
+      "cc": 1,
+      "values": " 35",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Instant Phaser",
+      "control": "Mode",
+      "cc": 2,
+      "values": "Deep",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "Age",
+      "cc": 3,
+      "values": " 25",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Instant Phaser",
+      "control": "Source",
+      "cc": 4,
+      "values": "Oscillator",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "LFO Rate",
+      "cc": 5,
+      "values": "0.25 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "LFO Width",
+      "cc": 6,
+      "values": " 60",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "Env Thresh",
+      "cc": 7,
+      "values": "-30.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "Env Release",
+      "cc": 8,
+      "values": "0.100 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Instant Phaser",
+      "control": "Manual",
+      "cc": 9,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

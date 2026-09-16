@@ -1,0 +1,153 @@
+{
+  "effect": "Flanger",
+  "display": "Flanger m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Intensity",
+      "cc": 50,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Type",
+      "cc": 51,
+      "values": "Positive",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Depth",
+      "cc": 52,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Speed",
+      "cc": 53,
+      "values": "0.18 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Shape",
+      "cc": 54,
+      "values": "Triangle",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Dly Offset",
+      "cc": 55,
+      "values": "76",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Depth Mod",
+      "cc": 56,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Speed Mod",
+      "cc": 57,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Mod Rate",
+      "cc": 58,
+      "values": "0.230 x Spd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Mod Source",
+      "cc": 59,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Manual Mod",
+      "cc": 60,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Flanger",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Flanger",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

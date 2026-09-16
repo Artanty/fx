@@ -1,0 +1,257 @@
+{
+  "effect": "PolySynth",
+  "display": "PolySynth m2",
+  "slot": "m2",
+  "slug": "synth",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Mix",
+      "cc": 50,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Attack",
+      "cc": 51,
+      "values": "   5 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Spread",
+      "cc": 52,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Detune",
+      "cc": 53,
+      "values": "  9",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Play Style",
+      "cc": 54,
+      "values": "Poly",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Pitch Wheel",
+      "cc": 55,
+      "values": "  0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Cutoff",
+      "cc": 56,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Resonance",
+      "cc": 57,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Env Amount",
+      "cc": 58,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Env Sens",
+      "cc": 59,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Level 1",
+      "cc": 60,
+      "values": " 40",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Shift 1",
+      "cc": 61,
+      "values": "-Oct",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Shape 1",
+      "cc": 62,
+      "values": "Square",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Level 2",
+      "cc": 63,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Shift 2",
+      "cc": 64,
+      "values": "Uni",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Shape 2",
+      "cc": 65,
+      "values": "Saw",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Level 3",
+      "cc": 66,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Shift 3",
+      "cc": 67,
+      "values": "Uni",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Shape 3",
+      "cc": 68,
+      "values": "Saw",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "LFO Dest",
+      "cc": 69,
+      "values": "Cutoff",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "LFO Amount",
+      "cc": 70,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "LFO Rate",
+      "cc": 71,
+      "values": "1.50 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "LFO Shape",
+      "cc": 72,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "Freeze Rel",
+      "cc": 73,
+      "values": "1000 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "In Gain",
+      "cc": 74,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Out Gain",
+      "cc": 75,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Bypass",
+      "cc": 76,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Tails",
+      "cc": 77,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Tempo Mode",
+      "cc": 78,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolySynth",
+      "control": "HotKnob",
+      "cc": 79,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolySynth",
+      "control": "Kill Dry",
+      "cc": 80,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

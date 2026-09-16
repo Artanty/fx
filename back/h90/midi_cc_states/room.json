@@ -1,0 +1,144 @@
+{
+  "effect": "Room",
+  "slot": "m1",
+  "slug": "reverb",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Decay",
+      "cc": 1,
+      "values": " 0.59 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Size",
+      "cc": 2,
+      "values": " 74",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Pre Delay",
+      "cc": 3,
+      "values": "   0 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Room",
+      "control": "Reflection",
+      "cc": 4,
+      "values": "ER10+LT10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Diffusion",
+      "cc": 5,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Low Level",
+      "cc": 6,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "High Level",
+      "cc": 7,
+      "values": "-16",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "High Freq",
+      "cc": 8,
+      "values": "3240 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Mod Level",
+      "cc": 9,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "effect": "Sculpt",
+  "display": "Sculpt m2",
+  "slot": "m2",
+  "slug": "dist",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Mix",
+      "cc": 50,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Band Mix",
+      "cc": 51,
+      "values": "Lo63+Hi99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "X-Over",
+      "cc": 52,
+      "values": " 574 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Low Drive",
+      "cc": 53,
+      "values": " 34 ",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Low Boost",
+      "cc": 54,
+      "values": "Pre Dist  47",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "High Drive",
+      "cc": 55,
+      "values": " 86",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Filter Pre",
+      "cc": 56,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Filter Post",
+      "cc": 57,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Env Filter",
+      "cc": 58,
+      "values": "Sens   0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Compressor",
+      "cc": 59,
+      "values": "Pre Dist 24",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Gate Thresh",
+      "cc": 60,
+      "values": "-65.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Stereo Mode",
+      "cc": 61,
+      "values": "Dual Mono",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "In Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "Out Gain",
+      "cc": 63,
+      "values": "3.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Bypass",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Tails",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Tempo Mode",
+      "cc": 66,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sculpt",
+      "control": "HotKnob",
+      "cc": 67,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sculpt",
+      "control": "Kill Dry",
+      "cc": 68,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

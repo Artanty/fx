@@ -1,0 +1,153 @@
+{
+  "effect": "ModFilter",
+  "display": "ModFilter m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Intensity",
+      "cc": 50,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Type",
+      "cc": 51,
+      "values": "Low Pass",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Depth",
+      "cc": 52,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Speed",
+      "cc": 53,
+      "values": "0.18 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Shape",
+      "cc": 54,
+      "values": "Triangle",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Width",
+      "cc": 55,
+      "values": "Unused",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Depth Mod",
+      "cc": 56,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Speed Mod",
+      "cc": 57,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Mod Rate",
+      "cc": 58,
+      "values": "0.230 x Spd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Mod Source",
+      "cc": 59,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Manual Mod",
+      "cc": 60,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModFilter",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModFilter",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

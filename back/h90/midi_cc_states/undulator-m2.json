@@ -1,0 +1,153 @@
+{
+  "effect": "Undulator",
+  "display": "Undulator m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Intensity",
+      "cc": 50,
+      "values": "64",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Feedback",
+      "cc": 51,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Depth",
+      "cc": 52,
+      "values": "59",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Speed",
+      "cc": 53,
+      "values": "9.70 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Shape",
+      "cc": 54,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Spread",
+      "cc": 55,
+      "values": "51",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Depth Mod",
+      "cc": 56,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Speed Mod",
+      "cc": 57,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Mod Rate",
+      "cc": 58,
+      "values": "0.920x Speed",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Mod Source",
+      "cc": 59,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Manual Mod",
+      "cc": 60,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Undulator",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Undulator",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

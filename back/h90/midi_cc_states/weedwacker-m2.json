@@ -1,0 +1,153 @@
+{
+  "effect": "WeedWacker",
+  "display": "WeedWacker m2",
+  "slot": "m2",
+  "slug": "dist",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Gate Thresh",
+      "cc": 51,
+      "values": "-75.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Drive 1",
+      "cc": 52,
+      "values": "  65",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Tone 1",
+      "cc": 53,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Mids 1",
+      "cc": 54,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Level 1",
+      "cc": 55,
+      "values": " 0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Stage 2",
+      "cc": 56,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Drive 2",
+      "cc": 57,
+      "values": "  50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Tone 2",
+      "cc": 58,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Mids 2",
+      "cc": 59,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Level 2",
+      "cc": 60,
+      "values": "-2.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "WeedWacker",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "WeedWacker",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

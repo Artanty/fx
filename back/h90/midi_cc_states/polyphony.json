@@ -1,0 +1,192 @@
+{
+  "effect": "Polyphony",
+  "slot": "m1",
+  "slug": "harm",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Inst Type",
+      "cc": 1,
+      "values": "Pitched",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Feedback Sw",
+      "cc": 2,
+      "values": "Shift Out",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Auto EQ",
+      "cc": 3,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Level A",
+      "cc": 4,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Shift A",
+      "cc": 5,
+      "values": "-1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Detune A",
+      "cc": 6,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Delay A",
+      "cc": 7,
+      "values": "0.000 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Feedback A",
+      "cc": 8,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Pan A",
+      "cc": 9,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Level B",
+      "cc": 10,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Shift B",
+      "cc": 11,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Detune B",
+      "cc": 12,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Delay B",
+      "cc": 13,
+      "values": "0.000 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Feedback B",
+      "cc": 14,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Pan B",
+      "cc": 15,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 16,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 17,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 18,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 19,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 20,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 21,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 22,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

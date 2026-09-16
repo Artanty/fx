@@ -1,0 +1,152 @@
+{
+  "effect": "CrushStation",
+  "slot": "m1",
+  "slug": "dist",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 94",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Drive",
+      "cc": 1,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Sustain",
+      "cc": 2,
+      "values": "Post Dist 33",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Sag",
+      "cc": 3,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "CrushStation",
+      "control": "Octaves",
+      "cc": 4,
+      "values": "Down:0+Up:0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Grit",
+      "cc": 5,
+      "values": " 35 ",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Bass",
+      "cc": 6,
+      "values": " 20",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Mid",
+      "cc": 7,
+      "values": "-28",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Mid Freq",
+      "cc": 8,
+      "values": " 823 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Treble",
+      "cc": 9,
+      "values": "-19",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "CrushStation",
+      "control": "Gate Thresh",
+      "cc": 10,
+      "values": "-65.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

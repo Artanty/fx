@@ -1,0 +1,144 @@
+{
+  "effect": "HarPeggiator",
+  "slot": "m1",
+  "slug": "harm",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Mix",
+      "cc": 0,
+      "values": "59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Arp Mix",
+      "cc": 1,
+      "values": "A10+B7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Length",
+      "cc": 2,
+      "values": "1/8",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Sequence A",
+      "cc": 3,
+      "values": "08",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Sequence B",
+      "cc": 4,
+      "values": "08",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Rhythm A",
+      "cc": 5,
+      "values": "Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Rhythm B",
+      "cc": 6,
+      "values": "Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Effects A",
+      "cc": 7,
+      "values": "Filter 2",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Effects B",
+      "cc": 8,
+      "values": "Filter 2",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Dynamics",
+      "cc": 9,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

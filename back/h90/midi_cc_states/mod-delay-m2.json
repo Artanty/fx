@@ -1,0 +1,89 @@
+{
+  "effect": "Mod Delay",
+  "display": "Mod Delay m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Wet Mix",
+      "cc": 50,
+      "values": " 47",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Mod Delay",
+      "control": "Delay Mix",
+      "cc": 51,
+      "values": "A10+B10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Delay A",
+      "cc": 52,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Delay B",
+      "cc": 53,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Feedback A",
+      "cc": 54,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Feedback B",
+      "cc": 55,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Mod Delay",
+      "control": "Mod Shape",
+      "cc": 56,
+      "values": "ASin B180Sin",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Mod Depth",
+      "cc": 57,
+      "values": " 6",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Mod Speed",
+      "cc": 58,
+      "values": "1.34 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Mod Delay",
+      "control": "Filter",
+      "cc": 59,
+      "values": "-100",
+      "verified": true
+    }
+  ]
+}

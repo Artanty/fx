@@ -1,0 +1,107 @@
+DBG Unison Mix     att=0 walked=None _rect=(319, 333, 89, 22) ensure=(319, 333, 89, 22) cur=[(319, 333, 89, 22)]
+Unison Mix                   assign=src=MIDI CC 'CC# 50'   verify=src='MIDI CC' instance='CC# 50'
+DBG Pitch Mix      att=0 walked=None _rect=(424, 333, 89, 22) ensure=(424, 333, 89, 22) cur=[(424, 333, 89, 22)]
+Pitch Mix                    assign=src=MIDI CC 'CC# 51'   verify=src='MIDI CC' instance='CC# 51'
+DBG Unison Formant att=0 walked=None _rect=(529, 333, 89, 22) ensure=(529, 333, 89, 22) cur=[(529, 333, 89, 22)]
+Unison Formant               assign=src=MIDI CC 'CC# 52'   verify=src='MIDI CC' instance='CC# 52'
+DBG Formant Link   att=0 walked=None _rect=(319, 457, 89, 22) ensure=(319, 457, 89, 22) cur=[(319, 457, 89, 22)]
+Formant Link                 assign=src=MIDI CC 'CC# 53'   verify=src='MIDI CC' instance='CC# 53'
+DBG Root           att=0 walked=None _rect=(325, 625, 89, 22) ensure=(325, 625, 89, 22) cur=[(325, 625, 89, 22)]
+Root                         assign=src=MIDI CC 'CC# 54'   verify=src='MIDI CC' instance='CC# 54'
+DBG Scale          att=0 walked=None _rect=(430, 625, 89, 22) ensure=(430, 625, 89, 22) cur=[(430, 625, 89, 22)]
+Scale                        assign=src=MIDI CC 'CC# 55'   verify=src='MIDI CC' instance='CC# 55'
+DBG Tuning Speed   att=0 walked=None _rect=(529, 623, 89, 22) ensure=(529, 623, 89, 22) cur=[(529, 623, 89, 22)]
+Tuning Speed                 assign=src=MIDI CC 'CC# 56'   verify=src='MIDI CC' instance='CC# 56'
+DBG Quant          att=0 walked=None _rect=(334, 749, 58, 18) ensure=(334, 637, 58, 18) cur=[(334, 637, 58, 18)]
+Quant                        assign=src=MIDI CC 'CC# 57'   verify=src='MIDI CC' instance='CC# 57'
+DBG Shift A        att=0 walked=None _rect=(325, 467, 89, 22) ensure=(325, 467, 89, 22) cur=[(325, 467, 89, 22)]
+Shift A                      assign=src=MIDI CC 'CC# 58'   verify=src='MIDI CC' instance='CC# 58'
+DBG Shift B        att=0 walked=None _rect=(430, 467, 89, 22) ensure=(430, 467, 89, 22) cur=[(430, 467, 89, 22)]
+Shift B                      assign=src=MIDI CC 'CC# 59'   verify=src='MIDI CC' instance='CC# 59'
+DBG Shift C        att=0 walked=None _rect=(535, 467, 89, 22) ensure=(535, 467, 89, 22) cur=[(535, 467, 89, 22)]
+Shift C                      assign=src=MIDI CC 'CC# 60'   verify=src='MIDI CC' instance='CC# 60'
+DBG Shift D        att=0 walked=None _rect=(325, 591, 89, 22) ensure=(325, 591, 89, 22) cur=[(325, 591, 89, 22)]
+Shift D                      assign=src=MIDI CC 'CC# 61'   verify=src='MIDI CC' instance='CC# 61'
+DBG Delay          att=0 walked=None _rect=(319, 755, 89, 22) ensure=(319, 643, 89, 22) cur=[(319, 643, 89, 22)]
+Delay                        assign=src=MIDI CC 'CC# 62'   verify=src='MIDI CC' instance='CC# 62'
+DBG Division       att=0 walked=None _rect=(424, 755, 89, 22) ensure=(424, 531, 89, 22) cur=[(424, 531, 89, 22)]
+Division                     assign=src=MIDI CC 'CC# 63'   verify=src='MIDI CC' instance='CC# 63'
+DBG Feedback       att=0 walked=None _rect=(529, 755, 89, 22) ensure=(529, 419, 89, 22) cur=[(529, 419, 89, 22)]
+Feedback                     assign=src=MIDI CC 'CC# 64'   verify=src='MIDI CC' instance='CC# 64'
+DBG Feedback Path  att=0 walked=None _rect=(325, 209, 89, 22) ensure=(325, 209, 89, 22) cur=[(325, 209, 89, 22)]
+Feedback Path                assign=FAIL: popup did not open verify=FAIL: popup did not open
+DBG Feedback Path  att=1 walked=(325, 657, 89, 22) _rect=(325, 657, 89, 22) ensure=(325, 657, 89, 22) cur=[(325, 657, 89, 22)]
+Feedback Path                assign=src=MIDI CC 'CC# 65'   verify=src='MIDI CC' instance='CC# 65'
+DBG Spread         att=0 walked=None _rect=(430, 209, 89, 22) ensure=(430, 209, 89, 22) cur=[(430, 657, 89, 22)]
+Spread                       assign=src=MIDI CC 'CC# 66'   verify=src='MIDI CC' instance='CC# 66'
+DBG Detune         att=0 walked=None _rect=(319, 373, 89, 22) ensure=(319, 373, 89, 22) cur=[(319, 821, 89, 22)]
+Detune                       assign=FAIL: wrong knob (got popup for 'Mix', expected 'Detune') verify=FAIL: wrong knob (got popup for 'Mix', expected 'Detune')
+DBG Detune         att=1 walked=(319, 821, 89, 22) _rect=(319, 821, 89, 22) ensure=(319, 709, 89, 22) cur=[(319, 709, 89, 22)]
+Detune                       assign=src=MIDI CC 'CC# 67'   verify=src='MIDI CC' instance='CC# 67'
+DBG Auto EQ        att=0 walked=None _rect=(424, 373, 89, 22) ensure=(424, 373, 89, 22) cur=[(424, 709, 89, 22)]
+Auto EQ                      assign=src=MIDI CC 'CC# 68'   verify=src='MIDI CC' instance='CC# 68'
+DBG Glide A        att=0 walked=None _rect=(325, 541, 89, 22) ensure=(325, 541, 89, 22) cur=[]
+DBG Glide A        att=1 walked=(325, 653, 89, 22) _rect=(325, 653, 89, 22) ensure=(325, 653, 89, 22) cur=[(325, 653, 89, 22)]
+Glide A                      assign=src=MIDI CC 'CC# 69'   verify=src='MIDI CC' instance='CC# 69'
+DBG Glide B        att=0 walked=None _rect=(430, 541, 89, 22) ensure=(430, 541, 89, 22) cur=[(430, 653, 89, 22)]
+Glide B                      assign=src=MIDI CC 'CC# 70'   verify=src='MIDI CC' instance='CC# 70'
+DBG Glide C        att=0 walked=None _rect=(535, 541, 89, 22) ensure=(535, 541, 89, 22) cur=[(535, 653, 89, 22)]
+Glide C                      assign=src=MIDI CC 'CC# 71'   verify=src='MIDI CC' instance='CC# 71'
+DBG Glide D        att=0 walked=None _rect=(325, 665, 89, 22) ensure=(325, 665, 89, 22) cur=[(325, 777, 89, 22)]
+Glide D                      assign=src=MIDI CC 'CC# 72'   verify=src='MIDI CC' instance='CC# 72'
+DBG Rise           att=0 walked=None _rect=(424, 663, 89, 22) ensure=(424, 663, 89, 22) cur=[(424, 775, 89, 22)]
+Rise                         assign=src=MIDI CC 'CC# 73'   verify=src='MIDI CC' instance='CC# 73'
+DBG Fall           att=0 walked=None _rect=(529, 663, 89, 22) ensure=(529, 663, 89, 22) cur=[(529, 775, 89, 22)]
+Fall                         assign=src=MIDI CC 'CC# 74'   verify=src='MIDI CC' instance='CC# 74'
+DBG In Gain        att=0 walked=None _rect=(319, 829, 89, 22) ensure=(319, 829, 89, 22) cur=[(319, 829, 89, 22)]
+In Gain                      assign=FAIL: wrong knob (got popup for 'Mix', expected 'In Gain') verify=FAIL: wrong knob (got popup for 'Mix', expected 'In Gain')
+DBG In Gain        att=1 walked=(319, 605, 89, 22) _rect=(319, 605, 89, 22) ensure=(319, 605, 89, 22) cur=[(319, 605, 89, 22)]
+In Gain                      assign=src=MIDI CC 'CC# 75'   verify=src='MIDI CC' instance='CC# 75'
+DBG Out Gain       att=0 walked=None _rect=(424, 829, 89, 22) ensure=(424, 501, 89, 22) cur=[(424, 501, 89, 22)]
+Out Gain                     assign=src=MIDI CC 'CC# 76'   verify=src='MIDI CC' instance='CC# 76'
+DBG Bypass         att=0 walked=None _rect=(544, 831, 58, 18) ensure=(544, 503, 58, 18) cur=[(544, 503, 58, 18)]
+Bypass                       assign=src=MIDI CC 'CC# 77'   verify=src='MIDI CC' instance='CC# 77'
+DBG Tails          att=0 walked=None _rect=(334, 627, 58, 18) ensure=(334, 627, 58, 18) cur=[(334, 627, 58, 18)]
+Tails                        assign=src=MIDI CC 'CC# 78'   verify=src='MIDI CC' instance='CC# 78'
+DBG Tempo Mode     att=0 walked=None _rect=(439, 627, 58, 18) ensure=(439, 627, 58, 18) cur=[(439, 627, 58, 18)]
+Tempo Mode                   assign=src=MIDI CC 'CC# 79'   verify=src='MIDI CC' instance='CC# 79'
+DBG HotKnob        att=0 walked=None _rect=(529, 625, 89, 22) ensure=(529, 625, 89, 22) cur=[(529, 625, 89, 22)]
+HotKnob                      assign=src=MIDI CC 'CC# 80'   verify=src='MIDI CC' instance='CC# 80'
+DBG Kill Dry       att=0 walked=None _rect=(325, 751, 89, 22) ensure=(325, 751, 89, 22) cur=[(325, 751, 89, 22)]
+Kill Dry                     assign=src=MIDI CC 'CC# 81'   verify=src='MIDI CC' instance='CC# 81'
+
+CC  control                      type       verify 'value'
+50  Unison Mix                   numeric      True '70'
+51  Pitch Mix                    enum         True 'AC10 + BD10'
+52  Unison Formant               numeric      True '-50 c'
+53  Formant Link                 numeric      True '10'
+54  Root                         enum         True 'C'
+55  Scale                        enum         True 'Major'
+56  Tuning Speed                 numeric      True '30 ms'
+57  Quant                        enum         True 'On/Off'
+58  Shift A                      numeric      True '+3rd'
+59  Shift B                      numeric      True '+5th'
+60  Shift C                      numeric      True '+1oct'
+61  Shift D                      numeric      True '+5th'
+62  Delay                        numeric      True '1500 ms'
+63  Division                     enum         True 'ABC....D'
+64  Feedback                     enum         True '20'
+65  Feedback Path                enum         True 'Late'
+66  Spread                       enum         True 'AB......CD'
+67  Detune                       enum         True '0.0 c'
+68  Auto EQ                      enum         True '0'
+69  Glide A                      enum         True '-P4'
+70  Glide B                      enum         True '+P5'
+71  Glide C                      enum         True '+P5'
+72  Glide D                      enum         True '+P5'
+73  Rise                         enum         True '1000 ms'
+74  Fall                         enum         True '200 ms'
+75  In Gain                      enum         True '0.0 dB'
+76  Out Gain                     enum         True '0.0 dB'
+77  Bypass                       enum         True 'On/Off'
+78  Tails                        enum         True 'On/Off'
+79  Tempo Mode                   enum         True 'On/Off'
+80  HotKnob                      numeric      True '100'
+81  Kill Dry                     enum         True 'Global'
+32 effect knobs -> CC 50..81 (program footer untouched)
+saved: C:\server\fx\back\h90\midi_cc_states\quadravox+-m2.json

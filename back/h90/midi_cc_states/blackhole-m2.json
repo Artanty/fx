@@ -1,0 +1,145 @@
+{
+  "effect": "Blackhole",
+  "display": "Blackhole m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 31",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Gravity",
+      "cc": 51,
+      "values": " 86",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Size",
+      "cc": 52,
+      "values": " 92",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Feedback",
+      "cc": 53,
+      "values": " 18",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Blackhole",
+      "control": "Pre Delay",
+      "cc": 54,
+      "values": "None",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Mod Depth",
+      "cc": 55,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Mod Rate",
+      "cc": 56,
+      "values": " 36",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Low Level",
+      "cc": 57,
+      "values": "   1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "High Level",
+      "cc": 58,
+      "values": "    0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Resonance",
+      "cc": 59,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Blackhole",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Blackhole",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Blackhole",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Blackhole",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Blackhole",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

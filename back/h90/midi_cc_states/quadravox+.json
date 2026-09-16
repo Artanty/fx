@@ -1,0 +1,264 @@
+{
+  "effect": "Quadravox+",
+  "slot": "m1",
+  "slug": "harmp",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Unison Mix",
+      "cc": 0,
+      "values": "70",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Pitch Mix",
+      "cc": 1,
+      "values": "AC10 + BD10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Unison Formant",
+      "cc": 2,
+      "values": "-50 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Formant Link",
+      "cc": 3,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Root",
+      "cc": 4,
+      "values": "C",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Scale",
+      "cc": 5,
+      "values": "Major",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Tuning Speed",
+      "cc": 6,
+      "values": "30 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Quant",
+      "cc": 7,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Shift A",
+      "cc": 8,
+      "values": "+3rd",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Shift B",
+      "cc": 9,
+      "values": "+5th",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Shift C",
+      "cc": 10,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Shift D",
+      "cc": 11,
+      "values": "+5th",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Delay",
+      "cc": 12,
+      "values": "1500 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Division",
+      "cc": 13,
+      "values": "ABC....D",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Feedback",
+      "cc": 14,
+      "values": "20",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Feedback Path",
+      "cc": 15,
+      "values": "Late",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Spread",
+      "cc": 16,
+      "values": "AB......CD",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Detune",
+      "cc": 17,
+      "values": "0.0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Auto EQ",
+      "cc": 18,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Glide A",
+      "cc": 19,
+      "values": "-P4",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Glide B",
+      "cc": 20,
+      "values": "+P5",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Glide C",
+      "cc": 21,
+      "values": "+P5",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Quadravox+",
+      "control": "Glide D",
+      "cc": 22,
+      "values": "+P5",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Rise",
+      "cc": 23,
+      "values": "1000 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Quadravox+",
+      "control": "Fall",
+      "cc": 24,
+      "values": "200 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 25,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 26,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 27,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 28,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 29,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 30,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 31,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

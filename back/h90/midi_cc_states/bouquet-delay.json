@@ -1,0 +1,136 @@
+{
+  "effect": "Bouquet Delay",
+  "slot": "m1",
+  "slug": "delay",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "Mix",
+      "cc": 0,
+      "values": "47",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Delay",
+      "cc": 1,
+      "values": "Dotted 1/8",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "Feedback",
+      "cc": 2,
+      "values": " 5",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Delay Mode",
+      "cc": 3,
+      "values": "Modern",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Stereo Tap",
+      "cc": 4,
+      "values": "None",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "Mod Depth",
+      "cc": 5,
+      "values": " 20",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "LFO Rate",
+      "cc": 6,
+      "values": "Whole",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "LFO Shape",
+      "cc": 7,
+      "values": "Triangle",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Jump Interval",
+      "cc": 8,
+      "values": "Oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 9,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 11,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 14,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 15,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

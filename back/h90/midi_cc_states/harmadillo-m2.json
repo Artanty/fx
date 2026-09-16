@@ -1,0 +1,145 @@
+{
+  "effect": "Harmadillo",
+  "display": "Harmadillo m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Depth",
+      "cc": 50,
+      "values": " 88",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Rate",
+      "cc": 51,
+      "values": "3.58 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Shape",
+      "cc": 52,
+      "values": "Phat Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "X-Over",
+      "cc": 53,
+      "values": " 710 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "X-Overlap",
+      "cc": 54,
+      "values": "-18",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Drive",
+      "cc": 55,
+      "values": " 32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Env Depth",
+      "cc": 56,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Env Rate",
+      "cc": 57,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Env X-Over",
+      "cc": 58,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Tone",
+      "cc": 59,
+      "values": "Hicut -27",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

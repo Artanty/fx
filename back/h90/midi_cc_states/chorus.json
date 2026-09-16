@@ -1,0 +1,152 @@
+{
+  "effect": "Chorus",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Intensity",
+      "cc": 0,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Chorus",
+      "control": "Type",
+      "cc": 1,
+      "values": "Liquid",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Depth",
+      "cc": 2,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Speed",
+      "cc": 3,
+      "values": "0.18 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Chorus",
+      "control": "Shape",
+      "cc": 4,
+      "values": "Triangle",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Feedback",
+      "cc": 5,
+      "values": "76",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Depth Mod",
+      "cc": 6,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Speed Mod",
+      "cc": 7,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Chorus",
+      "control": "Mod Rate",
+      "cc": 8,
+      "values": "0.230 x Spd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Chorus",
+      "control": "Mod Source",
+      "cc": 9,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Chorus",
+      "control": "Manual Mod",
+      "cc": 10,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

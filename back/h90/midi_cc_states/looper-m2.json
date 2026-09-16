@@ -1,0 +1,153 @@
+{
+  "effect": "Looper",
+  "display": "Looper m2",
+  "slot": "m2",
+  "slug": "looper",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Max Length",
+      "cc": 51,
+      "values": "12.01 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Rec Speed",
+      "cc": 52,
+      "values": "1x",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Resolution",
+      "cc": 53,
+      "values": "Octaves",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Play Speed",
+      "cc": 54,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Play Start",
+      "cc": 55,
+      "values": "Empty",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Play Length",
+      "cc": 56,
+      "values": "Empty",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Play Mode",
+      "cc": 57,
+      "values": "Loop",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Dub Mode",
+      "cc": 58,
+      "values": "Latch",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Decay",
+      "cc": 59,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Filter",
+      "cc": 60,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Looper",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Looper",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

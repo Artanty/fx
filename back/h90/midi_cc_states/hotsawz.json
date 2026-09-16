@@ -1,0 +1,144 @@
+{
+  "effect": "HotSawz",
+  "slot": "m1",
+  "slug": "synth",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "S+R Mix",
+      "cc": 0,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "Osc Depth",
+      "cc": 1,
+      "values": "  34",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "Cutoff",
+      "cc": 2,
+      "values": " 32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "Resonance",
+      "cc": 3,
+      "values": " 45",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "Tri Spd",
+      "cc": 4,
+      "values": "5.52 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HotSawz",
+      "control": "LFO Amount",
+      "cc": 5,
+      "values": "Pitch    0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "Attack",
+      "cc": 6,
+      "values": "1125 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HotSawz",
+      "control": "Decay",
+      "cc": 7,
+      "values": " 692 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HotSawz",
+      "control": "Gate Off",
+      "cc": 8,
+      "values": "Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HotSawz",
+      "control": "Envelope",
+      "cc": 9,
+      "values": "Cutoff  53",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "effect": "Aggravate",
+  "slot": "m1",
+  "slug": "dist",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Mix",
+      "cc": 0,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Fuzz",
+      "cc": 1,
+      "values": " 75",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Aggravate",
+      "control": "Octave",
+      "cc": 2,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Bias",
+      "cc": 3,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Aggravate",
+      "control": "Thick",
+      "cc": 4,
+      "values": "On",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Mids",
+      "cc": 5,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Tone",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Filter Env",
+      "cc": 7,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Resonance",
+      "cc": 8,
+      "values": " 10",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Aggravate",
+      "control": "Env Shape",
+      "cc": 9,
+      "values": "Exponential",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Pump Depth",
+      "cc": 10,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Aggravate",
+      "control": "Pump Control",
+      "cc": 11,
+      "values": "Pump Rate",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Pump Rate",
+      "cc": 12,
+      "values": "2.00 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Aggravate",
+      "control": "Release",
+      "cc": 13,
+      "values": " 30",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 14,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 15,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 16,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 17,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 18,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 19,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 20,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

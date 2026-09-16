@@ -1,0 +1,168 @@
+{
+  "effect": "UltraTap",
+  "slot": "m1",
+  "slug": "delay",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Length",
+      "cc": 1,
+      "values": "2.89 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Taps",
+      "cc": 2,
+      "values": "64",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Pre Delay",
+      "cc": 3,
+      "values": "  95 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Spread",
+      "cc": 4,
+      "values": " 27",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Taper",
+      "cc": 5,
+      "values": " 49",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Feedback",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Tone",
+      "cc": 7,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Slurm",
+      "cc": 8,
+      "values": " 48",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "UltraTap",
+      "control": "Chop",
+      "cc": 9,
+      "values": "Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Manual Chop",
+      "cc": 10,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "UltraTap",
+      "control": "Speed",
+      "cc": 11,
+      "values": "Unused",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "UltraTap",
+      "control": "Width",
+      "cc": 12,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 13,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 14,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 16,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 17,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 18,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 19,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

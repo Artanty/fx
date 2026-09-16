@@ -1,0 +1,145 @@
+{
+  "effect": "DynaVerb",
+  "display": "DynaVerb m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 60",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Decay",
+      "cc": 51,
+      "values": "  20.1 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Size",
+      "cc": 52,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Omni Ratio",
+      "cc": 53,
+      "values": "-8.72",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Threshold",
+      "cc": 54,
+      "values": "-57.7 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Attack",
+      "cc": 55,
+      "values": "0.080 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Release",
+      "cc": 56,
+      "values": "0.340 s",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DynaVerb",
+      "control": "Sidechain",
+      "cc": 57,
+      "values": "IN10+RV0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Low Level",
+      "cc": 58,
+      "values": "-13",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "High Level",
+      "cc": 59,
+      "values": " -9",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DynaVerb",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DynaVerb",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DynaVerb",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DynaVerb",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DynaVerb",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

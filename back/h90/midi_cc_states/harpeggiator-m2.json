@@ -1,0 +1,145 @@
+{
+  "effect": "HarPeggiator",
+  "display": "HarPeggiator m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Mix",
+      "cc": 50,
+      "values": "59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Arp Mix",
+      "cc": 51,
+      "values": "A10+B7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Length",
+      "cc": 52,
+      "values": "1/8",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Sequence A",
+      "cc": 53,
+      "values": "08",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Sequence B",
+      "cc": 54,
+      "values": "08",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Rhythm A",
+      "cc": 55,
+      "values": "Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Rhythm B",
+      "cc": 56,
+      "values": "Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Effects A",
+      "cc": 57,
+      "values": "Filter 2",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Effects B",
+      "cc": 58,
+      "values": "Filter 2",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Dynamics",
+      "cc": 59,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "HarPeggiator",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "HarPeggiator",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

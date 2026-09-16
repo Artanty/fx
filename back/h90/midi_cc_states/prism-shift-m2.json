@@ -1,0 +1,185 @@
+{
+  "effect": "Prism Shift",
+  "display": "Prism Shift m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Spread",
+      "cc": 51,
+      "values": "0.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Auto EQ",
+      "cc": 52,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Slew Time",
+      "cc": 53,
+      "values": "0.000 s",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Arp Type",
+      "cc": 54,
+      "values": "Rising",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Step Length",
+      "cc": 55,
+      "values": "0.100 s",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Shift",
+      "cc": 56,
+      "values": "-1oct +1oct",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Arp Order",
+      "cc": 57,
+      "values": "L-M-H",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Gain Low",
+      "cc": 58,
+      "values": " 0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Gain Mid",
+      "cc": 59,
+      "values": " 0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Gain High",
+      "cc": 60,
+      "values": " 0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Fdbck Low",
+      "cc": 61,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Fdbck Mid",
+      "cc": 62,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Fdbck High",
+      "cc": 63,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Feed Tap",
+      "cc": 64,
+      "values": "Total",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "In Gain",
+      "cc": 65,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "Out Gain",
+      "cc": 66,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Bypass",
+      "cc": 67,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Tails",
+      "cc": 68,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Tempo Mode",
+      "cc": 69,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Prism Shift",
+      "control": "HotKnob",
+      "cc": 70,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Prism Shift",
+      "control": "Kill Dry",
+      "cc": 71,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

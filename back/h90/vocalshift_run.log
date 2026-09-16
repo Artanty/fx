@@ -1,0 +1,138 @@
+DBG Latency        att=0 walked=None _rect=(325, 335, 89, 22) ensure=(325, 335, 89, 22) cur=[(325, 335, 89, 22)]
+Latency                      assign=src=MIDI CC 'CC# 50'   verify=src='MIDI CC' instance='CC# 50'
+DBG Mix            att=0 walked=None _rect=(424, 333, 89, 22) ensure=(424, 333, 89, 22) cur=[(424, 333, 89, 22)]
+Mix                          assign=src=MIDI CC 'CC# 51'   verify=src='MIDI CC' instance='CC# 51'
+DBG Formant Link   att=0 walked=None _rect=(529, 333, 89, 22) ensure=(529, 333, 89, 22) cur=[(529, 333, 89, 22)]
+Formant Link                 assign=src=MIDI CC 'CC# 52'   verify=src='MIDI CC' instance='CC# 52'
+DBG Detune         att=0 walked=None _rect=(319, 457, 89, 22) ensure=(319, 457, 89, 22) cur=[(319, 457, 89, 22)]
+Detune                       assign=src=MIDI CC 'CC# 53'   verify=src='MIDI CC' instance='CC# 53'
+DBG Tuning Speed   att=0 walked=None _rect=(424, 457, 89, 22) ensure=(424, 457, 89, 22) cur=[(424, 457, 89, 22)]
+Tuning Speed                 assign=src=MIDI CC 'CC# 54'   verify=src='MIDI CC' instance='CC# 54'
+DBG Root           att=0 walked=None _rect=(325, 625, 89, 22) ensure=(325, 625, 89, 22) cur=[(325, 625, 89, 22)]
+Root                         assign=src=MIDI CC 'CC# 55'   verify=src='MIDI CC' instance='CC# 55'
+DBG Scale          att=0 walked=None _rect=(430, 625, 89, 22) ensure=(430, 625, 89, 22) cur=[(430, 625, 89, 22)]
+Scale                        assign=src=MIDI CC 'CC# 56'   verify=src='MIDI CC' instance='CC# 56'
+DBG Quant          att=0 walked=None _rect=(334, 791, 58, 18) ensure=(334, 679, 58, 18) cur=[(334, 679, 58, 18)]
+Quant                        assign=src=MIDI CC 'CC# 57'   verify=src='MIDI CC' instance='CC# 57'
+DBG Quant Error    att=0 walked=None _rect=(424, 789, 89, 22) ensure=(424, 565, 89, 22) cur=[(424, 565, 89, 22)]
+Quant Error                  assign=src=MIDI CC 'CC# 58'   verify=src='MIDI CC' instance='CC# 58'
+DBG Gain A         att=0 walked=None _rect=(319, 395, 89, 22) ensure=(319, 395, 89, 22) cur=[(319, 395, 89, 22)]
+Gain A                       assign=src=MIDI CC 'CC# 59'   verify=src='MIDI CC' instance='CC# 59'
+DBG Shift A        att=0 walked=None _rect=(430, 397, 89, 22) ensure=(430, 397, 89, 22) cur=[(430, 397, 89, 22)]
+Shift A                      assign=src=MIDI CC 'CC# 60'   verify=src='MIDI CC' instance='CC# 60'
+DBG Formant A      att=0 walked=None _rect=(529, 395, 89, 22) ensure=(529, 395, 89, 22) cur=[(529, 395, 89, 22)]
+Formant A                    assign=src=MIDI CC 'CC# 61'   verify=src='MIDI CC' instance='CC# 61'
+DBG Solo A         att=0 walked=None _rect=(334, 521, 58, 18) ensure=(334, 521, 58, 18) cur=[(334, 521, 58, 18)]
+Solo A                       assign=src=MIDI CC 'CC# 62'   verify=src='MIDI CC' instance='CC# 62'
+DBG Delay A        att=0 walked=None _rect=(424, 519, 89, 22) ensure=(424, 519, 89, 22) cur=[(424, 519, 89, 22)]
+Delay A                      assign=src=MIDI CC 'CC# 63'   verify=src='MIDI CC' instance='CC# 63'
+DBG Feedback A     att=0 walked=None _rect=(529, 519, 89, 22) ensure=(529, 519, 89, 22) cur=[(529, 519, 89, 22)]
+Feedback A                   assign=src=MIDI CC 'CC# 64'   verify=src='MIDI CC' instance='CC# 64'
+DBG Pan A          att=0 walked=None _rect=(319, 643, 89, 22) ensure=(319, 643, 89, 22) cur=[(319, 643, 89, 22)]
+Pan A                        assign=src=MIDI CC 'CC# 65'   verify=src='MIDI CC' instance='CC# 65'
+DBG Gain B         att=0 walked=None _rect=(319, 809, 89, 22) ensure=(319, 697, 89, 22) cur=[(319, 697, 89, 22)]
+Gain B                       assign=src=MIDI CC 'CC# 66'   verify=src='MIDI CC' instance='CC# 66'
+DBG Shift B        att=0 walked=None _rect=(430, 811, 89, 22) ensure=(430, 587, 89, 22) cur=[(430, 587, 89, 22)]
+Shift B                      assign=src=MIDI CC 'CC# 67'   verify=src='MIDI CC' instance='CC# 67'
+DBG Formant B      att=0 walked=None _rect=(529, 809, 89, 22) ensure=(529, 473, 89, 22) cur=[(529, 473, 89, 22)]
+Formant B                    assign=src=MIDI CC 'CC# 68'   verify=src='MIDI CC' instance='CC# 68'
+DBG Solo B         att=0 walked=None _rect=(334, 263, 58, 18) ensure=(334, 263, 58, 18) cur=[(334, 263, 58, 18)]
+Solo B                       assign=FAIL: wrong knob (got popup for None, expected 'Solo B') verify=FAIL: no rangeButton
+DBG Solo B         att=1 walked=(334, 823, 58, 18) _rect=(334, 823, 58, 18) ensure=(334, 711, 58, 18) cur=[(334, 711, 58, 18)]
+Solo B                       assign=src=MIDI CC 'CC# 69'   verify=src='MIDI CC' instance='CC# 69'
+DBG Delay B        att=0 walked=None _rect=(424, 261, 89, 22) ensure=(424, 261, 89, 22) cur=[(424, 709, 89, 22)]
+Delay B                      assign=src=MIDI CC 'CC# 70'   verify=src='MIDI CC' instance='CC# 70'
+DBG Feedback B     att=0 walked=None _rect=(529, 261, 89, 22) ensure=(529, 261, 89, 22) cur=[(529, 709, 89, 22)]
+Feedback B                   assign=src=MIDI CC 'CC# 71'   verify=src='MIDI CC' instance='CC# 71'
+DBG Pan B          att=0 walked=None _rect=(319, 385, 89, 22) ensure=(319, 385, 89, 22) cur=[(319, 833, 89, 22)]
+Pan B                        assign=FAIL: wrong knob (got popup for 'Mix', expected 'Pan B') verify=FAIL: wrong knob (got popup for 'Mix', expected 'Pan B')
+DBG Pan B          att=1 walked=(319, 609, 89, 22) _rect=(319, 609, 89, 22) ensure=(319, 609, 89, 22) cur=[(319, 609, 89, 22)]
+Pan B                        assign=src=MIDI CC 'CC# 72'   verify=src='MIDI CC' instance='CC# 72'
+DBG Gain C         att=0 walked=None _rect=(319, 551, 89, 22) ensure=(319, 551, 89, 22) cur=[(319, 775, 89, 22)]
+Gain C                       assign=src=MIDI CC 'CC# 73'   verify=src='MIDI CC' instance='CC# 73'
+DBG Shift C        att=0 walked=None _rect=(430, 553, 89, 22) ensure=(430, 553, 89, 22) cur=[(430, 777, 89, 22)]
+Shift C                      assign=src=MIDI CC 'CC# 74'   verify=src='MIDI CC' instance='CC# 74'
+DBG Formant C      att=0 walked=None _rect=(529, 551, 89, 22) ensure=(529, 551, 89, 22) cur=[(529, 775, 89, 22)]
+Formant C                    assign=src=MIDI CC 'CC# 75'   verify=src='MIDI CC' instance='CC# 75'
+DBG Solo C         att=0 walked=None _rect=(334, 677, 58, 18) ensure=(334, 677, 58, 18) cur=[]
+DBG Solo C         att=1 walked=(334, 565, 58, 18) _rect=(334, 565, 58, 18) ensure=(334, 565, 58, 18) cur=[(334, 565, 58, 18)]
+Solo C                       assign=src=MIDI CC 'CC# 76'   verify=src='MIDI CC' instance='CC# 76'
+DBG Delay C        att=0 walked=None _rect=(424, 675, 89, 22) ensure=(424, 675, 89, 22) cur=[(424, 563, 89, 22)]
+Delay C                      assign=src=MIDI CC 'CC# 77'   verify=src='MIDI CC' instance='CC# 77'
+DBG Feedback C     att=0 walked=None _rect=(529, 675, 89, 22) ensure=(529, 675, 89, 22) cur=[(529, 563, 89, 22)]
+Feedback C                   assign=src=MIDI CC 'CC# 78'   verify=src='MIDI CC' instance='CC# 78'
+DBG Pan C          att=0 walked=None _rect=(319, 799, 89, 22) ensure=(319, 575, 89, 22) cur=[(319, 575, 89, 22)]
+Pan C                        assign=src=MIDI CC 'CC# 79'   verify=src='MIDI CC' instance='CC# 79'
+DBG Glide A        att=0 walked=None _rect=(325, 407, 89, 22) ensure=(325, 407, 89, 22) cur=[(325, 407, 89, 22)]
+Glide A                      assign=src=MIDI CC 'CC# 80'   verify=src='MIDI CC' instance='CC# 80'
+DBG Glide B        att=0 walked=None _rect=(430, 407, 89, 22) ensure=(430, 407, 89, 22) cur=[(430, 407, 89, 22)]
+Glide B                      assign=src=MIDI CC 'CC# 81'   verify=src='MIDI CC' instance='CC# 81'
+DBG Glide C        att=0 walked=None _rect=(535, 407, 89, 22) ensure=(535, 407, 89, 22) cur=[(535, 407, 89, 22)]
+Glide C                      assign=src=MIDI CC 'CC# 82'   verify=src='MIDI CC' instance='CC# 82'
+DBG Rise           att=0 walked=None _rect=(319, 529, 89, 22) ensure=(319, 529, 89, 22) cur=[(319, 529, 89, 22)]
+Rise                         assign=src=MIDI CC 'CC# 83'   verify=src='MIDI CC' instance='CC# 83'
+DBG Fall           att=0 walked=None _rect=(424, 529, 89, 22) ensure=(424, 529, 89, 22) cur=[(424, 529, 89, 22)]
+Fall                         assign=src=MIDI CC 'CC# 84'   verify=src='MIDI CC' instance='CC# 84'
+DBG Hold           att=0 walked=None _rect=(535, 531, 89, 22) ensure=(535, 531, 89, 22) cur=[(535, 531, 89, 22)]
+Hold                         assign=src=MIDI CC 'CC# 85'   verify=src='MIDI CC' instance='CC# 85'
+DBG In Gain        att=0 walked=None _rect=(319, 695, 89, 22) ensure=(319, 695, 89, 22) cur=[(319, 695, 89, 22)]
+In Gain                      assign=src=MIDI CC 'CC# 86'   verify=src='MIDI CC' instance='CC# 86'
+DBG Out Gain       att=0 walked=None _rect=(424, 695, 89, 22) ensure=(424, 695, 89, 22) cur=[(424, 695, 89, 22)]
+Out Gain                     assign=src=MIDI CC 'CC# 87'   verify=src='MIDI CC' instance='CC# 87'
+DBG Bypass         att=0 walked=None _rect=(544, 697, 58, 18) ensure=(544, 697, 58, 18) cur=[(544, 697, 58, 18)]
+Bypass                       assign=src=MIDI CC 'CC# 88'   verify=src='MIDI CC' instance='CC# 88'
+DBG Tails          att=0 walked=None _rect=(334, 821, 58, 18) ensure=(334, 709, 58, 18) cur=[(334, 709, 58, 18)]
+Tails                        assign=src=MIDI CC 'CC# 89'   verify=src='MIDI CC' instance='CC# 89'
+DBG Tempo Mode     att=0 walked=None _rect=(439, 821, 58, 18) ensure=(439, 627, 58, 18) cur=[(439, 627, 58, 18)]
+Tempo Mode                   assign=src=MIDI CC 'CC# 90'   verify=src='MIDI CC' instance='CC# 90'
+DBG HotKnob        att=0 walked=None _rect=(529, 819, 89, 22) ensure=(529, 625, 89, 22) cur=[(529, 625, 89, 22)]
+HotKnob                      assign=src=MIDI CC 'CC# 91'   verify=src='MIDI CC' instance='CC# 91'
+DBG Kill Dry       att=0 walked=None _rect=(325, 751, 89, 22) ensure=(325, 751, 89, 22) cur=[(325, 751, 89, 22)]
+Kill Dry                     assign=src=MIDI CC 'CC# 92'   verify=src='MIDI CC' instance='CC# 92'
+
+CC  control                      type       verify 'value'
+50  Latency                      enum         True 'Low'
+51  Mix                          numeric      True '100'
+52  Formant Link                 numeric      True '0'
+53  Detune                       numeric      True '6 c'
+54  Tuning Speed                 numeric      True '50 ms'
+55  Root                         enum         True 'C'
+56  Scale                        enum         True 'Major'
+57  Quant                        enum         True 'On/Off'
+58  Quant Error                  enum         True '5 c'
+59  Gain A                       numeric      True '-3.0 dB'
+60  Shift A                      enum         True 'Unison'
+61  Formant A                    numeric      True '0 c'
+62  Solo A                       enum         True 'On/Off'
+63  Delay A                      numeric      True '0 ms'
+64  Feedback A                   numeric      True '0'
+65  Pan A                        numeric      True '0'
+66  Gain B                       numeric      True '-12.5 dB'
+67  Shift B                      enum         True '-5th'
+68  Formant B                    enum         True '-130 c'
+69  Solo B                       enum         True 'On/Off'
+70  Delay B                      enum         True '0 ms'
+71  Feedback B                   enum         True '0'
+72  Pan B                        enum         True '-26'
+73  Gain C                       enum         True '-6.5 dB'
+74  Shift C                      enum         True '+4th'
+75  Formant C                    enum         True '130 c'
+76  Solo C                       enum         True 'On/Off'
+77  Delay C                      enum         True '0 ms'
+78  Feedback C                   enum         True '0'
+79  Pan C                        enum         True '26'
+80  Glide A                      enum         True 'Unison'
+81  Glide B                      enum         True '+P5'
+82  Glide C                      enum         True '-P4'
+83  Rise                         numeric      True '1113 ms'
+84  Fall                         numeric      True '200 ms'
+85  Hold                         enum         True 'A'
+86  In Gain                      numeric      True '0.0 dB'
+87  Out Gain                     numeric      True '0.0 dB'
+88  Bypass                       enum         True 'On/Off'
+89  Tails                        enum         True 'On/Off'
+90  Tempo Mode                   enum         True 'On/Off'
+91  HotKnob                      enum         True '100'
+92  Kill Dry                     enum         True 'Global'
+43 effect knobs -> CC 50..92 (program footer untouched)
+saved: C:\server\fx\back\h90\midi_cc_states\vocalshift-m2.json

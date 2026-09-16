@@ -1,0 +1,161 @@
+{
+  "effect": "Spring",
+  "display": "Spring m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 19",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Decay",
+      "cc": 51,
+      "values": "7.24 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Tension",
+      "cc": 52,
+      "values": " 40",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Num Springs",
+      "cc": 53,
+      "values": "3.0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Spring",
+      "control": "Spring Type",
+      "cc": 54,
+      "values": "Small",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Mod Level",
+      "cc": 55,
+      "values": "  7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Low Damp",
+      "cc": 56,
+      "values": " 85",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "High Damp",
+      "cc": 57,
+      "values": "  7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Resonance",
+      "cc": 58,
+      "values": " 45",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Spring",
+      "control": "Tremolo",
+      "cc": 59,
+      "values": "Pre",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Trem Inten",
+      "cc": 60,
+      "values": "  0 ",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Trem Speed",
+      "cc": 61,
+      "values": "6.9 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "In Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "Out Gain",
+      "cc": 63,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Spring",
+      "control": "Bypass",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Spring",
+      "control": "Tails",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Spring",
+      "control": "Tempo Mode",
+      "cc": 66,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Spring",
+      "control": "HotKnob",
+      "cc": 67,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Spring",
+      "control": "Kill Dry",
+      "cc": 68,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

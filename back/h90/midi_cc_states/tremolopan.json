@@ -1,0 +1,152 @@
+{
+  "effect": "TremoloPan",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Drive",
+      "cc": 0,
+      "values": "36",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "TremoloPan",
+      "control": "Type",
+      "cc": 1,
+      "values": "Bias",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Depth",
+      "cc": 2,
+      "values": "88",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Speed",
+      "cc": 3,
+      "values": "9.70 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "TremoloPan",
+      "control": "Shape",
+      "cc": 4,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Spread",
+      "cc": 5,
+      "values": "51",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Depth Mod",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Speed Mod",
+      "cc": 7,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "TremoloPan",
+      "control": "Mod Rate",
+      "cc": 8,
+      "values": "0.920 x Spd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "TremoloPan",
+      "control": "Mod Source",
+      "cc": 9,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TremoloPan",
+      "control": "Manual Mod",
+      "cc": 10,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -42,3 +42,6 @@ This keeps a living log of intent and outcome for every change.
 
 ## Backend server
 - Do not spawn nodemon/npm/node processes for the backend. Only edit code; the user handles running it.
+
+## Do exactly what is asked
+- Do exactly what the user asks, nothing redundant. Before doing anything else (extra checks, extra exports, file moves, side tasks) — ask the user first.

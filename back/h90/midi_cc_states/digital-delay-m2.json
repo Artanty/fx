@@ -1,0 +1,89 @@
+{
+  "effect": "Digital Delay",
+  "display": "Digital Delay m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Wet Mix",
+      "cc": 50,
+      "values": " 91",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Digital Delay",
+      "control": "Delay Mix",
+      "cc": 51,
+      "values": "A10+B1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Delay A",
+      "cc": 52,
+      "values": "  16 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Delay B",
+      "cc": 53,
+      "values": "  38 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Feedback A",
+      "cc": 54,
+      "values": " 77",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Feedback B",
+      "cc": 55,
+      "values": " 87",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "X-Fade",
+      "cc": 56,
+      "values": "183 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Mod Depth",
+      "cc": 57,
+      "values": " 6",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Mod Speed",
+      "cc": 58,
+      "values": "1.00 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Digital Delay",
+      "control": "Filter",
+      "cc": 59,
+      "values": " 24",
+      "verified": true
+    }
+  ]
+}

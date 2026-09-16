@@ -1,0 +1,144 @@
+{
+  "effect": "MangledVerb",
+  "slot": "m1",
+  "slug": "reverb",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 39",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Decay",
+      "cc": 1,
+      "values": " 49",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Size",
+      "cc": 2,
+      "values": " 74",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Pre Delay",
+      "cc": 3,
+      "values": " 1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Overdrive",
+      "cc": 4,
+      "values": " 35",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Output",
+      "cc": 5,
+      "values": "-16.5 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Low Level",
+      "cc": 6,
+      "values": " 70",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Mid Level",
+      "cc": 7,
+      "values": " 73",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "High Level",
+      "cc": 8,
+      "values": "-42",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MangledVerb",
+      "control": "Wobble",
+      "cc": 9,
+      "values": " 34",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

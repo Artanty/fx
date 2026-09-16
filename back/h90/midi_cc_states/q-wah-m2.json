@@ -1,0 +1,153 @@
+{
+  "effect": "Q-Wah",
+  "display": "Q-Wah m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Q-Intensity",
+      "cc": 50,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Type",
+      "cc": 51,
+      "values": "Wah Wah",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Shape",
+      "cc": 52,
+      "values": "Triangle",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Bottom",
+      "cc": 53,
+      "values": "76",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Depth",
+      "cc": 54,
+      "values": " 99",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Speed",
+      "cc": 55,
+      "values": "0.18 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Depth Mod",
+      "cc": 56,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Speed Mod",
+      "cc": 57,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Mod Rate",
+      "cc": 58,
+      "values": "0.230 x Spd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Mod Source",
+      "cc": 59,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Manual Mod",
+      "cc": 60,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Q-Wah",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Q-Wah",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "effect": "PitchFlex",
+  "display": "PitchFlex m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Mix",
+      "cc": 50,
+      "values": "59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "Pitch Mix",
+      "cc": 51,
+      "values": "A10+B7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Manual Shift",
+      "cc": 52,
+      "values": "-1.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Heel A",
+      "cc": 53,
+      "values": "-1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Heel B",
+      "cc": 54,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Toe A",
+      "cc": 55,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Toe B",
+      "cc": 56,
+      "values": "+2oct",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "H-T Gliss",
+      "cc": 57,
+      "values": "1/4 Triplet",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "T-H Gliss",
+      "cc": 58,
+      "values": "1/4 Triplet",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Shape",
+      "cc": 59,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "LP Filter",
+      "cc": 60,
+      "values": " 26",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFlex",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFlex",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

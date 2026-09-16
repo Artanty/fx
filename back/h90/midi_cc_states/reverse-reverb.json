@@ -1,0 +1,144 @@
+{
+  "effect": "Reverse Reverb",
+  "slot": "m1",
+  "slug": "reverb",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Mix",
+      "cc": 0,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Decay",
+      "cc": 1,
+      "values": " 819 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Size",
+      "cc": 2,
+      "values": "61 ",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Late Dry",
+      "cc": 3,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Feedback",
+      "cc": 4,
+      "values": "  6",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Diffusion",
+      "cc": 5,
+      "values": " 83",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Low Level",
+      "cc": 6,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "High Level",
+      "cc": 7,
+      "values": "-100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Contour",
+      "cc": 8,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse Reverb",
+      "control": "Mod Level",
+      "cc": 9,
+      "values": " 13",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

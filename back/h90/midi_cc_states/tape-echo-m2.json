@@ -1,0 +1,89 @@
+{
+  "effect": "Tape Echo",
+  "display": "Tape Echo m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Wet Mix",
+      "cc": 50,
+      "values": " 47",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Tape Echo",
+      "control": "Delay Mix",
+      "cc": 51,
+      "values": "A10+B10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Delay A",
+      "cc": 52,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Delay B",
+      "cc": 53,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Feedback A",
+      "cc": 54,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Feedback B",
+      "cc": 55,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Saturation",
+      "cc": 56,
+      "values": " 8",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Wow",
+      "cc": 57,
+      "values": " 3",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Flutter",
+      "cc": 58,
+      "values": " 4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Tape Echo",
+      "control": "Filter",
+      "cc": 59,
+      "values": " 26",
+      "verified": true
+    }
+  ]
+}

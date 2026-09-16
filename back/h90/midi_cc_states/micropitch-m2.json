@@ -1,0 +1,153 @@
+{
+  "effect": "MicroPitch",
+  "display": "MicroPitch m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Pitch Mix",
+      "cc": 51,
+      "values": "A10+B7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Pitch A",
+      "cc": 52,
+      "values": " 9 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Pitch B",
+      "cc": 53,
+      "values": "-9 c",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Delay A",
+      "cc": 54,
+      "values": "No Delay",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Delay B",
+      "cc": 55,
+      "values": "No Delay",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Mod Source",
+      "cc": 56,
+      "values": "LFO",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Mod Depth",
+      "cc": 57,
+      "values": "  1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Mod Rate",
+      "cc": 58,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Feedback",
+      "cc": 59,
+      "values": " 23",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Tone",
+      "cc": 60,
+      "values": " -1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "MicroPitch",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "MicroPitch",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

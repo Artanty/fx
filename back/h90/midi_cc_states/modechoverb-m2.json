@@ -1,0 +1,145 @@
+{
+  "effect": "ModEchoVerb",
+  "display": "ModEchoVerb m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Mix",
+      "cc": 50,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Decay",
+      "cc": 51,
+      "values": "10.00 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Size",
+      "cc": 52,
+      "values": " 90",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Echo",
+      "cc": 53,
+      "values": "  0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Echo Fdbk",
+      "cc": 54,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Echo Tone",
+      "cc": 55,
+      "values": "-29",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Flanger Mix",
+      "cc": 56,
+      "values": " 87",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Mod Rate",
+      "cc": 57,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Low Level",
+      "cc": 58,
+      "values": " -8",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "High Level",
+      "cc": 59,
+      "values": " 75",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModEchoVerb",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModEchoVerb",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModEchoVerb",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "ModEchoVerb",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "ModEchoVerb",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

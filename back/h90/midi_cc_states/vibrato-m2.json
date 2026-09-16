@@ -1,0 +1,153 @@
+{
+  "effect": "Vibrato",
+  "display": "Vibrato m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Intensity",
+      "cc": 50,
+      "values": "81",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Type",
+      "cc": 51,
+      "values": "Modern",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Depth",
+      "cc": 52,
+      "values": "69",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Speed",
+      "cc": 53,
+      "values": "9.70 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Shape",
+      "cc": 54,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Width",
+      "cc": 55,
+      "values": "Unused",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Depth Mod",
+      "cc": 56,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Speed Mod",
+      "cc": 57,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Mod Rate",
+      "cc": 58,
+      "values": "0.920 x Spd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Mod Source",
+      "cc": 59,
+      "values": "Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Manual Mod",
+      "cc": 60,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Vibrato",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Vibrato",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

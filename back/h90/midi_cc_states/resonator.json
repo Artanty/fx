@@ -1,0 +1,144 @@
+{
+  "effect": "Resonator",
+  "slot": "m1",
+  "slug": "harm",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Resonator",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 93",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Resonator",
+      "control": "Length",
+      "cc": 1,
+      "values": " 834 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Resonator",
+      "control": "Rhythm",
+      "cc": 2,
+      "values": "1.3.5.7",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Resonator",
+      "control": "Feedback",
+      "cc": 3,
+      "values": "Fdbk 1 29",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Resonator",
+      "control": "Resonance",
+      "cc": 4,
+      "values": "-4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Resonator",
+      "control": "Reverb",
+      "cc": 5,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Resonator",
+      "control": "Note 1",
+      "cc": 6,
+      "values": "G3",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Resonator",
+      "control": "Note 2",
+      "cc": 7,
+      "values": "D4",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Resonator",
+      "control": "Note 3",
+      "cc": 8,
+      "values": "G4",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Resonator",
+      "control": "Note 4",
+      "cc": 9,
+      "values": "D5",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

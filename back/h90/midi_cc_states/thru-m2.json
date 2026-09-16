@@ -1,0 +1,65 @@
+{
+  "effect": "Thru",
+  "display": "Thru m2",
+  "slot": "m2",
+  "slug": "utility",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Thru",
+      "control": "In Gain",
+      "cc": 50,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Thru",
+      "control": "Out Gain",
+      "cc": 51,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Thru",
+      "control": "Bypass",
+      "cc": 52,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Thru",
+      "control": "Tails",
+      "cc": 53,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Thru",
+      "control": "Tempo Mode",
+      "cc": 54,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Thru",
+      "control": "HotKnob",
+      "cc": 55,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Thru",
+      "control": "Kill Dry",
+      "cc": 56,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

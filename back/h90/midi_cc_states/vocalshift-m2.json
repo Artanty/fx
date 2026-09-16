@@ -1,0 +1,353 @@
+{
+  "effect": "VocalShift",
+  "display": "VocalShift m2",
+  "slot": "m2",
+  "slug": "harmp",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Latency",
+      "cc": 50,
+      "values": "Low",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Mix",
+      "cc": 51,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Formant Link",
+      "cc": 52,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Detune",
+      "cc": 53,
+      "values": "6 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Tuning Speed",
+      "cc": 54,
+      "values": "50 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Root",
+      "cc": 55,
+      "values": "C",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Scale",
+      "cc": 56,
+      "values": "Major",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Quant",
+      "cc": 57,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Quant Error",
+      "cc": 58,
+      "values": "5 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Gain A",
+      "cc": 59,
+      "values": "-3.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Shift A",
+      "cc": 60,
+      "values": "Unison",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Formant A",
+      "cc": 61,
+      "values": "0 c",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Solo A",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Delay A",
+      "cc": 63,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Feedback A",
+      "cc": 64,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Pan A",
+      "cc": 65,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Gain B",
+      "cc": 66,
+      "values": "-12.5 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Shift B",
+      "cc": 67,
+      "values": "-5th",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Formant B",
+      "cc": 68,
+      "values": "-130 c",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Solo B",
+      "cc": 69,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Delay B",
+      "cc": 70,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Feedback B",
+      "cc": 71,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Pan B",
+      "cc": 72,
+      "values": "-26",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Gain C",
+      "cc": 73,
+      "values": "-6.5 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Shift C",
+      "cc": 74,
+      "values": "+4th",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Formant C",
+      "cc": 75,
+      "values": "130 c",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Solo C",
+      "cc": 76,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Delay C",
+      "cc": 77,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Feedback C",
+      "cc": 78,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Pan C",
+      "cc": 79,
+      "values": "26",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Glide A",
+      "cc": 80,
+      "values": "Unison",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Glide B",
+      "cc": 81,
+      "values": "+P5",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Glide C",
+      "cc": 82,
+      "values": "-P4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Rise",
+      "cc": 83,
+      "values": "1113 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Fall",
+      "cc": 84,
+      "values": "200 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Hold",
+      "cc": 85,
+      "values": "A",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "In Gain",
+      "cc": 86,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShift",
+      "control": "Out Gain",
+      "cc": 87,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Bypass",
+      "cc": 88,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Tails",
+      "cc": 89,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Tempo Mode",
+      "cc": 90,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "HotKnob",
+      "cc": 91,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShift",
+      "control": "Kill Dry",
+      "cc": 92,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

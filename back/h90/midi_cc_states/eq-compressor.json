@@ -1,0 +1,152 @@
+{
+  "effect": "EQ Compressor",
+  "slot": "m1",
+  "slug": "eq",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Gain 1",
+      "cc": 0,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Frequency 1",
+      "cc": 1,
+      "values": " 515 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Width 1",
+      "cc": 2,
+      "values": " 6",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Gain 2",
+      "cc": 3,
+      "values": "1.5 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Frequency 2",
+      "cc": 4,
+      "values": "2375 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Width 2",
+      "cc": 5,
+      "values": " 5",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Bass",
+      "cc": 6,
+      "values": "-1.5 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Treble",
+      "cc": 7,
+      "values": "3.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "EQ Compressor",
+      "control": "Compressor",
+      "cc": 8,
+      "values": "Pre EQ 37",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Trim",
+      "cc": 9,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "EQ Compressor",
+      "control": "Gate Thresh",
+      "cc": 10,
+      "values": "-65.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

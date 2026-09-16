@@ -1,0 +1,54 @@
+category,slug,effect
+Harmonizer,harm,Diatonic
+Harmonizer,harm,H910 H949
+Harmonizer,harm,HarModulator
+Harmonizer,harm,HarPeggiator
+Harmonizer,harm,MicroPitch
+Harmonizer,harm,Octaver
+Harmonizer,harm,PitchFlex
+Harmonizer,harm,PolyFlex
+Harmonizer,harm,Polyphony
+Harmonizer,harm,Prism Shift
+Harmonizer,harm,Quadravox
+Harmonizer,harm,Resonator
+Harmonizer+,harmp,Quadravox+
+Harmonizer+,harmp,VocalShift
+Harmonizer+,harmp,VocalShiftMIDI
+Harmonizer+,harmp,VocalTune
+Looper,looper,Looper
+Modulation,mod,Chorus
+Modulation,mod,Even-Vibe
+Modulation,mod,Flanger
+Modulation,mod,Harmadillo
+Modulation,mod,Instant Flanger
+Modulation,mod,Instant Phaser
+Modulation,mod,ModFilter
+Modulation,mod,Phaser
+Modulation,mod,Q-Wah
+Modulation,mod,RingMod
+Modulation,mod,Rotary
+Modulation,mod,Sticky Tape
+Modulation,mod,TremoloPan
+Modulation,mod,TriceraChorus
+Modulation,mod,Undulator
+Modulation,mod,Vibrato
+Multi,multi,SpaceTime
+Reverb,reverb,Blackhole
+Reverb,reverb,DualVerb
+Reverb,reverb,DynaVerb
+Reverb,reverb,Hall
+Reverb,reverb,MangledVerb
+Reverb,reverb,ModEchoVerb
+Reverb,reverb,Plate
+Reverb,reverb,Reverse Reverb
+Reverb,reverb,Room
+Reverb,reverb,Shimmer
+Reverb,reverb,SP2016 Reverb
+Reverb,reverb,Spring
+Reverb,reverb,TremoloVerb
+Reverb,reverb,Wormhole
+Synth,synth,HotSawz
+Synth,synth,PolySynth
+Synth,synth,Synthonizer
+Utility,utility,Mute
+Utility,utility,Thru

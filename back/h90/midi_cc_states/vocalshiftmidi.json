@@ -1,0 +1,256 @@
+{
+  "effect": "VocalShiftMIDI",
+  "slot": "m1",
+  "slug": "harmp",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Unison Mix",
+      "cc": 0,
+      "values": "50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShiftMIDI",
+      "control": "Root",
+      "cc": 1,
+      "values": "C",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShiftMIDI",
+      "control": "Scale",
+      "cc": 2,
+      "values": "Chromatic",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Unison Formant",
+      "cc": 3,
+      "values": "0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Tuning Speed",
+      "cc": 4,
+      "values": "100 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShiftMIDI",
+      "control": "Quant",
+      "cc": 5,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Attack",
+      "cc": 6,
+      "values": "10 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Release",
+      "cc": 7,
+      "values": "300 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShiftMIDI",
+      "control": "Hold",
+      "cc": 8,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Glide",
+      "cc": 9,
+      "values": "0 ms/oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Velocity Sens",
+      "cc": 10,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Gate Thresh",
+      "cc": 11,
+      "values": "-100 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Gate Attack",
+      "cc": 12,
+      "values": "100 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Gate Release",
+      "cc": 13,
+      "values": "100 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Bend Range",
+      "cc": 14,
+      "values": "2",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShiftMIDI",
+      "control": "Latency",
+      "cc": 15,
+      "values": "Low",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Vibe Rate",
+      "cc": 16,
+      "values": "0.0 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Vibe Depth",
+      "cc": 17,
+      "values": "0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Vibe Slew",
+      "cc": 18,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Delay",
+      "cc": 19,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Feedback",
+      "cc": 20,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Formant Link",
+      "cc": 21,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalShiftMIDI",
+      "control": "Spread",
+      "cc": 22,
+      "values": "Medium",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalShiftMIDI",
+      "control": "Auto EQ",
+      "cc": 23,
+      "values": "0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 24,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 25,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 26,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 27,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 28,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 29,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 30,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

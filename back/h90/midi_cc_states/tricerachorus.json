@@ -1,0 +1,152 @@
+{
+  "effect": "TriceraChorus",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Chorus Mix",
+      "cc": 0,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Rate",
+      "cc": 1,
+      "values": "0.77 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Delay",
+      "cc": 2,
+      "values": "6.70 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Depth L",
+      "cc": 3,
+      "values": " 28",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Depth C",
+      "cc": 4,
+      "values": " 28",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Depth R",
+      "cc": 5,
+      "values": " 28",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Detune Mix",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "TriceraChorus",
+      "control": "Detune",
+      "cc": 7,
+      "values": "L-10 R 12",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "TriceraChorus",
+      "control": "Tone",
+      "cc": 8,
+      "values": "Flat",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Env Mix",
+      "cc": 9,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "TriceraChorus",
+      "control": "Env Rate",
+      "cc": 10,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

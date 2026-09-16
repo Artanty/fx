@@ -1,0 +1,185 @@
+{
+  "effect": "Head Space",
+  "display": "Head Space m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Delay Time",
+      "cc": 50,
+      "values": "800 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Head Space",
+      "control": "Speed",
+      "cc": 51,
+      "values": "Full",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Rec Drive",
+      "cc": 52,
+      "values": "4.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Feedback",
+      "cc": 53,
+      "values": "3.0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Head Space",
+      "control": "Fdbk Path",
+      "cc": 54,
+      "values": "2 & 4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Tape Hiss",
+      "cc": 55,
+      "values": "3.5",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Wow & Flutter",
+      "cc": 56,
+      "values": "5.5",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Filter",
+      "cc": 57,
+      "values": "-2.8",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 1 Lvl",
+      "cc": 58,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 1 Div",
+      "cc": 59,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Pan 1",
+      "cc": 60,
+      "values": "-6.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 2 Lvl",
+      "cc": 61,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 2 Div",
+      "cc": 62,
+      "values": "1/2",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Pan 2",
+      "cc": 63,
+      "values": "6.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 3 Lvl",
+      "cc": 64,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 3 Div",
+      "cc": 65,
+      "values": "3/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Pan 3",
+      "cc": 66,
+      "values": "-6.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 4 Lvl",
+      "cc": 67,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Head 4 Div",
+      "cc": 68,
+      "values": "1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Pan 4",
+      "cc": 69,
+      "values": "0.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Boil Time",
+      "cc": 70,
+      "values": "7500 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Head Space",
+      "control": "Break Time",
+      "cc": 71,
+      "values": "5000 ms",
+      "verified": true
+    }
+  ]
+}

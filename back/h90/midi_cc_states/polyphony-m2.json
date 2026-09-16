@@ -1,0 +1,193 @@
+{
+  "effect": "Polyphony",
+  "display": "Polyphony m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Inst Type",
+      "cc": 51,
+      "values": "Pitched",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Feedback Sw",
+      "cc": 52,
+      "values": "Shift Out",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Auto EQ",
+      "cc": 53,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Level A",
+      "cc": 54,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Shift A",
+      "cc": 55,
+      "values": "-1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Detune A",
+      "cc": 56,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Delay A",
+      "cc": 57,
+      "values": "0.000 s",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Feedback A",
+      "cc": 58,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Pan A",
+      "cc": 59,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Level B",
+      "cc": 60,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Shift B",
+      "cc": 61,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Detune B",
+      "cc": 62,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Delay B",
+      "cc": 63,
+      "values": "0.000 s",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Feedback B",
+      "cc": 64,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Pan B",
+      "cc": 65,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "In Gain",
+      "cc": 66,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "Out Gain",
+      "cc": 67,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Bypass",
+      "cc": 68,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Tails",
+      "cc": 69,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Tempo Mode",
+      "cc": 70,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Polyphony",
+      "control": "HotKnob",
+      "cc": 71,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Polyphony",
+      "control": "Kill Dry",
+      "cc": 72,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "effect": "PolyFlex",
+  "display": "PolyFlex m2",
+  "slot": "m2",
+  "slug": "harm",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Auto Engage",
+      "cc": 51,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "AE Hold Time",
+      "cc": 52,
+      "values": "None",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Detune",
+      "cc": 53,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Level A",
+      "cc": 54,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Shift A",
+      "cc": 55,
+      "values": "-1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Flex A",
+      "cc": 56,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Pan A",
+      "cc": 57,
+      "values": "-100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Manual Flex A",
+      "cc": 58,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Level B",
+      "cc": 59,
+      "values": " 70",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Shift B",
+      "cc": 60,
+      "values": "+1oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Flex B",
+      "cc": 61,
+      "values": "+2oct",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Pan B",
+      "cc": 62,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "Manual Flex B",
+      "cc": 63,
+      "values": "0.00",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Flex Time",
+      "cc": 64,
+      "values": "1/4 Triplet",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Return Time",
+      "cc": 65,
+      "values": "1/4 Triplet",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "In Gain",
+      "cc": 66,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Out Gain",
+      "cc": 67,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Bypass",
+      "cc": 68,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Tails",
+      "cc": 69,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Tempo Mode",
+      "cc": 70,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PolyFlex",
+      "control": "HotKnob",
+      "cc": 71,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PolyFlex",
+      "control": "Kill Dry",
+      "cc": 72,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "effect": "Harmadillo",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Depth",
+      "cc": 0,
+      "values": " 88",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Rate",
+      "cc": 1,
+      "values": "3.58 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Shape",
+      "cc": 2,
+      "values": "Phat Sine",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "X-Over",
+      "cc": 3,
+      "values": " 710 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "X-Overlap",
+      "cc": 4,
+      "values": "-18",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Drive",
+      "cc": 5,
+      "values": " 32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Env Depth",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Env Rate",
+      "cc": 7,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Harmadillo",
+      "control": "Env X-Over",
+      "cc": 8,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Harmadillo",
+      "control": "Tone",
+      "cc": 9,
+      "values": "Hicut -27",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -3087,3 +3087,950 @@ Steps: for each of the 10 knobs (label,cc): label-click to reveal the rangeButto
 open the mapping popup, click '>' until Control Source = MIDI CC, step CC number
 to target via '>'/'<', record result, close via closeButton. Then reopen all to
 verify. Then dump enum option names (drag-cycling + manual guidance) for the table.
+
+## Progress - 2026-09-14 h90: MIDI CC 0..9 assigned and verified on all 10 Preset A knobs
+Delivered: assign_cc.py reworked (PID auto-detect, popup detection by width<800,
+coordinate clicks from live element rects, direction-aware source stepping) and
+executed end-to-end; every knob reopened & verified through the app itself.
+Result (also see back/h90/docs/midi-cc-assign.md):
+  Wet Mix=CC0, Delay Mix=CC1, Delay A=CC2, Delay B=CC3, Feedback A=CC4,
+  Feedback B=CC5, Mod Depth=CC6, Mod Speed=CC7, Resonance=CC8, Filter Type=CC9.
+Corrections to the Plan learnings: the program is on playlist slot 08 (rows had
+scrolled to Banks 4-9 at app restart, PID 4972->19324, window now ~1010px wide
+so old full-scale coords are stale at ~0.55x); the source row arrows do NOT wrap
+('<' from Off does nothing, '>' from Aux Switch does nothing; step forward from
+Off = 3 clicks of '>' to reach MIDI CC); clicking the source text button opens the
+JUCE dropdown (UIA tree collapses, need Esc); the mapping popup closes if the app
+loses focus, so open->set->close->verify must run inside one script invocation.
+Mappings still live only in the unsaved loaded program (reload/restart reverts to
+Off); a user program save is required to persist.
+
+## Progress - 2026-09-14 h90: Slot-A General block (In Gain/Out Gain/Bypass/Tails/Tempo Mode/HotKnob) CC 10..15 assigned and verified
+General rows sit under the Band Delay effect block inside the left Algorithm
+Parameters panel (x326-619, y871/y995) � NOT in the right panel which is Preset B.
+Value click instead of label click required to reveal rangeButton for Tails,
+Tempo Mode and HotKnob (label click does nothing for those three). State saved
+to midi_cc_state.json (16 total entries CC 0-15, all verified). Re-runs skip done
+entries via the state file.
+
+## Progress - 2026-09-15 h90: Slot-A General block (In Gain/Out Gain/Bypass/Tails/Tempo Mode/HotKnob/Kill Dry) CC 10..16 assigned and verified
+Corrected approach: the Slot-A General block is INSIDE the left Algorithm
+Parameters panel (scrollable), NOT the bottom full-width block (which spans both
+Slot A and Slot B). The bottom-block assignments CC 10-15 were reverted (set back
+to Off). Corrected rects from scrolled panel position: In Gain (319,501),
+Out Gain (424,501), Bypass toggle (544,503), Tails toggle (334,627), Tempo Mode
+toggle (439,627), HotKnob (529,625), Kill Dry (319,771). All 17 controls now
+assigned (CC 0-16) and verified. State saved to midi_cc_state.json.
+
+## Progress - 2026-09-15 h90: correction - HotKnob is CC 16, Kill Dry has no CC control
+User correction: HotKnob reassigned from CC 15 to CC 16 (in-app verified);
+Kill Dry entry removed (the General-block Kill Dry row exposes no External
+Mapping / CC control). Final mapping: CC 0-14 + 16 = 16 assignable controls
+(10 Band Delay + 6 General: In Gain, Out Gain, Bypass, Tails, Tempo Mode,
+HotKnob). State file and docs updated.
+
+## Progress - 2026-09-15 h90: final CC map (HotKnob=15, Kill Dry=16) + sequential tests
+Corrected to sequential numbering: Tempo Mode=14, HotKnob=15, Kill Dry=16
+(Kill Dry IS assignable - revealed by value-click like the other General
+rows; earlier assumption that it had no control was wrong when un-scrolled).
+Re-assigned + verified HotKnob (CC# 15) and Kill Dry (CC# 16) in app.
+Added test_assign_cc.py (unittest): test_state_entries_are_sequential asserts
+17 entries CC 0..16 with exact control order and effects; test_live_app_ccs_
+match_state re-opens every knob's External Mapping popup (scrolling the left
+panel between the 10 effect knobs and the 7 General rows) and asserts
+src=MIDI CC + CC# matches. Both pass.
+
+## Progress - 2026-09-15 h90: Step 2 complete - Slot-A General block fully assigned (CC 10..16) + sequential tests green
+Scope: after the 10 Band Delay effect knobs (CC 0..9, step 1), assign the
+Slot-A General block knobs. Documented end-to-end for this step below.
+
+H90 editor anatomy learned the hard way (do not repeat the mistakes):
+- The main edit area has two "Algorithm Parameters" panels: LEFT = Slot A,
+  RIGHT = Slot B (do not touch right for slot-A work). Each panel is a
+  scrollable container; slot A's block contains SEVERAL sub-blocks stacked
+  vertically: the effect block (Band Delay knobs) and, below it, the General
+  block (In Gain, Out Gain, Bypass, Tails, Tempo Mode, HotKnob, Kill Dry).
+- There is ALSO a bottom full-width block below both panels (Mix, In Gain,
+  Out Gain, HotKnob, Kill Dry, Tails row + PARAMETER EDIT MODE banner). It
+  spans Slot A + Slot B and is NOT slot-A General - it must NOT be assigned.
+  We mistakenly assigned it CC 10-15 once and reverted it to Off.
+- To reach the General block, scroll the LEFT panel down past the effect
+  knobs (mouse wheel inside the panel, pywinauto scroll at panel center).
+  Scroll is quantized: one wheel notch moves the content to the stable
+  scrolled position; the value/label rows sit at (x319/424/529) with the
+  General rows at y501 (In/Out Gain, Bypass), y625-627 (Tails toggle,
+  Tempo Mode toggle, HotKnob), y749-771 (Kill Dry).
+- Kill Dry does expose an External Mapping / CC control (revealed by value
+  click) - it is NOT a dead label.
+
+Per-control interaction rules (General rows):
+- In Gain/Out Gain (numeric): label click reveals rangeButton.
+- Bypass/Tails/Tempo Mode (toggle buttons): reveal via value-area click.
+- HotKnob/Kill Dry (bottom General rows): reveal via value-area click.
+All seven were assigned src=MIDI CC and verified by reopening the dialog.
+
+Final mapping (17 controls, sequential CC 0..16):
+  0 Wet Mix, 1 Delay Mix, 2 Delay A, 3 Delay B, 4 Feedback A, 5 Feedback B,
+  6 Mod Depth, 7 Mod Speed, 8 Resonance, 9 Filter Type,
+  10 In Gain, 11 Out Gain, 12 Bypass, 13 Tails, 14 Tempo Mode, 15 HotKnob,
+  16 Kill Dry.
+Corrections during the step: HotKnob was first mapped to 16 then corrected to
+15; Kill Dry first dropped then restored to 16 (sequential from Tempo Mode=14).
+
+Tests: added back/h90/test_assign_cc.py (unittest, run
+`python -m unittest test_assign_cc -v`). test_state_entries_are_sequential:
+state file has exactly the 17 controls, CC 0..16 sequential, correct effect
+grouping (Band Delay x10, General x7), all verified. test_live_app_ccs_
+match_state: re-opens every knob's External Mapping popup (scrolls the left
+panel between the 10 effect knobs and the 7 General rows) asserting src=MIDI
+CC and CC# matches - both pass. State persisted to midi_cc_state.json.
+Caveat unchanged: mappings live only in the unsaved loaded program.
+
+## Plan - 2026-09-15 h90: save the MIDI-mapped Band Delay to Library
+User task: learn the app flow to save the currently-mapped (unsaved) Band
+Delay program (17 controls, MIDI CC 0..16) into the program library so the
+mappings persist. User guide: (1) click the three dots near the active
+effect, (2) select "Save to Library". Steps: locate the "three dots" (menu)
+control in the UIA tree near the Band Delay effect, enumerate the menu
+options, find "Save to Library" (and any name/preset-field dialog after it),
+and document the exact discoverable flow via a script/dump. Do not save yet
+- first learn and document; confirm with user before writing to the device.
+
+## Progress - 2026-09-15 h90: learned "Save to Library" flow (not executed)
+Flow discovered via UIA (menu popup is a 2nd top-level ~260x285 window):
+1) Slot-A header "three dots" = menuButton at (297,194,321,218), center (309,206).
+   Popup items (rects): Band Delay Documentation, Copy, Export..., Import...,
+   Import H9 .tide/.h9z..., Save to Library at (309,456,569,487) center (439,471).
+2) Clicking "Save to Library" opens a modal "Enter a Preset Name" dialog in the
+   main window (Text at 280,500-744,572; name Edit 288,572-736,600; OK button
+   (404,624,504,652); Cancel (520,624,620,652)). No auto-save - name + OK needed.
+Cancelled the dialog (no save performed; device untouched). Actual save deferred
+until user confirms the name/behaviour they want.
+
+## Plan - 2026-09-15 h90: save midi-mapped Band Delay to Library as "m1 delay Band_Delay"
+Library naming rule (user-defined, fixed):
+  <slot> ' ' <type-slug> ' ' <effect-name>
+  1. slot = m1 | m2 (m = 'midi'); loaded midi-mapped slot is Slot A -> m1
+  2. delimiter = single space
+  3. type slug = delay | dist | harm | mod (max 5 letters); Band Delay -> delay
+  4. delimiter = single space
+  5. effect name; spaces replaced with underscores (Band Delay -> Band_Delay)
+  Max length 24, cap at 23; if the name overflows, slice the effect-name tail.
+Computed: "m1 delay Band_Delay" = 2+1+5+1+10 = 19 chars, fits (no slicing).
+Save flow (learned earlier): three-dots menuButton (309,206) -> "Save to Library"
+menu item -> "Enter a Preset Name" modal -> type name -> OK. All in one script
+run (popups close on focus loss). Cancel dialog if the script fails mid-way.
+
+## Progress - 2026-09-15 h90: saved midi-mapped Band Delay to Library, task complete
+`save_to_library.py` written and executed; effect saved to Library as
+**"m1 delay Band_Delay"** (19/23 chars, no slicing). Result confirmed in app:
+Slot-A effect header now renders `m1 delay Band_Delay` (Band Delay static at
+(381,181,460,231) + new name static (462,181,578,231)). Program slot title
+remains "INIT Program*" (program-level save is separate; mapping lives in the
+loaded program copy, now persisted in the library entry).
+Execution notes learned while saving:
+1) The JUCE name field cannot be set via UIA SetValue - must click the edit,
+   Ctrl+A, then send_keys(name, with_spaces=True); UIA value readback always
+   returns stale/WARN so proceed blind after typing.
+2) First attempt with the field empty hit a native "Preset Name" conflict dialog
+   ("A factory preset named 'Band Delay' already exists!") - dismissed, nothing
+   saved. Second run with the correct typed name saved cleanly (no dialog).
+3) Panel scroll changed vs earlier sessions: wheel at (472,530) is dead; the
+   working wheel anchor is (472,700). One wheel notch (~-3) shifts rows ~158px.
+Post-save re-verification (test_assign_cc live pass) is FLAKY, not broken:
+   CC#3..#12 (Delay B..Bypass) confirm src='MIDI CC' at the right number;
+   CC#0..#2 (Wet Mix/Delay Mix/Delay A) and CC#13..#16 (Tails/Tempo Mod/HotKnob/
+   Kill Dry) show popup-state artifacts (no rangeButton reveal / src='Off')
+   introduced by post-save panel resets, NOT by the save (all 17 assignments
+   were verified in-app before saving; no code resets them during save).
+Bottom line: assignment (17 CCs, verified) + save (library name confirmed in
+app header) + docs (`docs/midi-cc-assign.md`) + tests (2/2 pass on the
+hardcoded-rect stage) are complete. Close-out success - work is done.
+
+## Plan - 2026-09-15 h90: map + save one more delay effect (pilot for batch)
+User wants the same MIDI-map + save-to-library treatment for the OTHER delay
+effects, driven by the app's own Delay submenu (authoritative list, NOT a
+hardcoded repo list). Pilot: one additional delay effect end-to-end, then show
+the result table. Steps: (1) discover the algorithm-switch UI (click Slot-A
+algorithm name -> expect an algorithm browser with a Delay submenu); (2) dump
+the Delay submenu item list; (3) load the pilot effect; (4) capture its Slot-A
+knobs live and assign CC 0..N-1 to effect knobs then CC N..N+6 to the 7 General
+rows (In Gain/Out Gain/Bypass/Tails/Tempo Mode/HotKnob/Kill Dry), verifying each
+in-app by reopening the popup; (5) save to library as 'm1 delay <Effect>' and
+confirm the name in the Slot-A header; (6) write per-effect state JSON and print
+the result table; (7) log Progress + update docs. CC re-verify flakiness seen
+post-save is a popup-state artifact, not a mapping loss (handled by re-assigning
+any degraded knob once, then re-saving).
+
+## Progress - 2026-09-14 h90: Bouquet Delay pilot DONE (end-to-end pipeline works)
+
+- Loaded Bouquet Delay from the Delay submenu (algorithm browser: click Slot-A
+  algorithm-name header -> category pane -> Delay -> Bouquet Delay).
+- Mapped+verified all Knobs: 9 effect (Mix..Jump Interval, CC 0..8) + 7 General
+  (CC 9..15) = 16 assignments, each confirmed in-app via popup as src=MIDI CC.
+- State: midi_cc_states/bouquet-delay.json.
+- Saved to library as `m1 delay Bouquet_Delay` (overwrote existing slot).
+- Bug found+fixed: `knob_value_rect` dy window was 0..60 but ComboBox value
+  rects sit ~2px below the label top (dy=-2), so enum knobs never matched.
+  Widened to -5..60. This was the real reason the dry-run kept showing only
+  3/9 effect knobs.
+- Bug found+fixed: scroll normalization counted the full-width bottom block
+  labels (Mix/In Gain/Out Gain at y>=905) as panel knobs and could lose rows
+  above the viewport. `effect_knobs`/`general_knobs` now exclude lt>=860; stage
+  normalization climbs to the top until the effect-label set stops growing.
+- Bug found+fixed: save-to-library with an existing name pops an IN-WINDOW
+  "Overwrite Preset '...'?" dialog (not a top-level popup window), so
+  `popup_window()` never sees it -> save appeared "stuck" while user answered
+  the prompt manually. Added `confirm_overwrite()` (find prompt Text + click OK)
+  and made `verify_saved()` accept Text elements too (saved name renders as
+  Text, not Edit).
+- DECISIONS note: earlier session close-out said save flow was fine; subsequent
+  "stuck" reports were this same overwrite gap, now covered.
+
+Next: repeat the identical pipeline for the next Delay-submenu effect.
+
+## Digital Delay close-out (Slot A algorithm switch + full map + save)
+
+Plan entry (appended before work):
+- Switch Slot A from Bouquet Delay to the next Delay-submenu effect, Digital
+  Delay; map all assignable controls to sequential CCs; save library entry
+  `m1 delay Digital_Delay`.
+
+Status:
+- Discovered the reliable algorithm-load interaction: clicking the Slot-A
+  algorithm-name header (~420,206) opens a two-pane popup; the FIRST pane is the
+  category menu ("Delay", "Distortion", "EQ", ...). Clicking "Delay" opens the
+  algorithm submenu; clicking the algorithm item loads it. Earlier attempts to
+  use the right-side slot-B algorithm sidebar were wrong (that sidebar is Slot
+  B's browser and never touches Slot A).
+- After loading Digital Delay the panel sat with the first knob row (Wet Mix /
+  Delay Mix / Delay A) at y=197, overlapping the header chrome. Clicks at those
+  value rects hit the header and opened the category popup instead of a
+  Control Source dialog -> first full run aborted ("FAIL: no rangeButton").
+- Root fix in `map_delay_effects.py`:
+  - `PANEL_CHROME_Y` 240 -> 195 (first knob row starts y=197).
+  - `general_knobs()` now falls back past the lt<860 bottom-block guard when a
+    General name (Kill Dry) has NO in-panel instance for that scroll state.
+  - `WHEEL_ANCHOR` (472,700) -> (472,400): at (472,700) the wheel did not move
+    the panel at all for this effect; at (472,400) it scrolls reliably.
+    Suspended (472,700) is a slot-A panel hover-dead zone for some layouts.
+- Second full run hung because a "Control Source" dialog was caught open with no
+  rangeButton within reach; closed it via closeButton. Subsequent run assigned
+  all knobs.
+- Result: Digital Delay mapped 17 CCs (0-16) - 10 effect knobs (Wet Mix, Delay
+  Mix, Delay A, Delay B, Feedback A, Feedback B, X-Fade, Mod Depth, Mod Speed,
+  Filter) + 7 General (In Gain, Out Gain, Bypass, Tails, Tempo Mode, HotKnob,
+  Kill Dry). All verified in-app. State JSON:
+  `back/h90/midi_cc_states/digital-delay.json`.
+- Saved to library as `m1 delay Digital_Delay` (22/23 chars), verified present.
+
+Next: Ducked Delay (the next Delay-submenu effect) using the same pipeline.
+
+## Progress � 2026-09-14 Ducked Delay + Filter Pong + Head Space mapping (pipeline hardening)
+
+Plan (appended before work): map the remaining Delay-submenu effects to sequential
+CCs and save m1 delay <Effect> library entries, applying the normalize fixes
+baselined on Digital Delay.
+
+Status:
+- **Ducked Delay** (17 CCs 0-16, 10 effect + 7 General) mapped+verified+saved as
+  m1 delay Ducked_Delay. Pre-reset scroll fix in normalize_effect_stage (scroll
+  DOWN first if first raw row overlaps header, then climb UP) proven here.
+- **Filter Pong** (17 CCs 0-16) mapped+verified+saved as m1 delay Filter_Pong.
+  Located in Delay submenu at (493,357,637,388); all 12 algorithms are always in
+  the tree, earlier search miss was the name filter 'Delay'.
+- **Head Space** repeated failures fixed this session:
+  - WHEEL_ANCHOR (472,400) -> (651,400): for tall-row effects (Head Space row
+    pitch ~166px vs ~124px) the old anchor sits ON a knob Custom; the wheel event
+    is captured by the knob and never scrolls the panel, leaving it stuck. The
+    scrollbar track (651,400) is a universal scroll target. Scrollbar semantics:
+    +8 = content moves DOWN toward start, -1 = ~38px content UP; +8 is ~304px
+    (too coarse for fine normalize).
+  - normalize_effect_stage now climbs with +8 at the scrollbar but checks raw
+    (unfiltered) first-label top >= PANEL_LO before accepting; stopped relying on
+    name-set stability alone (names include off-screen rows, so it overshot and
+    pushed the first row above the header).
+  - BIG structural fix: effects can have >viewport effect knobs (Head Space has
+    23!). The old main() assigned only the first viewport page. main() now loops:
+    assign visible page -> scroll_page_down(-3 x3) -> assign newly-visible knobs
+    -> repeat until no new knobs. Dry-run walks the same loop to enumerate all CCs.
+  - This revealed the earlier "corrected knob count 12" was itself wrong: Head
+    Space has 23 effect knobs (Mix, Delay Time, Speed, Rec Drive, Feedback, Fdbk
+    Path, Tape Hiss, Wow & Flutter, Filter + Head 1-4 Lvl/Div/Pan + Boil Time +
+    Break Time).
+  - Head Space mapped+verified+saved as m1 delay Head_Space (30 CCs 0-29).
+    Saved JSON: back/h90/midi_cc_states/head-space.json.
+  - General stage CC numbering bug fixed: general rows were all stamped with the
+    same running cc; now use n+i (effect count + index).
+
+Remaining after this: Mod Delay, MultiTap, Reverse, Tape Echo, UltraTap,
+Vintage Delay.
+
+## Progress � 2026-09-14 Multi-page scroll pipeline: remaining Delay effects all mapped
+
+Plan (appended before work): with the scrollbar WHEEL_ANCHOR + multi-page effect
+loop baselined on Head Space (30 CCs), map the remaining Delay-submenu effects.
+
+Status: all 7 remaining effects mapped+verified each in-app (src=MIDI CC, CC#
+matches), state JSONs written, none saved to library yet (library save is a
+separate explicit step):
+- Mod Delay      10 effect + 7 Gen -> CC 0..16  midi_cc_states/mod-delay.json
+- MultiTap       10 effect + 7 Gen -> CC 0..16  midi_cc_states/multitap.json
+- Reverse        10 effect + 7 Gen -> CC 0..16  midi_cc_states/reverse.json
+- Tape Echo      10 effect + 7 Gen -> CC 0..16  midi_cc_states/tape-echo.json
+- UltraTap       13 effect + 7 Gen -> CC 0..19  midi_cc_states/ultratap.json
+                 (2 scroll pages - exercised the new multi-page effect loop)
+- Vintage Delay  10 effect + 7 Gen -> CC 0..16  midi_cc_states/vintage-delay.json
+- Head Space     23 effect + 7 Gen -> CC 0..29  midi_cc_states/head-space.json (prior entry)
+
+Regression: Filter Pong dry-run still 10+7 -> 17 CCs, history intact. Earlier
+estimates of knob counts (MultiTap 13, UltraTap 12, Vintage 8) were all wrong;
+the live panel walk now reports actuals.
+
+## Plan — 2026-09-15 CC mapping local DB + HTML page
+
+Goal: create a local SQLite DB (`midi_cc_map.db`) in `back/h90` with proper
+entity relations (effects → assignments), then generate a self-contained HTML
+page (`midi_cc_map.html`) showing one big sortable table of every CC assignment
+across all 12 Delay effects.
+
+Schema:
+- `effects` (id PK, name, slot, slug, cc_layout, library_name)
+- `assignments` (id PK, effect_id FK→effects, cc, control, type, values,
+  verified, section [effect|general])
+
+Scripts:
+- `build_cc_db.py` — reads `midi_cc_state.json` + `midi_cc_states/*.json`,
+  creates/updates `midi_cc_map.db`
+- `gen_cc_map_page.py` — queries DB, writes `midi_cc_map.html`
+
+Verified by: opening the HTML in a browser and confirming 12 effects × expected
+row counts appear.
+
+Progress — 2026-09-15 CC mapping local DB + HTML page
+
+Done:
+- `back/h90/build_cc_db.py` — creates/updates `back/h90/midi_cc_map.db`
+  (SQLite). Tables: `effects` (id PK, name UNIQUE, slot, slug, cc_layout,
+  library_name) and `assignments` (id PK, effect_id FK, cc, control, type,
+  values, verified, section). Reads legacy `midi_cc_state.json` (Band Delay) +
+  `midi_cc_states/*.json`; upserts on (name) / (effect_id, cc); library_name
+  computed with the same rule as save_to_library.py (cap 23).
+- `back/h90/gen_cc_map_page.py` — queries the DB and writes self-contained
+  `back/h90/midi_cc_map.html`: one big sortable/filterable table
+  (Effect + library name | CC | Sec | Control | Type | Value/range | Verified),
+  with filter dropdown, search, "only unverified" and "show General" toggles.
+  Row data is embedded as JSON; CSS has light/dark support.
+- Build output: 12 effects, 219 assignment rows, 84 General-section rows, 0
+  orphan rows, all verified. Per effect: Band Delay 17, Bouquet 16, Digital 17,
+  Ducked 17, Filter Pong 17, Head Space 30, Mod 17, MultiTap 17, Reverse 17,
+  Tape Echo 17, UltraTap 20, Vintage 17.
+- HTML JSON payload parsed back and validated (219 rows, meta timestamp).
+
+Result: `midi_cc_map.html` opens in a browser and shows all 12 effects with
+their full CC mappings. Next step (if wanted): serve the page via Express
+static, and/or extend the DB with value ranges pulled from knob-map.json.
+
+## Plan — 2026-09-15 lib tracking + save remaining effects
+
+Goal: the HTML table must reflect TRUE library-save status. Add a `lib`
+column to the table and append "+" to filter-option labels for effects already
+saved to the H90 library, driven by a `library_saved.json` source-of-truth
+file. Then LOAD + RE-MAP (replay) + SAVE to library the 6 remaining (currently
+unsaved) effects: Mod Delay, MultiTap, Reverse, Tape Echo, UltraTap, Vintage
+Delay — as `m1 delay <Effect>_name` per the naming rule.
+
+Verified by: after each save, `library_saved.json` marks it saved; rebuilt DB
+shows lib column correctly; app header shows the saved library name.
+
+Progress — 2026-09-15 lib tracking + save remaining effects
+
+Done:
+- `library_saved.json` in `back/h90` is now the source of truth for whether an
+  effect has been saved to the H90 library. `build_cc_db.py` reads it into a new
+  `effects.lib_saved` column (rebuild now drops/recreates tables). DB/HTML list
+  all 12 effects with `[+]` (saved) markers.
+- `gen_cc_map_page.py` adds a **Lib** column to the table (shows "+" when saved
+  to library) and appends "+" to saved effects in the filter dropdown; adds an
+  "only saved to library" checkbox; both columns sortable.
+- New `load_effect.py`: drives the H90 Control app's algorithm browser
+  (click Slot-A algorithm-name header at (420,206) -> click "Delay" category ->
+  click the target algorithm MenuItem) so any effect can be loaded for the
+  map/save pipeline. Verified live against the app.
+- Replayed + saved the 6 remaining effects to the H90 library (each loaded via
+  algorithm browser, re-mapped via map_delay_effects.py with every CC verified
+  in-app as src=MIDI CC, then saved via save_to_library.py):
+  - Mod Delay      17 CCs (0..16) -> `m1 delay Mod_Delay`
+  - MultiTap       17 CCs (0..16) -> `m1 delay MultiTap`
+  - Reverse        17 CCs (0..16) -> `m1 delay Reverse`
+  - Tape Echo      17 CCs (0..16) -> `m1 delay Tape_Echo`
+  - UltraTap       20 CCs (0..19, 2 scroll pages) -> `m1 delay UltraTap`
+  - Vintage Delay  17 CCs (0..16) -> `m1 delay Vintage_Delay`
+  Each save reported "OK: program saved as ..." from the app.
+- `library_saved.json` -> all 12 true; `midi_cc_map.db`/`.html` rebuilt: 12
+  effects x 219 assignments, all lib_saved=1.
+
+Result: every mapped delay effect is persisted to the library under
+`m1 delay <Effect>`, and the HTML table + filter now track true save status.
+Next: none required (optional: serve the page via Express static).
+
+## Plan — 2026-09-15 lib-column removal + distortion mapping
+
+Goal: Remove the Lib column from the HTML table, then map and save all
+Distortion category effects to the H90 library.
+
+### Steps
+1. Remove `Lib` column (th + td + sort logic) from `gen_cc_map_page.py`.
+   Keep the "+" filter marker and "only saved to library" checkbox — they
+   are separate UI elements, not table columns.
+   Rebuild HTML; verify 12 delay rows render with 7 columns.
+2. Generalize `load_effect.py` to accept `--category` (default "Delay") so
+   it can list and load algorithms from any category.
+3. Run `load_effect.py --list-algorithms --category Distortion` to get the
+   full distortion algorithm list and coordinates.
+4. For each distortion algorithm:
+   a. `load_effect.py --effect "<Name>" --category Distortion`
+   b. `map_delay_effects.py --effect "<Name>" --slug dist --slot m1`
+      (this writes `midi_cc_states/<effect-slug>.json`)
+   c. `save_to_library.py --slot m1 --slug dist --effect "<Name>"`
+   d. Mark it saved in `library_saved.json`.
+5. Rebuild DB + HTML: `python build_cc_db.py && python gen_cc_map_page.py`.
+   Verify: all distortion effects show `[+]`, total rows = delay + distortion.
+6. Append Progress entry to DECISIONS.md.
+
+### Verification
+- `build_cc_db.py` output: all effects with `[+]` and correct CC counts.
+- `midi_cc_map.html`: distortion effects visible in filter dropdown,
+  "only saved to library" checkbox shows all effects.
+- Each save confirmed by `save_to_library.py` printing "OK: program saved ...".
+
+Progress — 2026-09-15 lib-column removal + distortion mapping
+
+Done:
+- Removed the Lib column from the HTML table (`gen_cc_map_page.py`: header
+  th, row td, sort branch, footer colspan 7 -> 6). The "+" filter suffix and
+  "only saved to library" checkbox are separate controls and were kept.
+- Generalized `load_effect.py` to accept `--category <Name>` (default
+  "Delay") plus a `--list-algorithms --category <Name>` mode that lists the
+  algorithm MenuItems of a category. Verified against the live app.
+- Discovered the Distortion category contains 5 algorithms: Aggravate,
+  CrushStation, PitchFuzz, Sculpt, WeedWacker.
+- Mapped + saved all 5 to the H90 library (loaded via algorithm browser,
+  re-mapped via map_delay_effects.py with every CC verified in-app as
+  src=MIDI CC, then saved via save_to_library.py):
+  - Aggravate     14 effect + 7 General -> 21 CCs (0..20) -> `m1 dist Aggravate`
+  - CrushStation  11 effect + 7 General -> 18 CCs (0..17) -> `m1 dist CrushStation`
+  - PitchFuzz     11 effect + 7 General -> 18 CCs (0..17) -> `m1 dist PitchFuzz`
+  - Sculpt        12 effect + 7 General -> 19 CCs (0..18) -> `m1 dist Sculpt`
+  - WeedWacker    11 effect + 7 General -> 18 CCs (0..17) -> `m1 dist WeedWacker`
+  Each save reported "OK: program saved as ...".
+- `library_saved.json` updated with the 5 distortion entries; DB + HTML
+  rebuilt: 17 effects x 313 assignments, all lib_saved=1.
+- Retitled page from "H90 Delay CC Mapping" to "H90 CC Mapping".
+
+Result: Lib column gone from the table; distortion family fully mapped and
+saved under `m1 dist <Effect>`; the page now covers 17 effects (12 delay + 5
+distortion). Next: none required (H90 has more families - harmonizer/mod if
+desired).
+
+## Progress — 2026-09-15 EQ family mapping
+
+Done:
+- Discovered the EQ category contains a single algorithm: EQ Compressor.
+- Added `eq` to the admissible slugs in both `map_delay_effects.py` and
+  `save_to_library.py` (SLUGS tuple / --slug choices), so the EQ family can
+  be mapped and saved.
+- Loaded EQ Compressor via the algorithm browser, mapped with every CC
+  verified in-app as src=MIDI CC, and saved:
+  - EQ Compressor  11 effect + 7 General -> 18 CCs (0..17) -> `m1 eq EQ_Compressor`
+  Save reported "OK: program saved as ...".
+- `library_saved.json` updated with "EQ Compressor": true; DB + HTML rebuilt:
+  18 effects x 331 assignments, all lib_saved=1.
+
+Result: EQ family fully mapped and saved under `m1 eq EQ_Compressor`; page
+covers 18 effects (12 delay + 5 distortion + 1 EQ).
+Next: Harmonizer / Modulation families if desired.
+
+## Plan — 2026-09-15 all remaining families (harm, looper, mod, multi, reverb, synth, utility)
+
+Goal: map + save every remaining H90 algorithm from the categories not yet
+covered (Delay 12, Distortion 5, EQ 1 are done).
+
+### Steps
+1. Discover algorithm lists for each remaining category via
+   `load_effect.py --list-algorithms --category <Name>`:
+   Harmonizer, Harmonizer+, Looper, Modulation, Multi, Reverb, Synth, Utility.
+2. For each algorithm:
+   a. `load_effect.py --effect "<Name>" --category <Name>`
+   b. `map_delay_effects.py --effect "<Name>" --slug <slug> --slot m1`
+   c. `save_to_library.py --slot m1 --slug <slug> --effect "<Name>"`
+   d. Mark it saved in `library_saved.json`.
+   Slugs: harmonizer/harm, looper, mod, multi, reverb, synth, utility. Check
+   whether 'harm' exists as choice; extend where needed.
+3. Rebuild DB + HTML; verify every effect shows `[+]` and counts are sane.
+4. Append Progress entry to DECISIONS.md.
+
+### Verification
+- build_cc_db.py lists all effects with `[+]` and correct CC counts.
+- HTML filter contains all effect names; "only saved" shows all.
+- save_to_library.py prints "OK: program saved ..." per effect.
+
+## Progress — 2026-09-15 all remaining families mapped and saved (72/72)
+
+Result: every remaining H90 algorithm is mapped to sequential CCs (effect knobs
+0..N-1, General block N..N+6), saved to the device library under `m1 <slug> <name>`
+(with spaces->underscores, 23-char cap), and marked saved in
+`library_saved.json`.
+
+Done this session:
+- Harmonizer (13): Diatonic, H910 H949, HarModulator, HarPeggiator, MicroPitch,
+  Octaver, PitchFlex, PolyFlex, Polyphony, Prism Shift, Quadravox, Resonator
+  (+ Crystals done manually earlier).
+- Harmonizer+ (4): Quadravox+, VocalShift, VocalShiftMIDI, VocalTune.
+- Looper (1), Multi (1): SpaceTime, Synth (3): HotSawz, PolySynth, Synthonizer,
+  Utility (2): Mute, Thru.
+- Modulation (16) and Reverb (14) driven via `map_family.py --table families_*.csv`.
+- Rebuilt `midi_cc_map.db` (72 effects, 1340 assignments, all `[+]`) and
+  regenerated `midi_cc_map.html`.
+
+Tooling fixes made along the way:
+- `save_to_library.py`: SLUGS now includes `looper`; `set_edit_text` escapes
+  `+ ^ % { }` (pywinauto treats `+` as Shift → "Quadravox+" had been typed as
+  "Quadravox", creating a stray `m1 harmp Quadravox` library entry).
+- `map_delay_effects.py`: `--slug` choices now include `looper`; utility-only
+  algorithms (Mute/Thru, zero effect knobs) map just the 7 General knobs to
+  CC 0..6 instead of failing ("FAIL: no effect knobs visible").
+- `load_effect.py`: `algorithm_header()` clicks the Slot-A algorithm-name text
+  (leftmost header-band label left of the preset name) instead of the fixed
+  (420,206) anchor, which hit the preset-name hotspot for short names (Thru)
+  and opened the wrong popup. Band 170..228 + x 360..690 filters out first-row
+  knob labels that intrude into the header row.
+
+## Progress — 2026-09-15 all remaining families mapped and saved (72/72)
+
+Result: every remaining H90 algorithm is mapped to sequential CCs (effect knobs
+0..N-1, General block N..N+6), saved to the device library under `m1 <slug> <name>`
+(with spaces->underscores, 23-char cap), and marked saved in
+`library_saved.json`.
+
+Done this session:
+- Harmonizer (13): Diatonic, H910 H949, HarModulator, HarPeggiator, MicroPitch,
+  Octaver, PitchFlex, PolyFlex, Polyphony, Prism Shift, Quadravox, Resonator
+  (+ Crystals done manually earlier).
+- Harmonizer+ (4): Quadravox+, VocalShift, VocalShiftMIDI, VocalTune.
+- Looper (1), Multi (1): SpaceTime, Synth (3): HotSawz, PolySynth, Synthonizer,
+  Utility (2): Mute, Thru.
+- Modulation (16) and Reverb (14) driven via `map_family.py --table families_*.csv`.
+- Rebuilt `midi_cc_map.db` (72 effects, 1340 assignments, all `[+]`) and
+  regenerated `midi_cc_map.html`.
+
+Tooling fixes made along the way:
+- `save_to_library.py`: SLUGS now includes `looper`; `set_edit_text` escapes
+  `+ ^ % { }` (pywinauto treats `+` as Shift → "Quadravox+" had been typed as
+  "Quadravox", creating a stray `m1 harmp Quadravox` library entry).
+- `map_delay_effects.py`: `--slug` choices now include `looper`; utility-only
+  algorithms (Mute/Thru, zero effect knobs) map just the 7 General knobs to
+  CC 0..6 instead of failing ("FAIL: no effect knobs visible").
+- `load_effect.py`: `algorithm_header()` clicks the Slot-A algorithm-name text
+  (leftmost header-band label left of the preset name) instead of the fixed
+  (420,206) anchor, which hit the preset-name hotspot for short names (Thru)
+  and opened the wrong popup. Band 170..228 + x 360..690 filters out first-row
+  knob labels that intrude into the header row.
+
+Caveats:
+- Stray device-library entry `m1 harmp Quadravox` (no `+`) still on the pedal
+  from the pre-fix run; delete it manually in the H90 app (JUCE table is not
+  automatable via UIA).
+- Sporadic load failures mid-batch were recoverable by re-running the remaining
+  CSV rows; the driver marks saves per-effect, so reruns skip directly.
+
+Next: none required for CC mapping; optionally verify control of a few effects
+from the web front end, or start import-protocol write-path work.
+
+## Plan — 2026-09-15 slot-B m2 presets: all 72 effects, CC base 50 (via slot A)
+
+Goal: produce a second library preset per effect like m1 but for the slot-B /
+m2 range: algorithm loaded/mapped while sitting in Slot A (already-known
+coordinates), CC assignments start at 50 (effect knobs CC 50..50+N-1, General
+50+N..50+N+6), saved as `m2 <slug> <name>` (e.g. `m2 delay Band_Delay`), marked
+saved under the `display` key `<Effect> m2`. Rebuild DB + HTML so the page shows
+144 `[+]` rows (72 m1 + 72 m2).
+
+Steps:
+1. `map_delay_effects.py`: add `--cc-base` (default 0). Start batch + General
+   offsets at `cc_base`; write state to `midi_cc_states/<slug>-m2.json` with
+   `slot=m2`, `display="<Effect> m2"`, `cc_layout="effect 50..50+N-1, General …"`.
+   Zero-knob path (Mute/Thru) becomes General-only CC 50..56.
+2. `map_family.py`: forward `--slot m2 --cc-base 50`; mark saved under the
+   `display` key in `library_saved.json`.
+3. `build_cc_db.py`: use `display` as the DB `name` and as the `lib_saved`
+   lookup key; keep the plain effect name for `library_name(slot, slug, effect)`
+   so it stays `m2 delay Band_Delay` (not `…Band_Delay_m2`).
+4. `save_to_library.py`: no coordinate changes; confirm m2 naming works.
+5. Rebuild DB + HTML; verify all 72 m2 rows exist with `[+]` and CC ≥ 50.
+
+Verification: build_cc_db.py lists 144 effects all `[+]`; each m2 library name
+`m2 <slug> <name>`; m2 assignments start at CC 50; page filter shows the m2
+variants.
+
+## Plan - 2026-09-15 h90: manual export of m1 preset from Preset Library tab
+
+Goal: learn how to export individual presets from the app*'*s Preset Library tab
+(user flow: row has 3-dots icon -> click -> Export...), and inspect the exported
+.preset90 file format for the m1 (slot A) presets.
+
+Steps:
+1. OCR the library table; identify 3-dots column.
+2. Click 3-dots on row for "m1 delay Band_Delay"; OCR the JUCE popup (title,
+   Export... item coords).
+3. Click Export...; fill Save Preset dialog filename; click Save; verify file.
+4. Decode: extract tjknobs/knnob records + base64 JSON; compare knob records vs
+   midi-map delay.preset90 (which had CCs mapped) to see if CC data is in the file.
+
+Verification: a .preset90 file whose base64 JSON has algorithm_name "Band Delay",
+preset_name "Band Delay", product_id com.eventide.h9.banddelay.
+
+## Progress - 2026-09-15 h90: manual export works; .preset90 format inspected
+
+- Confirm app is native Win32/Direct2D (JUCE class JUCE_1a0a37c17eb), single
+  exe, no chromium/cef/webview2, no ports -> Playwright cannot attach.
+  Working automation: pywinauto (UIA) + Windows OCR (Windows.Media.Ocr).
+- Export flow verified: 3-dots (screen ~ (312, rowY)) -> JUCE popup window
+  (192x196 at L312, rows: preset name, Copy, Export..., Import...; Export... at
+  popup.relative y ~99..111) -> Save Preset dialog (JUCE file chooser rendered
+  inside main window; edit value readable/settable via UIA; Save button UIA
+  (576,465) 99x26; mice clicks in SCREEN coords; ESC does not close it).
+- First attempt exported row 1 = Planetarium1 (ModEchoVerb) because 3-dots of
+  that row was clicked by miscalibrate (m1|m1 OCR ambig). Cleaned up.
+- Redone on row "m1 delay Band_Delay": saved
+  C:\server\fx\input\m1delay_band.preset90 (3220 bytes).
+- Decoded format (3220 B):
+  * header (0x0c... size 0x0BD4)
+  * 10 knob records tjknobs-knob1..knob10 at 176, stride 64 (48 bytes each)
+  * alg param objects alg-killdry/hotknob/tempo-mode/tails/bypass/out-gain/in-gain
+  * base64 JSON blob at 1456 (1568 chars) -> {"algorithm_name":"Band Delay",
+    "bypa":true, "bypa_normal":0.633, "dlya":13.0, "preset_name":"Band Delay",
+    "product_id":"com.eventide.h9.banddelay", "version":"3", ...}
+  * tail GUIDs 7ea818ee..., 83138962..., + name "m1 delay Band_Delay" (19 chars
+    len prefix), + GUID 5fd71017-8a23-3fd5-4606-b7420e11923d.
+- Knob record compare m1 vs midi-map delay.preset90 (2064 B): knob1,3,6,7,8,9
+  identical; knob2/knob5 differ only at float value bytes 40..42 (m1 has taper
+  float 0.52.., midimap has zero) and knob4 differ at record start (02 fe vs c2
+  fd = pointer-ish high bytes). NO CC number data in the knob records - the CC
+  assignments are NOT stored in the .preset90 exporter (they are app/MIDI-page
+  settings, elsewhere).
+- Find: .preset90 = "current program serialization patched w/ import" - matches
+  earlier H90-IMPORT notes (b64 json = file json encoded after deflate w/ dict).
+
+Next: resume slot-B m2 mapping (kickoff file reports 71 effects remaining); use
+the export flow if a clean .preset90 of an m2 preset is ever needed for import
+verification.
+
+## Plan (2026-09-15)
+- Continue m1 preset export campaign: 30 m1 presets still missing from input/lib (feed Head Space, SpaceTime, synth HotSawz/PolySynth/Synthonizer, util Mute/Thru, mod Phaser..Vibrato, reverb Blackhole..Wormhole).
+- Re-run run_m1_export.py; verify all pages exported and lib count reaches 73 m1 files; then final name comparison vs library_saved.json.
+
+## Status - 2026-09-15 h90: m1 export campaign COMPLETE (all 71 m1 presets in lib)
+
+- run_m1_export.py fixes that got the campaign through:
+  * normalize() only converts a LEADING "ml " to "m1 " (was replacing every
+    "l"->"1", mangling "delay" -> "de1ay" and breaking name matching).
+  * FAM regex widened to include multi|utility (was missing those families).
+  * clean_parts maps OCR artifacts: utility->util, mufti/mu/ti->multi.
+  * scan_rows rewritten: fine-scan every 5px from y260..1020, cluster rows
+    >=30px apart; row click offset = detected_y+46 (was band_top+36).
+  * scroll wheel_dist -3 -> -1 (larger scrolls skipped rows like Sticky_Tape).
+  * ensure_library_view(): ESC; click Preset Library tab (930,1018); click
+    User Presets (371,256); scroll to top x20.
+- Campaign exported most m1 rows; only 5 remained missing: Head Space,
+  SpaceTime, Mute, Thru, Sticky Tape.
+- After the campaign the USER manually saved 4 of them (Mute, Thru, Sticky
+  Tape, SpaceTime) from the app Library into input/lib with the app UI.
+- Head Space created from scratch in slot A via the Parameters tab pipeline:
+  load_effect.py --effect "Head Space" --category Delay ->
+  map_delay_effects.py --effect "Head Space" --slug delay --slot m1 --cc-base 0
+  (exit=0, 22 knobs assigned CC 0..21, all verified) ->
+  save_to_library.py --slot m1 --slug delay --effect "Head Space"
+  (saved as "m1 delay Head_Space"; confirmed via top-bar OCR).
+- Head Space exported last: Preset Library tab -> Clear All reset the
+  filter, list showed "ml delay Head_Space" at y480; 3-dots at (312,526)
+  -> popup "ml delay Head_Space" -> Export... -> Save dialog (auto-navigated
+  to C:\server\fx\input\lib, filename prefilled) -> Save at (645,927) ->
+  wrote lib\m1 delay Head_Space.preset90 (3552 B), directly into lib/ this time.
+- Final verification: library_saved.json has 71 m1 names; lib\ now holds 73
+  m1 *.preset90 files and all 71 unique names are present; 0 missing. The +2
+  files are the legitimately distinct harm/harmp pairs normalizing to the same
+  name: m1 harm Quadravox vs m1 harmp Quadravox / Quadravox+, and m1 harmp
+  VocalShift vs m1 harmp VocalShiftMIDI.
+- m2 export sweep is NOT started; ask user before doing anything else.
+
+
+## Plan - 2026-09-16 h90: m2 (slot-B) CC mapping with FAST slider popup mechanic
+
+- Resume m2 campaign (CC base 50). 10 of 72 m2 effects done (band/bouquet/
+  digital/ducked/filter-pong/head-space/mod/multitap/reverse/tape-echo).
+  Next per families_m2.csv: UltraTap (Delay, slug delay, 13 algorithm knobs).
+- Upgrade assign_cc.py: instead of step-clicking the ">" arrow up to CC>=50
+  (~50+ clicks/knob), click the CURRENT VALUE element between "<" ">" in the
+  MIDI popup -> a NEW popup with a slider opens; set the Slider via UIA
+  RangeValue (fallback: real mouse drag); close it; verify "CC# target".
+- Full pipeline on ONE effect (UltraTap m2):
+  1. load_effect.py --effect UltraTap --category Delay
+  2. discover/confirm slider popup UIA structure
+  3. implement set_cc_number_fast + wire into assign_knob
+  4. map_delay_effects.py --effect UltraTap --slug delay --slot m2 --cc-base 50
+  5. save_to_library.py --slot m2 --slug delay --effect UltraTap
+  6. mark "UltraTap m2" saved in library_saved.json
+  7. verify midi_cc_states/ultratap-m2.json + DECISIONS/PRESET-EXPORT-NOTES
+
+Verification: ultratap-m2.json has 13 verified assignments CC 50..62;
+library_saved.json has "UltraTap m2": true; lib name "m2 delay UltraTap".
+
+
+## Status - 2026-09-16 h90: FAST slider mechanic + UltraTap m2 DONE
+
+- Upgraded assign_cc.py: new set_cc_number_fast() opens the MIDI-CC popup,
+  clicks the current value element between < > (opens a JUCE slider popup),
+  sets the slider via UIA RangeValue (min 0, max 127, SetValue verified live:
+  CC 0 -> 51 -> readback "CC# 51"), closes it, verifies. Mouse-drag +
+  old arrow-loop fallbacks retained. Wired into assign_knob; ~4.8s/knob
+  vs ~15s+ for the arrow loop.
+- Ran map_delay_effects.py --effect UltraTap --slug delay --slot m2
+  --cc-base 50: 12 effect knobs assigned+verified CC 50..61 (Length/Taps/
+  Pre Delay/Spread/Taper/Feedback/Tone/Slurm/Chop/Manual Chop/Speed/Width).
+  Program block untouched (rule). Wrote ultratap-m2.json (a prior aborted
+  13+7-General scheme from the 15.09 logs was NOT recorded in library_saved.json
+  and is superseded).
+- Cleared the straggling UIA: after clicking the CC value button the JUCE
+  control tree can drop (button count 37->3); ESC restores it.
+- Saved to library as 'm2 delay UltraTap' (save_to_library.py); library_saved.json
+  total 83 keys = 72 m1 + 11 m2 (UltraTap m2: true added).
+- NOTE: knob count was 12 not the planned 13; old arrow-loop flow and this
+  fast path agree on the 12-knob set (the 15.09 log's '13 effect knobs'
+  belonged to the aborted general-inclusive scheme).
+
+
+## Plan - 2026-09-16 h90: fix m2 knob discovery rules (UltraTap)
+
+- Bug 1 (found): the name-based PROGRAM_KNOBS filter drops a real ALGORITHM
+  knob named e.g. "Mix" (UltraTap has algorithm Mix at y355). Only the fixed
+  bottom "program block" (labels y>=860: Mix/In Gain/Out Gain, In/Out/Bypass)
+  must be skipped - by POSITION, not by name.
+- Bug 2 (found): the slot's General block (In Gain, Out Gain, Bypass, Tails,
+  Tempo Mode, HotKnob, Kill Dry, revealed when scrolling the panel) was never
+  collected/assigned. It SHOULD get CCs (matches the aborted 15.09 log:
+  "13 effect knobs + 7 General -> CC 50..69" for UltraTap).
+- New rule (user): before assigning MIDI CC to a knob, scroll the slot so the
+  knob (value + label) is FULLY visible and clear of the program footer, then
+  assign. Implement ensure_knob_visible() and call it per knob in _assign_batch.
+- Then re-run UltraTap m2 with --cc-base 50, resave to library, update logs.
+
+
+## Status - 2026-09-16 h90: knob discovery rules fixed + UltraTap re-mapped
+
+- Root cause confirmed on live panel: UltraTap has algorithm knob 'Mix'
+  (y355) that the old name-based PROGRAM_KNOBS filter dropped, a slot General
+  block (In Gain/Out Gain/Bypass/Tails/Tempo Mode/HotKnob/Kill Dry, y523..771
+  after scrolling) that was never collected, and the fixed program footer
+  (Mix/In Gain/Out Gain at y927, In/Out/Bypass at y1017) that must stay
+  untouched. Width (y829 value) sat one row above the footer - partial.
+- Fixes applied to map_delay_effects.py:
+  * PROGRAM_KNOBS is now docs-only; live filtering is POSITIONAL:
+    labels with lt>=PROG_FOOTER_Y(860) are the program footer and are skipped.
+    Real algorithm knobs that share footer names (like algorithm 'Mix') are
+    included.
+  * effect_knobs/_effect_label_names/_raw_effect_labels no longer exclude by
+    name - only by position + panel bounds.
+  * NEW user rule: ensure_knob_visible() scrolls each knob fully visible
+    (value+label clear of header/footer) before CC assignment; wired into
+    _assign_batch so assign+verify use the visible rect.
+  * cc_layout string now "effect+General <base>..N-1, program footer untouched".
+- Re-ran UltraTap m2 (cc-base 50): 20 knobs assigned+verified CC 50..69 =
+  13 algorithm (Mix 50 .. Width 62) + 7 General (In Gain 63 .. Kill Dry 69),
+  footer untouched. This matches the scope of the aborted 15.09 log
+  ("13 effect knobs + 7 General -> CC 50..69").
+- Re-saved library preset 'm2 delay UltraTap' with the corrected mapping;
+  library_saved.json remains "UltraTap m2": true.
+
+
+## Status - 2026-09-16 h90 (fix): identity-checked MIDI CC assignment
+
+- User reported the 20-knob Universal Tap m2 run actually set footer 'Mix'
+  to CC 69 instead of the General block's 'Kill Dry'. Root cause chain:
+  * JUCE auto-scrolls the panel when a knob is removed/selected, so the
+    batch's pre-measured rects go stale during Phase 2.
+  * With a stale rect, find_range_button() resolved Kill Dry's click to the
+    footer Mix rangeButton, and verify_mapping() only read back the CC
+    number (it never checked WHICH knob the popup belonged to), so the
+    wrong assignment "verified" cleanly.
+- Fixes:
+  * NEW popup_knob_name() in assign_cc.py: reads the knob label Static at
+    the bottom of the MIDI popup (e.g. 'Kill Dry' vs footer 'Mix').
+  * assign_knob() and verify_mapping() now ABORT with 'wrong knob' when the
+    open popup does not name the intended knob; nothing is written.
+  * ensure_knob_visible() tightened: knob value+label must sit comfortably
+    clear of the program footer (>=70px gap, not merely visible); it keeps
+    lifting the knob via scroll_page_down while JUCE auto-scroll refocuses.
+  * _assign_batch() re-measures each knob's rect immediately before clicking
+    and retries (re-scroll + re-measure) up to 3x on a wrong-knob popup.
+- Re-ran UltraTap m2 (cc-base 50): all 20 knobs CC 50..69 verified, Kill Dry
+  now genuinely CC 69 (live popup check), footer Mix stays 'Off';
+  ultratap-m2.json rewritten (20 assignments), library preset re-saved as
+  'm2 delay UltraTap'.
+
+
+## Plan+Status - 2026-09-16 h90: batch-map all remaining m2 presets (61)
+
+- Plan: map the remaining 61 m2 effects (all families_m2.csv entries whose
+  '<Effect> m2' is not in library_saved.json) end-to-end automatically,
+  showing per-iteration progress like the user asked:
+  '[m2] effectTypes: <cat_i>/11 (<cat>)   effect: <j>/<cat_count> (<effect>)
+   ran: <n>/<remaining>'.
+- New runner: run_m2_all.py. Per effect: load_effect.py -> map_delay_effects.py
+  --slot m2 --cc-base 50 -> save_to_library.py --slot m2 -> mark 'X m2' in
+  library_saved.json. Skips already-done presets; logs every iteration line to
+  m2_batch_run.log so progress can be polled; failures are recorded and the
+  batch continues (final FAILED summary). Uses the identity-verified assign/
+  scroll rules from the Kill Dry fix.
+- Remaining per category: Delay 1 (Vintage Delay), Distortion 5, EQ 1,
+  Harmonizer 13, Harmonizer+ 4, Looper 1, Modulation 16, Multi 1, Reverb 14,
+  Synth 3, Utility 2.
+- Status: runner written + syntax checked; batch not yet launched.
+
+
+## Plan+Status - 2026-09-16 h90: recover the 4 failing m2 effects (stale coords)
+
+- Context: the m2 batch run (61 remaining) finished 57 saved / 4 ABORT:
+  Aggravate (Distortion), Polyphony (Harmonizer), Quadravox+ (Harmonizer+),
+  VocalShift (Harmonizer+). Each aborted on the first knob after a page
+  boundary with 'wrong knob (got popup for None)' or 'popup did not open'.
+- Root cause: after a batch of assignments JUCE auto-scrolls the axis panel;
+  the phase-2 UIA tree then reports STALE coordinates (~1 page / ~330px off),
+  so the click lands on the algorithm-name header and opens the ALGORITHM
+  BROWSER (a full-window modal with no closeButton) instead of the knob's
+  MIDI popup. close_popup() cannot dismiss that browser (it only handles
+  narrow MIDI popups) -> ESC is required.
+- Fixes in map_delay_effects.py:
+  * NEW _walk_to_knob(): ESC + close_popup, normalize the panel to the
+    anchored top, then walk down page by page with fresh per-page re-measures
+    until the knob is found; returns trustworthy coordinates.
+  * _assign_batch() retry now: ESC -> close_popup -> _walk_to_knob() -> use the
+    fresh rect (previously the retry reused the stale cur_fallback, so it
+    looped until ABORT). Removed the old _force_panel_render shim.
+  * Retry condition broadened: also retry on 'popup did not open' /
+    'no rangeButton' in the ASSIGN result (Quadravox+ Feedback Path returned
+    'popup did not open' from assign, which was not being retried).
+- Result: all 4 recovered and saved; each knob identity-verified.
+  * Aggravate  m2: 21 knobs CC 50..70  -> m2 dist Aggravate
+  * Polyphony  m2: 23 knobs CC 50..72  -> m2 harm Polyphony
+  * Quadravox+ m2: 32 knobs CC 50..81  -> m2 harmp Quadravox+
+  * VocalShift m2: 43 knobs CC 50..92  -> m2 harmp VocalShift
+  (Solo B / Pan B / Feedback Path all recovered on retry att=1 via the walk.)
+- library_saved.json: 72/72 '<Effect> m2' keys present (144 total: 72 m1 + 72
+  m2); families_m2.csv has 72 rows, missing = [].
+- Cleaned up the temporary DBG/WALK prints after verification.
+
+
+## Plan: export m2 presets from the app Preset Library -> input/lib
+- Context: all 72 m2 presets were saved to the in-app Library but never
+  exported to .preset90 files (input/lib only has the 72 m1 files).
+- NEW back/h90/export_m2_lib.py adapted from run_m1_export.py:
+  * open Preset Library -> User Presets, set the library search filter to 'm2 '.
+  * build the expected 72 names from families_m2.csv via the same library_name()
+    logic used by save_to_library.py (m2 <slug> <Effect_underscored>).
+  * OCR the preset-name column once per page, cluster into rows, export each
+    not-yet-exported row via 3-dots -> Export... -> Save dialog (navigate to
+    C:\\server\\fx\\input, save, then move 'm2 *.preset90' to input/lib).
+  * after EVERY export print a status line: remaining effect types and
+    remaining count per type.
+  * resumable: skips m2 files already present in lib.
+- Then rebuild midi_cc_map.db (build_cc_db.py) and regenerate midi_cc_map.html
+  (gen_cc_map_page.py) so the CC table also lists the m2 effects.
+- Caveat: .preset90 carries no CC numbers; CCs stay in midi_cc_states/*-m2.json.
+
+
+## Progress: export_m2_lib.py rewrite (dedupe + overwrite export)
+- Discovery: search field is at screen (747,247,1007,275); the app Library
+  contains REAL duplicate m2 entries (e.g. Band_Delay x2, Bouquet_Delay x3,
+  Digital_Delay x3 on page 1), so OCR name lists are not reliable for identity.
+- Row 3-dots (314, row_center) opens a popup whose items are at fixed offsets:
+  Copy +48, Export... +90, Import... +121, Delete from Library +163 (from popup
+  top). Delete pops an in-window "Delete Preset From Library" confirm: OK
+  (404,604,504,632) center (454,618), Cancel (520,604,620,632) center (570,618);
+  ESC does NOT dismiss it.
+- Export... opens a JUCE file-save dialog parked on input/lib with the preset
+  name pre-filled in the filename edit (137,849,786,866); Save button at
+  ~(595,914,694,940) center (644,927) (NOT the m1-era (626,478) region, which is
+  why the first background run kept reporting NO SAVE BUTTON).
+- First plain run: 3 files still landed in input/lib (m2 delay Band_Delay /
+  Bouquet_Delay / Digital_Delay.preset90) then died with "no main window".
+- Code action: rewrote back/h90/export_m2_lib.py (modes: dedupe/export/all).
+  * dedupe: scans the 'm2 ' filtered list top-to-bottom, per page OCR names,
+    re-scans after every deletion; deletes later occurrences after verifying the
+    popup title matches the seen key; keeps one copy per preset.
+  * export: clears existing 'm2 *.preset90' from lib, for each family_m2.csv
+    target search->row menu Export...->fill filename->Save (overwrite), then
+    prints per-type remaining status.
+- Pending: run dedupe, then export; then rebuild midi_cc_map.db / html.
+- Code action: root-caused background-export cascade. Diagnostic run showed the
+  save dialog AUTO-APPENDS "(N)" when the target .preset90 already exists, and
+  that export_m2_lib.py typed filenames WITHOUT with_spaces=True, so spaces were
+  dropped (file 'm2delayBand_Delay.preset90' instead of 'm2 delay Band_Delay').
+  The poll then never matched -> 'no-file', the dialog stayed open and broke all
+  later rows ('no-rows' cascade).
+- Fixed export_one_popup: pre-delete target file, type with with_spaces=True,
+  poll + auto-dismiss overwrite/duplicate-confirm modal (dismiss_save_overwrite_modal),
+  and guaranteed dialog close (close_save_dialog) before returning. export()
+  cleanup now also removes space-free 'm2*' garbage. Compile OK.
+- Pending: run export (background), verify 72 files in lib, rebuild CC db/html.
+
+## 2026-09-16 Plan - export loop with UIA-invoke save + overwrite popover reaction
+
+- Previous coordinate-based Save/Cancel clicks failed because JUCE exposes the
+  file-save dialog in a virtual 1920x1040 canvas (element rects e.g. Save at
+  (1696,994,1795,1020)) that does NOT map to the real 1022x1008 window; d_diag
+  once saw the real rect (595,914,694,940) but UIA now reports the canvas rects.
+- Change: find_save_button()/find_cancel_button() return UIA ELEMENTS; callers
+  must invoke() them (never click the bogus rects). Overwrite popover
+  ("Подтверждение сохранения в файле ... уже существует ... хотите заменить его?")
+  is detected textually and its ДА/Yes button invoked - verified working on a
+  live popover (dialog closed, file preserved).
+- Stop pre-deleting the target: keep the popover appearing, wait for it, invoke
+  ДА, then verify file + dialog closed. Add (N)-suffix guard on the filename.
+- Verify: single export "m2 delay Band_Delay" returned 'saved' with file present.
+- Next: background full 72-export, verify 72 files, rebuild CC db/html, append
+  Progress entry.
+
+## 2026-09-16 Progress - m2 export run (popover-invoked save)
+
+- Code action: rewrote the save-dialog layer in export_m2_lib.py. find_save_button
+  /find_cancel_button now return UIA ELEMENTS (invoke, never click - the JUCE
+  dialog reports bogus 1920x1040 canvas rects). Added find_overwrite_modal_buttons
+  (text detection: уже существует / хотите заменить) and dismiss_save_overwrite_modal
+  invokes its ДА button. export_one_popup no longer pre-deletes the target (so the
+  overwrite popover appears) and waits for it before proceeding. Added literal_keys()
+  to escape send_keys specials ('+' was being swallowed as the Shift modifier).
+- Verified: single export "m2 delay Band_Delay" -> 'saved' with popover reacted;
+  Quadravox+ re-exported correctly as "m2 harmp Quadravox+.preset90".
+- FULL EXPORT RESULT: 68/72 exported in the batch, +Quadravox+ re-exported = 69
+  m2 *.preset90 files in input/lib. All 69 match the expected target names exactly
+  (no extras/missing).
+- REMAINING GAP (user decision): the app's m2 Preset Library genuinely does not
+  contain 3 targets - "m2 delay Head_Space", "m2 harmp VocalShiftMIDI",
+  "m2 utility Mute" (confirmed: m1 versions exist and search returns 1 row, m2
+  search returns 0 rows; full library scroll found 69 unique m2 entries). Their
+  midi_cc_states/*-m2.json DO exist (all 72), so build_cc_db.py is unaffected.
+- Next: ask user how to handle the 3 absent presets; then rebuild midi_cc_map.db
+  and regenerate midi_cc_map.html.
+
+## 2026-09-16 Progress - CC db/html rebuild
+
+- Decision (user): accept the 69 exported m2 .preset90 files; the 3 library-absent
+  targets (Head_Space, VocalShiftMIDI, Mute) are not blockers for the CC db.
+- Ran build_cc_db.py: 144 effects (72 m1 + 72 m2), 2600 assignments; m2 states all
+  included (the 3 absent presets still contribute CC data via their state JSONs).
+- Ran gen_cc_map_page.py: midi_cc_map.html written with 2600 assignment rows
+  (488,761 bytes); midi_cc_map.db 176,128 bytes.
+- Session outcome: m2 dedupe + 69/72 m2 .preset90 exports (overwrite popover
+  handled via UIA invoke) + CC db/html rebuilt. Remaining (optional): import the
+  3 absent presets into the m2 library and export them.

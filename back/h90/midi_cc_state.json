@@ -1,0 +1,143 @@
+{
+  "saved_at": "2026-09-15T00:45:00",
+  "program": "Band Delay, Preset A, slot 08 (unsaved INIT Program*, H90 Control PID 19324)",
+  "note": "Mappings live only in the loaded program; program reload/restart reverts Control Source to Off. Each assignment verified by reopening the External Mapping popup in-app. Slot A General block is inside the left Algorithm Parameters panel (scrollable).",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Wet Mix",
+      "cc": 0,
+      "values": "0..100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Band Delay",
+      "control": "Delay Mix",
+      "cc": 1,
+      "values": "A10+B10 (enum)",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Band Delay",
+      "control": "Delay A",
+      "cc": 2,
+      "values": "1/4 (enum)",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Band Delay",
+      "control": "Delay B",
+      "cc": 3,
+      "values": "1/4 (enum)",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Feedback A",
+      "cc": 4,
+      "values": "0..110",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Feedback B",
+      "cc": 5,
+      "values": "0..110",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Mod Depth",
+      "cc": 6,
+      "values": "0..10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Mod Speed",
+      "cc": 7,
+      "values": "0..5.01 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Resonance",
+      "cc": 8,
+      "values": "0..10",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Band Delay",
+      "control": "Filter Type",
+      "cc": 9,
+      "values": "Band Pass (Low/Band/Hi)",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "-60..+12 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "-60..+12 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "toggle (on/off)",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "toggle (on/off)",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "Free/Sync",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "0..100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "toggle (on/off)",
+      "verified": true
+    }
+  ]
+}

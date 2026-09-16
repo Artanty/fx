@@ -1,0 +1,121 @@
+{
+  "effect": "Even-Vibe",
+  "display": "Even-Vibe m2",
+  "slot": "m2",
+  "slug": "mod",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Speed",
+      "cc": 51,
+      "values": "3.86 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Intensity",
+      "cc": 52,
+      "values": "3.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Width",
+      "cc": 53,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Env Speed",
+      "cc": 54,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Env Inten",
+      "cc": 55,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Softclip",
+      "cc": 56,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "In Gain",
+      "cc": 57,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Even-Vibe",
+      "control": "Out Gain",
+      "cc": 58,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Even-Vibe",
+      "control": "Bypass",
+      "cc": 59,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Even-Vibe",
+      "control": "Tails",
+      "cc": 60,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Even-Vibe",
+      "control": "Tempo Mode",
+      "cc": 61,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "HotKnob",
+      "cc": 62,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Even-Vibe",
+      "control": "Kill Dry",
+      "cc": 63,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

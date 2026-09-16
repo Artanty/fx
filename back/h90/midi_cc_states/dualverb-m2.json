@@ -1,0 +1,145 @@
+{
+  "effect": "DualVerb",
+  "display": "DualVerb m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 45",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "A/B Mix",
+      "cc": 51,
+      "values": "A10+B10",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Size",
+      "cc": 52,
+      "values": "A8+B10",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Decay A",
+      "cc": 53,
+      "values": " Whole",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Decay B",
+      "cc": 54,
+      "values": " 2.75 Bars",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Pre Delay A",
+      "cc": 55,
+      "values": " 1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Pre Delay B",
+      "cc": 56,
+      "values": " 1/2",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Tone A",
+      "cc": 57,
+      "values": " 32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Tone B",
+      "cc": 58,
+      "values": " 83",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Resonance",
+      "cc": 59,
+      "values": "A1+B5",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "DualVerb",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "DualVerb",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

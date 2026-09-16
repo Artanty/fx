@@ -1,0 +1,89 @@
+{
+  "effect": "Reverse",
+  "display": "Reverse m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Wet Mix",
+      "cc": 50,
+      "values": " 47",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Reverse",
+      "control": "Delay Mix",
+      "cc": 51,
+      "values": "A10+B10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Delay A",
+      "cc": 52,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Delay B",
+      "cc": 53,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Feedback A",
+      "cc": 54,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Feedback B",
+      "cc": 55,
+      "values": " 10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "X-Fade",
+      "cc": 56,
+      "values": "  3 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Depth Mod",
+      "cc": 57,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Speed",
+      "cc": 58,
+      "values": "5.01 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Filter",
+      "cc": 59,
+      "values": "  0",
+      "verified": true
+    }
+  ]
+}

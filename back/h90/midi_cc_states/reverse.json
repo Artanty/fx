@@ -1,0 +1,144 @@
+{
+  "effect": "Reverse",
+  "slot": "m1",
+  "slug": "delay",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Wet Mix",
+      "cc": 0,
+      "values": " 47",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Reverse",
+      "control": "Delay Mix",
+      "cc": 1,
+      "values": "A10+B10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Delay A",
+      "cc": 2,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Delay B",
+      "cc": 3,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Feedback A",
+      "cc": 4,
+      "values": " 46",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Feedback B",
+      "cc": 5,
+      "values": " 10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "X-Fade",
+      "cc": 6,
+      "values": "  3 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Depth Mod",
+      "cc": 7,
+      "values": "10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Speed",
+      "cc": 8,
+      "values": "5.01 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Reverse",
+      "control": "Filter",
+      "cc": 9,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 10,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 12,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 15,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 16,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

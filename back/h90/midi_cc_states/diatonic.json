@@ -1,0 +1,152 @@
+{
+  "effect": "Diatonic",
+  "slot": "m1",
+  "slug": "harm",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Diatonic",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 59",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Diatonic",
+      "control": "Pitch Mix",
+      "cc": 1,
+      "values": "A10+B7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Diatonic",
+      "control": "Pitch A",
+      "cc": 2,
+      "values": "+5th",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Diatonic",
+      "control": "Pitch B",
+      "cc": 3,
+      "values": "+3rd",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Diatonic",
+      "control": "Delay A",
+      "cc": 4,
+      "values": "1/4 Triplet",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Diatonic",
+      "control": "Delay B",
+      "cc": 5,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Diatonic",
+      "control": "Feedback A",
+      "cc": 6,
+      "values": "52",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Diatonic",
+      "control": "Feedback B",
+      "cc": 7,
+      "values": " 0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Diatonic",
+      "control": "Quant",
+      "cc": 8,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Diatonic",
+      "control": "Key",
+      "cc": 9,
+      "values": "E",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Diatonic",
+      "control": "Scale",
+      "cc": 10,
+      "values": "Major",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

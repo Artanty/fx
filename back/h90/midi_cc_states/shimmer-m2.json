@@ -1,0 +1,145 @@
+{
+  "effect": "Shimmer",
+  "display": "Shimmer m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 39",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Decay",
+      "cc": 51,
+      "values": " 97",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Size",
+      "cc": 52,
+      "values": " 30",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Low Decay",
+      "cc": 53,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Pitch Decay",
+      "cc": 54,
+      "values": "37",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "High Decay",
+      "cc": 55,
+      "values": " 80",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Pitch A",
+      "cc": 56,
+      "values": "1204 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Pitch B",
+      "cc": 57,
+      "values": "1193 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Mid Decay",
+      "cc": 58,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Delay",
+      "cc": 59,
+      "values": " 1/64",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Shimmer",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Shimmer",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Shimmer",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Shimmer",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Shimmer",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "effect": "SpaceTime",
+  "display": "SpaceTime m2",
+  "slot": "m2",
+  "slug": "multi",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "Mod Amount",
+      "cc": 51,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "Mod Rate",
+      "cc": 52,
+      "values": "1.17 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Verb Lvl",
+      "cc": 53,
+      "values": "Series  28",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Decay",
+      "cc": 54,
+      "values": " Whole",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "Color",
+      "cc": 55,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Delay Lvl",
+      "cc": 56,
+      "values": "Dly5+Snd10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "Delay A",
+      "cc": 57,
+      "values": "1/4",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Delay B",
+      "cc": 58,
+      "values": "1/8 Triplet",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Feedback",
+      "cc": 59,
+      "values": "Fdbk 2  60",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "SpaceTime",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "SpaceTime",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

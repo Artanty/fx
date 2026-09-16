@@ -1,0 +1,153 @@
+{
+  "effect": "PitchFuzz",
+  "display": "PitchFuzz m2",
+  "slot": "m2",
+  "slug": "dist",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Fuzz",
+      "cc": 50,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Fuzz Tone",
+      "cc": 51,
+      "values": "-20",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Pitch Amt",
+      "cc": 52,
+      "values": "1.3 Voices",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Pitch A",
+      "cc": 53,
+      "values": " -8 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Pitch B",
+      "cc": 54,
+      "values": "  8 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Pitch C",
+      "cc": 55,
+      "values": "-1oct",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFuzz",
+      "control": "Group Delay",
+      "cc": 56,
+      "values": "Group Wet  6",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Delay 1",
+      "cc": 57,
+      "values": "  13 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Delay 2",
+      "cc": 58,
+      "values": "  10 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFuzz",
+      "control": "Feedback",
+      "cc": 59,
+      "values": "Fdbk 1  22",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Gate Thresh",
+      "cc": 60,
+      "values": "-65.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "In Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "Out Gain",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFuzz",
+      "control": "Bypass",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFuzz",
+      "control": "Tails",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFuzz",
+      "control": "Tempo Mode",
+      "cc": 65,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "PitchFuzz",
+      "control": "HotKnob",
+      "cc": 66,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "PitchFuzz",
+      "control": "Kill Dry",
+      "cc": 67,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

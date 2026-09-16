@@ -1,0 +1,120 @@
+{
+  "effect": "Even-Vibe",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Mix",
+      "cc": 0,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Speed",
+      "cc": 1,
+      "values": "3.86 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Intensity",
+      "cc": 2,
+      "values": "3.00",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Width",
+      "cc": 3,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Env Speed",
+      "cc": 4,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Env Inten",
+      "cc": 5,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Even-Vibe",
+      "control": "Softclip",
+      "cc": 6,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 7,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 8,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 9,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 10,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 11,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 12,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 13,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

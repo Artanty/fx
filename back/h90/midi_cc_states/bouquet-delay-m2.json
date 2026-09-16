@@ -1,0 +1,73 @@
+{
+  "effect": "Bouquet Delay",
+  "display": "Bouquet Delay m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "Delay",
+      "cc": 50,
+      "values": "400 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "Feedback",
+      "cc": 51,
+      "values": " 8",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Delay Mode",
+      "cc": 52,
+      "values": "LoFi",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Stereo Tap",
+      "cc": 53,
+      "values": "None",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "Mod Depth",
+      "cc": 54,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Bouquet Delay",
+      "control": "LFO Rate",
+      "cc": 55,
+      "values": "3.000 Hz",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "LFO Shape",
+      "cc": 56,
+      "values": "Random",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Bouquet Delay",
+      "control": "Jump Interval",
+      "cc": 57,
+      "values": "P4",
+      "verified": true
+    }
+  ]
+}

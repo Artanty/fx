@@ -1,0 +1,177 @@
+{
+  "effect": "VocalTune",
+  "display": "VocalTune m2",
+  "slot": "m2",
+  "slug": "harmp",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Root",
+      "cc": 50,
+      "values": "C",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Scale",
+      "cc": 51,
+      "values": "Major",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "TuneRef",
+      "cc": 52,
+      "values": "440 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Tuning Speed",
+      "cc": 53,
+      "values": "0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Quant Error",
+      "cc": 54,
+      "values": "0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Formant",
+      "cc": 55,
+      "values": "0 c",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Comp Thresh",
+      "cc": 56,
+      "values": "-30.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Comp Ratio",
+      "cc": 57,
+      "values": "3.1 : 1",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Comp Attack",
+      "cc": 58,
+      "values": "2.0 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Comp Release",
+      "cc": 59,
+      "values": "500.0 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Comp Gain",
+      "cc": 60,
+      "values": "5.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Gate Thresh",
+      "cc": 61,
+      "values": "-60 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Bass",
+      "cc": 62,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Treble",
+      "cc": 63,
+      "values": "3.5 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "In Gain",
+      "cc": 64,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "Out Gain",
+      "cc": 65,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Bypass",
+      "cc": 66,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Tails",
+      "cc": 67,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Tempo Mode",
+      "cc": 68,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "VocalTune",
+      "control": "HotKnob",
+      "cc": 69,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "VocalTune",
+      "control": "Kill Dry",
+      "cc": 70,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

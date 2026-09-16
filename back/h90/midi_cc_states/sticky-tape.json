@@ -1,0 +1,152 @@
+{
+  "effect": "Sticky Tape",
+  "slot": "m1",
+  "slug": "mod",
+  "cc_layout": "effect 0..N-1, General N..N+6",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Mix",
+      "cc": 0,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Compression",
+      "cc": 1,
+      "values": "5.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Rec Drive",
+      "cc": 2,
+      "values": "3.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Width",
+      "cc": 3,
+      "values": "3.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Gate Thresh",
+      "cc": 4,
+      "values": "-75.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Offset",
+      "cc": 5,
+      "values": "0.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "W&F Amount",
+      "cc": 6,
+      "values": "0.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "W&F Rate",
+      "cc": 7,
+      "values": "10.0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Tape Speed",
+      "cc": 8,
+      "values": "3.75",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Sticky Tape",
+      "control": "Filter",
+      "cc": 9,
+      "values": "0.0",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Sticky Tape",
+      "control": "Flange Length",
+      "cc": 10,
+      "values": "Dotted 1/4",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "In Gain",
+      "cc": 11,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "Out Gain",
+      "cc": 12,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Bypass",
+      "cc": 13,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tails",
+      "cc": 14,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Tempo Mode",
+      "cc": 15,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "General",
+      "control": "HotKnob",
+      "cc": 16,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "General",
+      "control": "Kill Dry",
+      "cc": 17,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

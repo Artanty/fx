@@ -1,0 +1,307 @@
+=== m2 batch run start: 72 rows, 11 already saved ===
+[m2] effectTypes: 1/11 (Delay)   effect: 12/12 (Vintage Delay)   ran: 1/61
+  loaded Vintage Delay
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\vintage-delay-m2.json
+  SAVED Vintage Delay m2  =>  library_saved.json updated (84 saved)
+[m2] effectTypes: 2/11 (Distortion)   effect: 1/5 (Aggravate)   ran: 2/61
+  loaded Aggravate
+  ABORT: Pump Depth did not verify (FAIL: wrong knob (got popup for None, expected 'Pump Depth') / FAIL: no rangeButton)
+  MAP FAIL rc=3 tail="ABORT: Pump Depth did not verify (FAIL: wrong knob (got popup for None, expected 'Pump Depth') / FAIL: no rangeButton)"
+[m2] effectTypes: 2/11 (Distortion)   effect: 2/5 (CrushStation)   ran: 3/61
+  loaded CrushStation
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\crushstation-m2.json
+  SAVED CrushStation m2  =>  library_saved.json updated (85 saved)
+[m2] effectTypes: 2/11 (Distortion)   effect: 3/5 (PitchFuzz)   ran: 4/61
+  loaded PitchFuzz
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\pitchfuzz-m2.json
+  SAVED PitchFuzz m2  =>  library_saved.json updated (86 saved)
+[m2] effectTypes: 2/11 (Distortion)   effect: 4/5 (Sculpt)   ran: 5/61
+  loaded Sculpt
+  19 effect knobs -> CC 50..68 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\sculpt-m2.json
+  SAVED Sculpt m2  =>  library_saved.json updated (87 saved)
+[m2] effectTypes: 2/11 (Distortion)   effect: 5/5 (WeedWacker)   ran: 6/61
+  loaded WeedWacker
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\weedwacker-m2.json
+  SAVED WeedWacker m2  =>  library_saved.json updated (88 saved)
+[m2] effectTypes: 3/11 (EQ)   effect: 1/1 (EQ Compressor)   ran: 7/61
+  loaded EQ Compressor
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\eq-compressor-m2.json
+  SAVED EQ Compressor m2  =>  library_saved.json updated (89 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 1/13 (Crystals)   ran: 8/61
+  loaded Crystals
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\crystals-m2.json
+  SAVED Crystals m2  =>  library_saved.json updated (90 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 2/13 (Diatonic)   ran: 9/61
+  loaded Diatonic
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\diatonic-m2.json
+  SAVED Diatonic m2  =>  library_saved.json updated (91 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 3/13 (H910 H949)   ran: 10/61
+  loaded H910 H949
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\h910-h949-m2.json
+  SAVED H910 H949 m2  =>  library_saved.json updated (92 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 4/13 (HarModulator)   ran: 11/61
+  loaded HarModulator
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\harmodulator-m2.json
+  SAVED HarModulator m2  =>  library_saved.json updated (93 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 5/13 (HarPeggiator)   ran: 12/61
+  loaded HarPeggiator
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\harpeggiator-m2.json
+  SAVED HarPeggiator m2  =>  library_saved.json updated (94 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 6/13 (MicroPitch)   ran: 13/61
+  loaded MicroPitch
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\micropitch-m2.json
+  SAVED MicroPitch m2  =>  library_saved.json updated (95 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 7/13 (Octaver)   ran: 14/61
+  loaded Octaver
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\octaver-m2.json
+  SAVED Octaver m2  =>  library_saved.json updated (96 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 8/13 (PitchFlex)   ran: 15/61
+  loaded PitchFlex
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\pitchflex-m2.json
+  SAVED PitchFlex m2  =>  library_saved.json updated (97 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 9/13 (PolyFlex)   ran: 16/61
+  loaded PolyFlex
+  23 effect knobs -> CC 50..72 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\polyflex-m2.json
+  SAVED PolyFlex m2  =>  library_saved.json updated (98 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 10/13 (Polyphony)   ran: 17/61
+  loaded Polyphony
+  ABORT: Level B did not verify (FAIL: wrong knob (got popup for None, expected 'Level B') / FAIL: no rangeButton)
+  MAP FAIL rc=3 tail="ABORT: Level B did not verify (FAIL: wrong knob (got popup for None, expected 'Level B') / FAIL: no rangeButton)"
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 11/13 (Prism Shift)   ran: 18/61
+  loaded Prism Shift
+  22 effect knobs -> CC 50..71 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\prism-shift-m2.json
+  SAVED Prism Shift m2  =>  library_saved.json updated (99 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 12/13 (Quadravox)   ran: 19/61
+  loaded Quadravox
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\quadravox-m2.json
+  SAVED Quadravox m2  =>  library_saved.json updated (100 saved)
+[m2] effectTypes: 4/11 (Harmonizer)   effect: 13/13 (Resonator)   ran: 20/61
+  loaded Resonator
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\resonator-m2.json
+  SAVED Resonator m2  =>  library_saved.json updated (101 saved)
+[m2] effectTypes: 5/11 (Harmonizer+)   effect: 1/4 (Quadravox+)   ran: 21/61
+  loaded Quadravox+
+  ABORT: Feedback Path did not verify (FAIL: popup did not open / FAIL: no rangeButton)
+  MAP FAIL rc=3 tail='ABORT: Feedback Path did not verify (FAIL: popup did not open / FAIL: no rangeButton)'
+[m2] effectTypes: 5/11 (Harmonizer+)   effect: 2/4 (VocalShift)   ran: 22/61
+  loaded VocalShift
+  ABORT: Solo B did not verify (FAIL: wrong knob (got popup for None, expected 'Solo B') / FAIL: no rangeButton)
+  MAP FAIL rc=3 tail="ABORT: Solo B did not verify (FAIL: wrong knob (got popup for None, expected 'Solo B') / FAIL: no rangeButton)"
+[m2] effectTypes: 5/11 (Harmonizer+)   effect: 3/4 (VocalShiftMIDI)   ran: 23/61
+  loaded VocalShiftMIDI
+  31 effect knobs -> CC 50..80 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\vocalshiftmidi-m2.json
+  SAVED VocalShiftMIDI m2  =>  library_saved.json updated (102 saved)
+[m2] effectTypes: 5/11 (Harmonizer+)   effect: 4/4 (VocalTune)   ran: 24/61
+  loaded VocalTune
+  21 effect knobs -> CC 50..70 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\vocaltune-m2.json
+  SAVED VocalTune m2  =>  library_saved.json updated (103 saved)
+[m2] effectTypes: 6/11 (Looper)   effect: 1/1 (Looper)   ran: 25/61
+  loaded Looper
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\looper-m2.json
+  SAVED Looper m2  =>  library_saved.json updated (104 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 1/16 (Chorus)   ran: 26/61
+  loaded Chorus
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\chorus-m2.json
+  SAVED Chorus m2  =>  library_saved.json updated (105 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 2/16 (Even-Vibe)   ran: 27/61
+  loaded Even-Vibe
+  14 effect knobs -> CC 50..63 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\even-vibe-m2.json
+  SAVED Even-Vibe m2  =>  library_saved.json updated (106 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 3/16 (Flanger)   ran: 28/61
+  loaded Flanger
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\flanger-m2.json
+  SAVED Flanger m2  =>  library_saved.json updated (107 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 4/16 (Harmadillo)   ran: 29/61
+  loaded Harmadillo
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\harmadillo-m2.json
+  SAVED Harmadillo m2  =>  library_saved.json updated (108 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 5/16 (Instant Flanger)   ran: 30/61
+  loaded Instant Flanger
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\instant-flanger-m2.json
+  SAVED Instant Flanger m2  =>  library_saved.json updated (109 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 6/16 (Instant Phaser)   ran: 31/61
+  loaded Instant Phaser
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\instant-phaser-m2.json
+  SAVED Instant Phaser m2  =>  library_saved.json updated (110 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 7/16 (ModFilter)   ran: 32/61
+  loaded ModFilter
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\modfilter-m2.json
+  SAVED ModFilter m2  =>  library_saved.json updated (111 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 8/16 (Phaser)   ran: 33/61
+  loaded Phaser
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\phaser-m2.json
+  SAVED Phaser m2  =>  library_saved.json updated (112 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 9/16 (Q-Wah)   ran: 34/61
+  loaded Q-Wah
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\q-wah-m2.json
+  SAVED Q-Wah m2  =>  library_saved.json updated (113 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 10/16 (RingMod)   ran: 35/61
+  loaded RingMod
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\ringmod-m2.json
+  SAVED RingMod m2  =>  library_saved.json updated (114 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 11/16 (Rotary)   ran: 36/61
+  loaded Rotary
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\rotary-m2.json
+  SAVED Rotary m2  =>  library_saved.json updated (115 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 12/16 (Sticky Tape)   ran: 37/61
+  loaded Sticky Tape
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\sticky-tape-m2.json
+  SAVED Sticky Tape m2  =>  library_saved.json updated (116 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 13/16 (TremoloPan)   ran: 38/61
+  loaded TremoloPan
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\tremolopan-m2.json
+  SAVED TremoloPan m2  =>  library_saved.json updated (117 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 14/16 (TriceraChorus)   ran: 39/61
+  loaded TriceraChorus
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\tricerachorus-m2.json
+  SAVED TriceraChorus m2  =>  library_saved.json updated (118 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 15/16 (Undulator)   ran: 40/61
+  loaded Undulator
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\undulator-m2.json
+  SAVED Undulator m2  =>  library_saved.json updated (119 saved)
+[m2] effectTypes: 7/11 (Modulation)   effect: 16/16 (Vibrato)   ran: 41/61
+  loaded Vibrato
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\vibrato-m2.json
+  SAVED Vibrato m2  =>  library_saved.json updated (120 saved)
+[m2] effectTypes: 8/11 (Multi)   effect: 1/1 (SpaceTime)   ran: 42/61
+  loaded SpaceTime
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\spacetime-m2.json
+  SAVED SpaceTime m2  =>  library_saved.json updated (121 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 1/14 (Blackhole)   ran: 43/61
+  loaded Blackhole
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\blackhole-m2.json
+  SAVED Blackhole m2  =>  library_saved.json updated (122 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 2/14 (DualVerb)   ran: 44/61
+  loaded DualVerb
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\dualverb-m2.json
+  SAVED DualVerb m2  =>  library_saved.json updated (123 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 3/14 (DynaVerb)   ran: 45/61
+  loaded DynaVerb
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\dynaverb-m2.json
+  SAVED DynaVerb m2  =>  library_saved.json updated (124 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 4/14 (Hall)   ran: 46/61
+  loaded Hall
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\hall-m2.json
+  SAVED Hall m2  =>  library_saved.json updated (125 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 5/14 (MangledVerb)   ran: 47/61
+  loaded MangledVerb
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\mangledverb-m2.json
+  SAVED MangledVerb m2  =>  library_saved.json updated (126 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 6/14 (ModEchoVerb)   ran: 48/61
+  loaded ModEchoVerb
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\modechoverb-m2.json
+  SAVED ModEchoVerb m2  =>  library_saved.json updated (127 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 7/14 (Plate)   ran: 49/61
+  loaded Plate
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\plate-m2.json
+  SAVED Plate m2  =>  library_saved.json updated (128 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 8/14 (Reverse Reverb)   ran: 50/61
+  loaded Reverse Reverb
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\reverse-reverb-m2.json
+  SAVED Reverse Reverb m2  =>  library_saved.json updated (129 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 9/14 (Room)   ran: 51/61
+  loaded Room
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\room-m2.json
+  SAVED Room m2  =>  library_saved.json updated (130 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 10/14 (SP2016 Reverb)   ran: 52/61
+  loaded SP2016 Reverb
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\sp2016-reverb-m2.json
+  SAVED SP2016 Reverb m2  =>  library_saved.json updated (131 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 11/14 (Shimmer)   ran: 53/61
+  loaded Shimmer
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\shimmer-m2.json
+  SAVED Shimmer m2  =>  library_saved.json updated (132 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 12/14 (Spring)   ran: 54/61
+  loaded Spring
+  19 effect knobs -> CC 50..68 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\spring-m2.json
+  SAVED Spring m2  =>  library_saved.json updated (133 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 13/14 (TremoloVerb)   ran: 55/61
+  loaded TremoloVerb
+  18 effect knobs -> CC 50..67 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\tremoloverb-m2.json
+  SAVED TremoloVerb m2  =>  library_saved.json updated (134 saved)
+[m2] effectTypes: 9/11 (Reverb)   effect: 14/14 (Wormhole)   ran: 56/61
+  loaded Wormhole
+  21 effect knobs -> CC 50..70 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\wormhole-m2.json
+  SAVED Wormhole m2  =>  library_saved.json updated (135 saved)
+[m2] effectTypes: 10/11 (Synth)   effect: 1/3 (HotSawz)   ran: 57/61
+  loaded HotSawz
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\hotsawz-m2.json
+  SAVED HotSawz m2  =>  library_saved.json updated (136 saved)
+[m2] effectTypes: 10/11 (Synth)   effect: 2/3 (PolySynth)   ran: 58/61
+  loaded PolySynth
+  31 effect knobs -> CC 50..80 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\polysynth-m2.json
+  SAVED PolySynth m2  =>  library_saved.json updated (137 saved)
+[m2] effectTypes: 10/11 (Synth)   effect: 3/3 (Synthonizer)   ran: 59/61
+  loaded Synthonizer
+  17 effect knobs -> CC 50..66 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\synthonizer-m2.json
+  SAVED Synthonizer m2  =>  library_saved.json updated (138 saved)
+[m2] effectTypes: 11/11 (Utility)   effect: 1/2 (Mute)   ran: 60/61
+  loaded Mute
+  7 effect knobs -> CC 50..56 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\mute-m2.json
+  SAVED Mute m2  =>  library_saved.json updated (139 saved)
+[m2] effectTypes: 11/11 (Utility)   effect: 2/2 (Thru)   ran: 61/61
+  loaded Thru
+  7 effect knobs -> CC 50..56 (program footer untouched)
+  saved: C:\server\fx\back\h90\midi_cc_states\thru-m2.json
+  SAVED Thru m2  =>  library_saved.json updated (140 saved)
+=== m2 batch run done: 61 run, 4 failed ===
+  FAILED Distortion / Aggravate [map]:   MAP FAIL rc=3 tail="ABORT: Pump Depth did not verify (FAIL: wrong knob (got popup for None, expected 'Pump Depth') / FAIL: no rangeButton)"
+  FAILED Harmonizer / Polyphony [map]:   MAP FAIL rc=3 tail="ABORT: Level B did not verify (FAIL: wrong knob (got popup for None, expected 'Level B') / FAIL: no rangeButton)"
+  FAILED Harmonizer+ / Quadravox+ [map]:   MAP FAIL rc=3 tail='ABORT: Feedback Path did not verify (FAIL: popup did not open / FAIL: no rangeButton)'
+  FAILED Harmonizer+ / VocalShift [map]:   MAP FAIL rc=3 tail="ABORT: Solo B did not verify (FAIL: wrong knob (got popup for None, expected 'Solo B') / FAIL: no rangeButton)"

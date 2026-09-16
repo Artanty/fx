@@ -1,0 +1,145 @@
+{
+  "effect": "Room",
+  "display": "Room m2",
+  "slot": "m2",
+  "slug": "reverb",
+  "cc_layout": "effect+General 50..50+N-1, program footer untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Mix",
+      "cc": 50,
+      "values": " 32",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Decay",
+      "cc": 51,
+      "values": " 0.59 s",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Size",
+      "cc": 52,
+      "values": " 74",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Pre Delay",
+      "cc": 53,
+      "values": "   0 ms",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Room",
+      "control": "Reflection",
+      "cc": 54,
+      "values": "ER10+LT10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Diffusion",
+      "cc": 55,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Low Level",
+      "cc": 56,
+      "values": " 50",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "High Level",
+      "cc": 57,
+      "values": "-16",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "High Freq",
+      "cc": 58,
+      "values": "3240 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Mod Level",
+      "cc": 59,
+      "values": "  0",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "In Gain",
+      "cc": 60,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "Out Gain",
+      "cc": 61,
+      "values": "0.0 dB",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Room",
+      "control": "Bypass",
+      "cc": 62,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Room",
+      "control": "Tails",
+      "cc": 63,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Room",
+      "control": "Tempo Mode",
+      "cc": 64,
+      "values": "On/Off",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Room",
+      "control": "HotKnob",
+      "cc": 65,
+      "values": "100",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Room",
+      "control": "Kill Dry",
+      "cc": 66,
+      "values": "Global",
+      "verified": true
+    }
+  ]
+}

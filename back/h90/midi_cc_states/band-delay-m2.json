@@ -1,0 +1,89 @@
+{
+  "effect": "Band Delay",
+  "display": "Band Delay m2",
+  "slot": "m2",
+  "slug": "delay",
+  "cc_layout": "effect 50..50+N-1, program knobs untouched",
+  "assignments": [
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Wet Mix",
+      "cc": 50,
+      "values": " 62",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Band Delay",
+      "control": "Delay Mix",
+      "cc": 51,
+      "values": "A7+B10",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Delay A",
+      "cc": 52,
+      "values": "  14 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Delay B",
+      "cc": 53,
+      "values": " 614 ms",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Feedback A",
+      "cc": 54,
+      "values": " 66",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Feedback B",
+      "cc": 55,
+      "values": " 52",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Mod Depth",
+      "cc": 56,
+      "values": " 7",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Mod Speed",
+      "cc": 57,
+      "values": "0.05 Hz",
+      "verified": true
+    },
+    {
+      "type": "numeric",
+      "effect": "Band Delay",
+      "control": "Resonance",
+      "cc": 58,
+      "values": " 8",
+      "verified": true
+    },
+    {
+      "type": "enum",
+      "effect": "Band Delay",
+      "control": "Filter Type",
+      "cc": 59,
+      "values": "High Pass",
+      "verified": true
+    }
+  ]
+}
