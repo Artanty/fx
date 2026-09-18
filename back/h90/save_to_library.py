@@ -7,7 +7,9 @@ from pywinauto import Desktop
 from pywinauto.keyboard import send_keys
 from pywinauto.mouse import click
 
-APP_TITLE = 'H90 Control'
+import h90_app
+
+APP_TITLE = h90_app.running_title() or 'Eventide Control'
 
 MAX_LEN = 24
 CAP = 23
@@ -39,7 +41,7 @@ def desktop():
 
 
 def top_windows(d):
-    return [w for w in d.windows() if w.window_text() == APP_TITLE]
+    return [w for w in d.windows() if h90_app.is_main_title(w.window_text())]
 
 
 def main_window(d):

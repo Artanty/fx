@@ -41,3 +41,7 @@ back/h90/h90_relay
 back/h90/midi-list
 back/h90/midi-probe
 back/h90/midi-step
+
+# Local Eventide credentials (gitignored; keep out of the repo)
+back/h90/auth.json
+

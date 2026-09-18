@@ -8,6 +8,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 import psutil
 from pywinauto import Desktop
 
+import h90_app
 from assign_cc import verify_mapping
 
 STATE = 'midi_cc_state.json'
@@ -106,11 +107,11 @@ class TestCCSequential(unittest.TestCase):
 
     def test_live_app_ccs_match_state(self):
         pid = None
-        for p in psutil.process_iter(['name']):
-            if (p.info['name'] or '').lower() == 'h90 control.exe':
-                pid = p.pid
+        hit = h90_app.running_app()
+        if hit is not None:
+            pid = hit[2]
         if pid is None:
-            self.skipTest('H90 Control.exe is not running')
+            self.skipTest('Eventide/H90 Control app is not running')
         d = Desktop(backend='uia')
         assigns = {a['control']: a['cc'] for a in load_state()['assignments']}
         labels, values = find_label_and_values(d, pid)

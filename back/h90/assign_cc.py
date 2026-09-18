@@ -9,15 +9,14 @@ import psutil
 from pywinauto import Desktop
 from pywinauto.mouse import click
 
+import h90_app
+
 SRC_TEXTS = {'Off': 0, 'Preset HotKnob': 1, 'Program HotKnob': 2, 'MIDI CC': 3, 'Exp Pedal': 4, 'Aux Switch': 5}
 MIDI_IDX = 3
 
 
 def find_pid():
-    for p in psutil.process_iter(['name']):
-        if (p.info['name'] or '').lower() == 'h90 control.exe':
-            return p.info['pid'] if False else p.pid
-    raise RuntimeError('H90 Control.exe not running')
+    return h90_app.find_pid()
 
 
 def popup_window(d, pid):

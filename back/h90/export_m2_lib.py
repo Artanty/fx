@@ -33,6 +33,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pywinauto import Application as PA, mouse
 from pywinauto import keyboard
 
+import h90_app
+h90_connect = h90_app.connect
+h90_is_main = h90_app.is_main_title
+
 OCR2_PS1 = r"C:\Users\Thoma\AppData\Local\Temp\opencode\ocr2.ps1"
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(ROOT, "families_m2.csv")
@@ -49,10 +53,10 @@ FAM = "delay|dist|eq|harm|harmp|synth|util|utility|looper|mod|multi|reverb"
 
 
 def get_win():
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     for w in app_ui.windows():
         r = w.rectangle()
-        if w.window_text() == "H90 Control" and r.right - r.left > 900:
+        if h90_is_main(w.window_text()) and r.right - r.left > 900:
             return w
     raise RuntimeError("no main window")
 
@@ -229,7 +233,7 @@ def is_in(x, y):  # translate a relative coord pair back to reference space
 # Popup / row menu
 # ---------------------------------------------------------------------------
 def find_popup():
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     p = None
     for w in app_ui.windows():
         r = w.rectangle()
@@ -249,7 +253,7 @@ def wait_popup(tries=12):
 
 
 def popup_title(rect):
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     for w in app_ui.windows():
         rr = w.rectangle()
         if (rr.left, rr.top, rr.right, rr.bottom) == (rect.left, rect.top, rect.right, rect.bottom):
@@ -271,7 +275,7 @@ def click_item(rect, dy):
 
 
 def find_confirm_ok():
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     dx, dy = win_delta()
     for w in app_ui.windows():
         for el in w.descendants():
@@ -368,7 +372,7 @@ def scan_page():
 # Export plumbing
 # ---------------------------------------------------------------------------
 def find_save_filename_edit():
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     for w in app_ui.windows():
         for el in w.descendants():
             try:
@@ -398,7 +402,7 @@ def find_save_button():
     NOTE: the whole JUCE dialog is exposed in a virtual 1920x1040 canvas whose
     element rects do NOT map to the real screen (mouse clicks on those coords
     land nowhere).  Callers must invoke the returned element, never click it."""
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     for w in app_ui.windows():
         for el in w.descendants():
             try:
@@ -416,7 +420,7 @@ def find_save_button():
 
 
 def find_cancel_button():
-    app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+    app_ui = h90_connect()
     for w in app_ui.windows():
         for el in w.descendants():
             try:
@@ -439,12 +443,12 @@ def find_overwrite_modal_buttons():
     (None, None).  Detection is text-based (уже существует / хотите заменить),
     so it works regardless of where the popover renders."""
     try:
-        app_ui = PA(backend="uia").connect(path="H90 Control.exe")
+        app_ui = h90_connect()
     except Exception:
         return None, None
     for w in app_ui.windows():
         try:
-            if w.window_text() == "H90 Control":
+            if h90_is_main(w.window_text()):
                 # the popover may be nested inside the main window's tree
                 pass
             words = []

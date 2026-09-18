@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 const midi = require("midi");
 
-const H90_NAME = "XC-05987 Bluetooth";
+const H90_NAMES = ["H90 Pedal", "XC-05987 Bluetooth"];
 
 function findH90Output() {
   const out = new midi.Output();
   const n = out.getPortCount();
-  for (let i = 0; i < n; i++) {
-    if (out.getPortName(i).includes(H90_NAME)) return { out, index: i, name: out.getPortName(i) };
+  for (let kind = 0; kind < 2; kind++) {
+    for (let i = 0; i < n; i++) {
+      const name = out.getPortName(i);
+      if (kind === 0) {
+        if (H90_NAMES.some((x) => name.includes(x))) return { out, index: i, name };
+      } else {
+        if (/h90|eventide|xc-05|xc-06/i.test(name)) return { out, index: i, name };
+      }
+    }
   }
   return null;
 }
@@ -39,7 +46,7 @@ function main() {
     const probe = new midi.Output();
     for (let i = 0; i < probe.getPortCount(); i++) {
       const name = probe.getPortName(i);
-      console.log("  [" + i + "] " + name + (name.includes(H90_NAME) ? "   <-- H90" : ""));
+      console.log("  [" + i + "] " + name + (H90_NAMES.some((x) => name.includes(x)) || /h90|eventide|xc-05|xc-06/i.test(name) ? "   <-- H90" : ""));
     }
     return;
   }

@@ -28,6 +28,8 @@ import comtypes
 from comtypes import COMError
 from comtypes.gen import UIAutomationClient as uiac
 
+import h90_app
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KNOB_MAP_DEFAULT = os.path.join(BASE_DIR, "knob-map.json")
 SNAPSHOT_DIR_DEFAULT = os.path.join(BASE_DIR, "snapshots")
@@ -37,17 +39,14 @@ UNIT_TEXT_RE = re.compile(r"([-+]?\d+(?:[,.]\d+)?)\s*([A-Za-zµ/°]+)?$")
 
 
 def connect():
-    try:
-        return Application(backend="uia").connect(process=4972)
-    except Exception:
-        return Application(backend="uia").connect(path="H90 Control.exe")
+    return h90_app.connect()
 
 
-WIN_TITLE = "H90 Control"
+WIN_TITLE = h90_app.running_title() or "Eventide Control"
 
 
 def get_window(app):
-    wins = [w for w in app.windows() if w.window_text() == WIN_TITLE] or app.windows()
+    wins = [w for w in app.windows() if h90_app.is_main_title(w.window_text())] or app.windows()
     return wins[0]
 
 

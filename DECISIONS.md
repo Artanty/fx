@@ -1,23 +1,23 @@
-# Decisions — Programmatic H90 control from the web app
+﻿# Decisions вЂ” Programmatic H90 control from the web app
 
 ## Workflow (session convention)
 
 - **Session start:** read this file (and `H90-IMPORT-NOTES.md` for H90 work)
   first and keep it in mind for the whole session.
-- **Before every task:** append a `## Plan — <date> <task>` entry at the bottom
+- **Before every task:** append a `## Plan вЂ” <date> <task>` entry at the bottom
   of this file (goal + how it will be verified). Then do the work.
-- **After every task:** append a `## Progress — <date> <task>` entry (what was
+- **After every task:** append a `## Progress вЂ” <date> <task>` entry (what was
   done, artifacts, results, next steps). Update `H90-IMPORT-NOTES.md` too where
   it tracks H90 protocol work.
 
 Status: **in progress**. The read/download path is fully decoded (plain zlib
-FlatBuffers) and the import **write** path is now decoded too — it is zlib
+FlatBuffers) and the import **write** path is now decoded too вЂ” it is zlib
 **DEFLATE with a preset dictionary**, NOT encryption. The custom inflate decoder
 (`server/h90_dict_recover.py`) is built and validated byte-for-byte against
 zlib. The only remaining unknown is the exact dictionary (built at runtime from
 pedal data). See "Resume here".
 
-## Current state — 2026-08-13 session end (resume point)
+## Current state вЂ” 2026-08-13 session end (resume point)
 
 **Where we are:** the write request = DEFLATE stream whose output is the pedal's
 **current program** (VECHOLONG) serialization **patched with the imported
@@ -27,18 +27,18 @@ ValueTree wrapper + base64 JSON; **every literal b64 run decodes to the
 "dlya_denormalized_pretaper":350.0,...`), confirming the imported values equal
 the file's values. The ONLY unknowns left are the **72 dict-copied bytes** in
 req1's output (21 in req2, all sourced from req1's 72), which are VECHOLONG's
-values — never transmitted, 2 adler32 equations for 72 unknowns → not solvable
+values вЂ” never transmitted, 2 adler32 equations for 72 unknowns в†’ not solvable
 offline from existing captures.
 
 **What was confirmed this session:**
 - Write-variant structure: `out[211:976]` = 637 b64 chars + **128 non-b64 bytes**
-  (117 `\x00`, 4×`0x3f`, 2×`0x0d`, 2×`0x80`, `0x2d`, `0x14`, `0x10`). 72 = deflate
+  (117 `\x00`, 4Г—`0x3f`, 2Г—`0x0d`, 2Г—`0x80`, `0x2d`, `0x14`, `0x10`). 72 = deflate
   dict-copies (VECHOLONG); 56 = literal marker bytes. The b64 runs decode to the
   file JSON at per-run phases (stream is NOT phase-continuous; pedal reassembles
-  chunks — marker semantics unknown).
-- 72 dict-copies → **69 distinct window offsets 31004–32730**
+  chunks вЂ” marker semantics unknown).
+- 72 dict-copies в†’ **69 distinct window offsets 31004вЂ“32730**
   (`req1_dict_constraints.json`).
-- req2's dict = req1's output (window offsets 31916–32764 ↔ `req1_out[124:973]`);
+- req2's dict = req1's output (window offsets 31916вЂ“32764 в†” `req1_out[124:973]`);
   148/169 req2 refs resolve from known req1 bytes.
 - Full output layout documented in `H90-IMPORT-NOTES.md` (08-13 section):
   `[0:32]` TRPC wrapper, `[32:192]` ValueTree structure, `tjknobs-knob4\x00\x00\x00xdl`
@@ -46,14 +46,14 @@ offline from existing captures.
   b64, `"}\n` at ~946, trailer at 951-976.
 
 **Decision pending (user paused; will continue later):** how to obtain the 72
-VECHOLONG bytes. Options: (1) Mac lldb dict recapture — dump the 32768-byte
+VECHOLONG bytes. Options: (1) Mac lldb dict recapture вЂ” dump the 32768-byte
 deflate window at send time (`server/h90-captures/h90_dict_capture.py`, primary);
 (2) static RE of the app binary for the `zdict` construction (angr/capstone);
 (3) build a literal-only write from the file JSON and test on the pedal whether
 it accepts a marker-free stream. Artifacts:
 `server/h90-recon/decode_status.json`, `H90-IMPORT-NOTES.md` 08-13 section.
 
-## 2026-08-05 (late) update — write path DECODED: DEFLATE + preset dictionary
+## 2026-08-05 (late) update вЂ” write path DECODED: DEFLATE + preset dictionary
 
 **The import write payload is NOT encrypted.** It is standard zlib DEFLATE (real
 `78 9c` header, FDICT bit unset) whose early symbols are length-distance matches
@@ -69,43 +69,43 @@ into a **preset dictionary** standard zlib doesn't provide. Details in
   196 bytes (same `Tap2DelayDivision-obj`, same two UUIDs, same preset name).
 - Dictionary footprint: 19 matches reference it; 169 output bytes depend on it;
   144 distinct dict window offsets span the last 848 B of the 32K window
-  (31916–32764); the referenced bytes look like a preset serialization (vtable
+  (31916вЂ“32764); the referenced bytes look like a preset serialization (vtable
   offsets, u32 lengths, `LFOShape-obj` / `PitchJumpInterval-obj` strings).
 - The object-name strings are **absent from the app binary** (arm64 + x86_64) but
-  present in read responses ⇒ the dictionary is built at runtime from pedal data
-  (likely the current program's serialization; import #2's dict ≈ the then-current
+  present in read responses в‡’ the dictionary is built at runtime from pedal data
+  (likely the current program's serialization; import #2's dict в‰€ the then-current
   `VECHOLONG` program). The app embeds JUCE's zlib (v1.2.3), whose
   `GZIPCompressorOutputStream` supports a dictionary argument.
-- **Blocker status changed:** not "recover a cipher" — instead "capture the exact
+- **Blocker status changed:** not "recover a cipher" вЂ” instead "capture the exact
   dictionary", then the encoder is a normal `deflate` with that dictionary.
 
-## 2026-08-05 update — read path solved; write path decoded (was: confirmed encrypted)
+## 2026-08-05 update вЂ” read path solved; write path decoded (was: confirmed encrypted)
 
 Big progress. Re-examining the clean captures with the verified LSB-first 7-bit
 unpack (`h90_decode.unpack_7bit`) overturned two earlier conclusions:
 
-- **READ path (pedal → app) is NOT encrypted.** Every large message in the clean
+- **READ path (pedal в†’ app) is NOT encrypted.** Every large message in the clean
   Aug-2 capture `server/h90-captures/h90_virtual_rx.log` unpacks to a valid zlib
   stream that inflates to a **plain FlatBuffers** payload (root uoffset = 12,
   prefix `0c 00 00 00 08 00 0c 00 07 00 08 00`). All 18 messages extracted to
   `/tmp/h90_fb/<header>.bin` (e.g. `03050066.bin` = 149,868 B library dump with
   real preset names `OilDrum` / `Indigo Fog` / `Resotap`, and JUCE param objects
-  like `switch6-obj`, `Sw 6: %s`). Small messages (≤ ~100 B body) are raw
+  like `switch6-obj`, `Sw 6: %s`). Small messages (в‰¤ ~100 B body) are raw
   FlatBuffers with no zlib. We can now read the pedal's full state/library.
-- **WRITE path (app → pedal) is DEFLATE + preset dictionary — NOT encryption.**
+- **WRITE path (app в†’ pedal) is DEFLATE + preset dictionary вЂ” NOT encryption.**
   The import request (`03 5E 00 4F`, one message per import: 768 B for import #1,
   512 B for import #2) unpacks to a real zlib header `78 9c` + deflate data that
-  references a missing preset dictionary. Decoded with `decompressobj(-15, zdict=…)`.
-  (Earlier "high-entropy / fake marker / not zlib" conclusions were wrong — the
+  references a missing preset dictionary. Decoded with `decompressobj(-15, zdict=вЂ¦)`.
+  (Earlier "high-entropy / fake marker / not zlib" conclusions were wrong вЂ” the
   dict was the only missing piece.)
 - Replay rejection (2026-08-04) is now coherent: reads are stateless plaintext;
   writes are compressed against a runtime dictionary, so a replayed write (built
   against the pedal's then-current program) is rejected when that program differs.
 
 **Correction to the 2026-08-04 note below:** "the custom encryption is the
-remaining blocker" was wrong — reads are solved and writes are dictionary-deflate.
+remaining blocker" was wrong вЂ” reads are solved and writes are dictionary-deflate.
 
-## 2026-08-04 update — replay is dead; cipher RE is required
+## 2026-08-04 update вЂ” replay is dead; cipher RE is required
 
 Empirically proven today (see `server/h90-relay-notes.md`):
 
@@ -151,7 +151,7 @@ Allow changing effects (presets / algorithms) on an Eventide H90 from the Angula
   What is missing is sending the *preset content itself* (import a new program
   from a `.pgm90` / `.preset90` file) without the desktop app.
 
-## Decision 1 — Transport: WiFi MIDI (+ BLE for protocol RE)
+## Decision 1 вЂ” Transport: WiFi MIDI (+ BLE for protocol RE)
 
 - **Control** the H90 over **WiFi MIDI** via a local Node helper (`midi`/`easymidi`)
   that owns the connection; the browser talks to the Express server on :3000.
@@ -160,7 +160,7 @@ Allow changing effects (presets / algorithms) on an Eventide H90 from the Angula
   format is the same over WiFi MIDI and BLE (MIDI SysEx either way).
 - USB and browser-native Web MIDI are out of scope for now.
 
-## Decision 2 — Send-preset approach: reverse-engineer the app's import protocol (blocked)
+## Decision 2 вЂ” Send-preset approach: reverse-engineer the app's import protocol (blocked)
 
 Chosen approach (over "capture-and-replay"): derive the wire format so the web
 app can generate/send an arbitrary preset without the desktop app.
@@ -170,7 +170,7 @@ what we know as of 2026-08-02.
 
 ---
 
-## H90 import protocol — reverse-engineering notes
+## H90 import protocol вЂ” reverse-engineering notes
 
 ### How it was captured
 
@@ -179,11 +179,11 @@ Swift MITM proxy (`server/h90_proxy.swift`, compiled to `server/h90_proxy`)
 reassembled BLE fragments into complete SysEx messages and logged both
 directions. A preset import into a pedal slot was captured twice:
 
-- Import #1 — `VECHOLONG` (`.pgm90`) into a slot:
+- Import #1 вЂ” `VECHOLONG` (`.pgm90`) into a slot:
   - `server/h90-captures/h90_import_req.bin`      (768 B, 3x256 BLE chunks)
   - `server/h90-captures/h90_import_resp_big.bin` (4999 B)
   - `server/h90-captures/h90_import_resp.bin`     (110 B ack)
-- Import #2 — a second preset into a slot:
+- Import #2 вЂ” a second preset into a slot:
   - `server/h90-captures/h90_import2_req.bin`     (512 B, 2x256 BLE chunks)
   - `server/h90-captures/h90_import2_resp.bin`    (5535 B)
 - Full session stream: `server/h90-captures/h90_proxy_session.log`
@@ -197,20 +197,20 @@ directions. A preset import into a pedal slot was captured twice:
 
 SysEx framing, all payload bytes < 0x80 (MIDI-safe):
 
-- `F0 1C 77 00 <f4> <f5> <f6> <f7> <body> F7` — all messages (type 03 = data, type 01 = control/ack)
+- `F0 1C 77 00 <f4> <f5> <f6> <f7> <body> F7` вЂ” all messages (type 03 = data, type 01 = control/ack)
 - Header bytes are two 14-bit fields, high/low split:
   `msgid = (f4 << 7) | f5`, `type = (f6 << 7) | f7` (0x02 = device error, 0x34 = success).
   Response message IDs differ from request IDs.
-- **The body is 7-bit bit-packed data** (8 packed bytes → 7 raw bytes). Verified
+- **The body is 7-bit bit-packed data** (8 packed bytes в†’ 7 raw bytes). Verified
   scheme is **LSB-first** (`h90_decode.unpack_7bit`; round-trip verified). The
   earlier "MSB-first" note below was wrong.
-- **Read path** (pedal → app): unpack → zlib deflate → **plain FlatBuffers** root uoffset 12.
-- **Write path** (app → pedal): unpack → real zlib header `78 9c` → **raw DEFLATE
+- **Read path** (pedal в†’ app): unpack в†’ zlib deflate в†’ **plain FlatBuffers** root uoffset 12.
+- **Write path** (app в†’ pedal): unpack в†’ real zlib header `78 9c` в†’ **raw DEFLATE
   referencing a preset dictionary** (standard zlib rejects it; needs `zdict=`).
 
 So the chains are:
-- Read: `pedal state → zlib → 8-bit bytes → 7-bit pack → SysEx`
-- Write: `preset → (compact serialization) → raw-deflate w/ dictionary → 8-bit bytes → 7-bit pack → SysEx`
+- Read: `pedal state в†’ zlib в†’ 8-bit bytes в†’ 7-bit pack в†’ SysEx`
+- Write: `preset в†’ (compact serialization) в†’ raw-deflate w/ dictionary в†’ 8-bit bytes в†’ 7-bit pack в†’ SysEx`
 
 - The import request header is constant: `F0 1C 77 00 03 5E 00 4F 78 38 16`
   (payload diverges immediately after; `78 38 16` unpacks to the `78 9c` header).
@@ -222,18 +222,18 @@ So the chains are:
 
 - The write payload is standard DEFLATE (real `78 9c` header, FDICT bit unset).
   Standard `zlib` fails with `invalid distance too far back`; `zlib.decompressobj
-  (-15, zdict=…)` decodes both imports. The unknown is the **dictionary** the app
+  (-15, zdict=вЂ¦)` decodes both imports. The unknown is the **dictionary** the app
   and pedal both build at runtime.
 - 19 length-distance matches reference the dict; 169 output bytes depend on it;
   144 distinct dict window offsets span the last 848 B of the 32K window
-  (31916–32764). The referenced bytes look like a preset serialization (vtable
+  (31916вЂ“32764). The referenced bytes look like a preset serialization (vtable
   offsets, u32 lengths, `LFOShape-obj` / `PitchJumpInterval-obj` / `Lte-obj`).
 - The object-name strings are **absent from the app binary** (arm64 + x86_64) but
-  present in read responses ⇒ the dictionary is built from **pedal data** (likely
-  the current program's serialization; import #2's dict ≈ the then-current
+  present in read responses в‡’ the dictionary is built from **pedal data** (likely
+  the current program's serialization; import #2's dict в‰€ the then-current
   `VECHOLONG` program, whose `.preset90` file we hold).
 - The app embeds **JUCE's zlib (v1.2.3)** ("1.2.3", "deflateEnd failed (ignored)")
-  — JUCE's `GZIPCompressorOutputStream` takes a dictionary argument, consistent
+  вЂ” JUCE's `GZIPCompressorOutputStream` takes a dictionary argument, consistent
   with a runtime-built dict string.
 - Pedal firmware is local (`~/Library/Eventide/H90 Control/Firmware/h90-1.11.4.os`,
   34.9 MB): contains zlib refs, no plaintext object names (likely compressed).
@@ -247,21 +247,21 @@ So the chains are:
   (strings: "Import already in progress", "Importing algorithm...",
   "Error sending segment ", source path `.../ImportAlgorithmToCurrentProgramThread.cpp`).
   Segment size constant 2048; integer-to-ASCII progress-string builder inside.
-  Note: that exact breakpoint got 0 hits in the lldb sessions — likely the wrong
-  call-site for the captured (newer) app. No "encryptor" to find — the write path
+  Note: that exact breakpoint got 0 hits in the lldb sessions вЂ” likely the wrong
+  call-site for the captured (newer) app. No "encryptor" to find вЂ” the write path
   is DEFLATE; the relevant call is the dict construction / deflate call.
 - `otool` section `offset` fields are **decimal** (a gotcha: `5531060` is decimal,
-  not hex). __TEXT maps file offset → VA directly (`VA = 0x100000000 + file_off`).
+  not hex). __TEXT maps file offset в†’ VA directly (`VA = 0x100000000 + file_off`).
 - **lldb attach works on the debug copy** (`~/h90-re/H90 Control.app`, re-signed
   with `get-task-allow`): attached to the live PID and ran `memory find`
-  successfully. Heap `memory find` for `LFOShape-obj` over 0x10d900000–0x500000000
+  successfully. Heap `memory find` for `LFOShape-obj` over 0x10d900000вЂ“0x500000000
   returned nothing (dict/ValueTree not resident, or in a different range).
 
 ### Resume here (next steps)
 
 Read path solved; write path = DEFLATE + dictionary (decoded), the **dictionary**
 is the only unknown. Primary route is a live capture; one attempt (2026-08-05,
-~19:15–19:20 MSK) was armed but paused before any import fired — the app sends
+~19:15вЂ“19:20 MSK) was armed but paused before any import fired вЂ” the app sends
 NO MIDI while idle, so the import click is required to trigger the send
 breakpoints. Ready-to-reuse helper + arm command are documented in
 `H90-IMPORT-NOTES.md` under "LIVE dict-capture attempt".
@@ -272,15 +272,15 @@ breakpoints. Ready-to-reuse helper + arm command are documented in
    breakpoint (breakpoint 1, symbol857+704) dump the compressor's `z_stream`
    dictionary, or `memory find` the heap for the dict blob at send time. Favoured
    hypothesis to test offline first: dict = the current program's serialization
-   (import #2 ≈ `VECHOLONG-64027c252ee6e.preset90`).
+   (import #2 в‰€ `VECHOLONG-64027c252ee6e.preset90`).
 2. **Verify:** decompress `req1.raw`/`req2.raw` with the captured dict; full
    plaintext must be valid and the pedal must accept a re-import.
 3. **Read-side schema recovery (feeds the encoder).** Recursively parse
    `/tmp/h90_fb/*.bin` (the decoded read FlatBuffers) to map
-   ExportedProgram/ExportedPreset tables, vectors, strings → build the plaintext
+   ExportedProgram/ExportedPreset tables, vectors, strings в†’ build the plaintext
    encoder and align `.h90` backup JSON / `.pgm90` files against it.
 4. **Implement** once solved: `POST /api/h90/preset` builds the compact
-   serialization → raw-deflates with the dictionary → 7-bit packs → sends via
+   serialization в†’ raw-deflates with the dictionary в†’ 7-bit packs в†’ sends via
    CoreMIDI (`H90 Pedal` USB endpoint or `XC-05987 Bluetooth`).
 
 ## Implementation (once the dictionary is solved)
@@ -288,58 +288,58 @@ breakpoints. Ready-to-reuse helper + arm command are documented in
 - `server/server.js`: add `POST /api/h90/preset` accepting `{ presetFile/presetName, algorithm }`,
   reads the `.pgm90`, builds the flatbuffer, raw-deflates with the dictionary,
   7-bit packs, sends via `midi`.
-- Angular detail page: "Send to H90" button → `POST /api/h90/preset`.
+- Angular detail page: "Send to H90" button в†’ `POST /api/h90/preset`.
 - Update `README.md` and this file with the final codec.
 
 ## Open questions
 
 - **The exact dictionary.** Built at runtime from pedal data (current program?),
   same layout as the `.preset90` ValueTree serialization but a compact/wire
-  variant — the decoded request diverges from the `.preset90` format beyond byte
+  variant вЂ” the decoded request diverges from the `.preset90` format beyond byte
   196. Not present as plaintext in the app binary or the local firmware.
-- Both imports decode with `eof=False` (0 unconsumed, no skip offset works) — the
+- Both imports decode with `eof=False` (0 unconsumed, no skip offset works) вЂ” the
   deflate stream ends without a final block. Truncated capture or non-final flush?
 - The `00 4F` / `00 13` / `00 52` sub-fields in the 03 header (msgid high byte).
 - WiFi MIDI vs BLE: does the desktop app accept the identical SysEx over WiFi MIDI?
 
 ## Key files
 
-- `server/h90_dict_recover.py` — validated raw-DEFLATE inflater with LZ77 match
+- `server/h90_dict_recover.py` вЂ” validated raw-DEFLATE inflater with LZ77 match
   tracking + per-byte dict-source attribution (validated byte-for-byte vs zlib;
   see `H90-IMPORT-NOTES.md` "2026-08-07" section)
-- `server/test_h90_dict_recover.py` + `server/tests/*.json` — regression suite
+- `server/test_h90_dict_recover.py` + `server/tests/*.json` вЂ” regression suite
   (fixed/dict corpora + seeded random crosschecks vs zlib)
-- `server/h90-captures/*.bin` — captured import requests/responses
-- `server/h90-captures/h90_virtual_rx.log` — **clean** Aug-2 read capture (all
+- `server/h90-captures/*.bin` вЂ” captured import requests/responses
+- `server/h90-captures/h90_virtual_rx.log` вЂ” **clean** Aug-2 read capture (all
   messages decode to plain zlib FlatBuffers); extracted to `/tmp/h90_fb/*.bin`
-- `server/h90-captures/h90_proxy_usb.log` — **corrupt** Aug-5 BLE capture: the
+- `server/h90-captures/h90_proxy_usb.log` вЂ” **corrupt** Aug-5 BLE capture: the
   proxy logs `prefix(len)` of the 256-byte inline MIDIPacket buffer, over-reading
   heap for packets > 256 B; do not use for payload bytes
-- `server/h90_proxy.swift` — BLE MITM proxy (source, has the over-read logging bug)
-- `server/h90_decode.py` — verified `unpack_7bit` / `pack_7bit` / FlatBuffer walker
-- `server/capture-proxy-long.js` / `server/capture-h90-long.js` — BLE capture helpers
-- `server/h90-send.js` — working WiFi-MIDI Program Change sender
-- `patchstorage/pgm90/*.pgm90`, `patchstorage/preset90/*.preset90` — preset files
+- `server/h90_proxy.swift` вЂ” BLE MITM proxy (source, has the over-read logging bug)
+- `server/h90_decode.py` вЂ” verified `unpack_7bit` / `pack_7bit` / FlatBuffer walker
+- `server/capture-proxy-long.js` / `server/capture-h90-long.js` вЂ” BLE capture helpers
+- `server/h90-send.js` вЂ” working WiFi-MIDI Program Change sender
+- `patchstorage/pgm90/*.pgm90`, `patchstorage/preset90/*.preset90` вЂ” preset files
   to compare against wire payloads
-- `/tmp/h90_fb/req1.raw` (664 B) / `req2.raw` (440 B) — the unpacked write payloads
+- `/tmp/h90_fb/req1.raw` (664 B) / `req2.raw` (440 B) вЂ” the unpacked write payloads
   after the `78 9c` header (sources: `h90_import_req.bin`, `h90_import2_req.bin`)
-- `/tmp/write2_out.bin` — decoded request #2 (793 B, zdict=zeros) = 32 B wrapper +
+- `/tmp/write2_out.bin` вЂ” decoded request #2 (793 B, zdict=zeros) = 32 B wrapper +
   embedded preset serialization (first 196 B match the MURKY `.preset90` file)
 - `server/h90-captures/req1_dict_constraints.json` /
-  `req2_dict_constraints.json` — regenerated with the validated decoder: direct
-  dict window-offset→byte constraints (req2: 144, offsets 31916–32764)
+  `req2_dict_constraints.json` вЂ” regenerated with the validated decoder: direct
+  dict window-offsetв†’byte constraints (req2: 144, offsets 31916вЂ“32764)
   for scoring candidate dictionaries
-- `/tmp/deflate_dec.py` — custom inflate (validated byte-identical vs zlib on the
+- `/tmp/deflate_dec.py` вЂ” custom inflate (validated byte-identical vs zlib on the
   35,604 B read payload; used for the dict-footprint analysis)
-- `server/h90-captures/h90_dict_capture.py` — lldb Python helper for the live dict
+- `server/h90-captures/h90_dict_capture.py` вЂ” lldb Python helper for the live dict
   capture (MIDI-send breakpoint commands, heap scan, 64 KB dict save); arm command
   and results in `H90-IMPORT-NOTES.md` ("LIVE dict-capture attempt")
-- `~/h90-re/H90 Control.app` — debug copy (v1.9.5, re-signed with `get-task-allow`;
+- `~/h90-re/H90 Control.app` вЂ” debug copy (v1.9.5, re-signed with `get-task-allow`;
   lldb-attachable, running live against the pedal through `server/h90_proxy`)
-- `~/Library/Eventide/H90 Control/Firmware/h90-1.11.4.os` — local pedal firmware
+- `~/Library/Eventide/H90 Control/Firmware/h90-1.11.4.os` вЂ” local pedal firmware
   (34.9 MB; has zlib, no plaintext object names)
 
-## Plan — 2026-08-13 angr static analysis of the Windows H90 Control.exe
+## Plan вЂ” 2026-08-13 angr static analysis of the Windows H90 Control.exe
 
 Goal: use **angr** (source checkout `input/angr-master`, Python 3.12) to
 statically locate the write-path zlib **dictionary construction** in the
@@ -351,22 +351,22 @@ the primary route; this is the offline static route (DECISIONS "Resume here"
 step 4, H90-IMPORT-NOTES "2026-08-12").
 
 Steps:
-1. Install Rust (winget `Rustlang.Rustup`, `stable-msvc`) — MSVC 14.29 present.
+1. Install Rust (winget `Rustlang.Rustup`, `stable-msvc`) вЂ” MSVC 14.29 present.
 2. Patch `input/angr-master/pyproject.toml`: `pyvex==9.3.3.dev0` (not on PyPI)
-   → `pyvex>=9.3.2` (released win_amd64 wheel). Build via
+   в†’ `pyvex>=9.3.2` (released win_amd64 wheel). Build via
    `pip install ./input/angr-master` under `vcvars64.bat`. Fallback: PyPI wheel.
 3. User installs `input/H90Control-1.9.13-windows-x64-installer.exe`.
-4. New `server/h90_angr.py`: load exe → locate/decompile the documented TRPC
-   `sendMessage` fn `0x14013b610` (sanity vs rizin notes) → FLIRT-match
-   zlib (`deflate`, `deflateSetDictionary`) → xref callers → decompile →
-   backward-slice the `zdict` argument → recover dict construction.
+4. New `server/h90_angr.py`: load exe в†’ locate/decompile the documented TRPC
+   `sendMessage` fn `0x14013b610` (sanity vs rizin notes) в†’ FLIRT-match
+   zlib (`deflate`, `deflateSetDictionary`) в†’ xref callers в†’ decompile в†’
+   backward-slice the `zdict` argument в†’ recover dict construction.
 5. Verify: `deflate_track(req, zdict=cand)` vs the constraint JSONs; if clean,
    `zlib.decompressobj(-15, zdict=cand)` gives full req1/req2 plaintext matching
    the TWO-WAY / MURKY `.preset90` heads.
 
 Deliverable: `server/h90_angr.py` + Progress entry + H90-IMPORT-NOTES section.
 
-## Plan — 2026-08-21 angr deep trace: recover the DEFLATE dictionary from H90 Control.exe
+## Plan вЂ” 2026-08-21 angr deep trace: recover the DEFLATE dictionary from H90 Control.exe
 
 Goal: use angr to statically recover the exact DEFLATE preset dictionary (or
 the code that builds it) from the Windows x64 H90 Control.exe (v1.9.13), so
@@ -376,7 +376,7 @@ app.
 Approach:
 1. Load the exe in angr, build CFGFast, FLIRT-match zlib functions.
 2. Locate `deflateSetDictionary` (zlib internal) and JUCE
-   `GZIPCompressorOutputStream` constructor — these are the two sites where
+   `GZIPCompressorOutputStream` constructor вЂ” these are the two sites where
    the dict pointer is consumed.
 3. Backward-trace the dict argument through callers to find the function that
    constructs/assembles the 32KB serialization buffer.
@@ -488,9 +488,9 @@ Key findings from exhaustive plaintext analysis:
    - [951:976] Trailer: 19 dict-copy bytes + metadata
 
 2. **Critical size mismatch**:
-   - B64 chars in plaintext: 637 (zero dict) → max 690 (correct dict)
+   - B64 chars in plaintext: 637 (zero dict) в†’ max 690 (correct dict)
    - 690 b64 chars decode to ~517 bytes
-   - twoway.json compact: 1169 chars → b64: 1560 chars
+   - twoway.json compact: 1169 chars в†’ b64: 1560 chars
    - **The plaintext CANNOT hold the full twoway.json as base64**
    - Conclusion: write serialization uses a DIFFERENT/SHORTER representation
 
@@ -525,11 +525,11 @@ Key findings from exhaustive plaintext analysis:
 7. **The data IS base64-encoded JSON**: Continuous b64 run at [275:549] (274 chars)
    cleanly decodes to JSON: `987.4534912109375,"dlya_denormalized_pretaper":350.0,
    "dlya_end_exp":0.9823130369186401,...`. Run [211:230] (19 chars) decodes to
-   `verse","bypa_n` — matches twoway.json offset 21 exactly.
+   `verse","bypa_n` вЂ” matches twoway.json offset 21 exactly.
 
 8. **Alignment mismatch**: The b64 at [211:230] encodes JSON bytes 21-34. For a
    contiguous stream, JSON bytes 0-20 would need 28 b64 chars at [183:211]. But
-   [183:211] = header metadata + "tjknobs-knob4\x00\x00\x00xdl" marker — NOT
+   [183:211] = header metadata + "tjknobs-knob4\x00\x00\x00xdl" marker вЂ” NOT
    matching expected b64 `eyJhbGdvcml0aG1fbmFtZSI6IlJl`. Only 1/28 positions match.
    
    **Conclusion**: The "tjknobs-knob4\x00\x00\x00xdl" is a STRUCTURAL MARKER
@@ -537,8 +537,8 @@ Key findings from exhaustive plaintext analysis:
    base64 stream. The base64 JSON data is embedded in data slots within this binary
    structure.
 
-9. **Capacity check**: twoway.json compact = 1169 chars → b64 = 1560 chars.
-   Max b64 capacity with correct dict = ~909 bytes → 681 decoded bytes.
+9. **Capacity check**: twoway.json compact = 1169 chars в†’ b64 = 1560 chars.
+   Max b64 capacity with correct dict = ~909 bytes в†’ 681 decoded bytes.
    681 < 1169. **The JSON in the write serialization is a SUBSET of twoway.json**.
 
 10. **Field table at [88:142]**: 13 entries (count=13 at [88]), offsets in descending
@@ -561,7 +561,7 @@ Key findings from exhaustive plaintext analysis:
 
 11. **Algorithm parameter model found** at file 0x770a0e: JSON object mapping 52
     algorithm UUIDs to their 10-knob parameter lists. TWO-WAY = UUID
-    `21e22b15-5814-4cf8-b271-ffbaea0d4246` → `["xfad","mdpt","mspd","fltr",
+    `21e22b15-5814-4cf8-b271-ffbaea0d4246` в†’ `["xfad","mdpt","mspd","fltr",
     "fbkb","fbka","dlyb","dlya","dmix","mmix"]`. All 52 H90 algorithms documented.
 
 12. **Binary string findings**:
@@ -602,7 +602,7 @@ Key findings from exhaustive plaintext analysis:
 3. **Alternative**: capture fresh import with known preset to extract dictionary,
    then decompress req1 with correct dict to see full JSON.
 4. **Build encoder incrementally**: once JSON format is known, build the encoder
-   that composes JSON → compress → frame → 7-bit pack → send.
+   that composes JSON в†’ compress в†’ frame в†’ 7-bit pack в†’ send.
 
 ### Plan - 2026-08-28 replay captured import
 
@@ -1361,17 +1361,17 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - BLOCKED: running backend (PID 15904) returns 404 on /api/control/live = still old code. User must restart node backend (3111) to load all new endpoints, then hardware-verify: drag slider hears change live; Save then re-select slot hears saved state. Then commit [pedal-app]/[web].
 
 ## Progress - 2026-08-31 pedal-app+web: OSBF backup restore + export-all
-- Added `serializeOsbf({productId, eeprom, presets, selectors})` in `pedal-app/src/osbf.js`: mirrors `parseOsbf` text format exactly (START_DATA/END_DATA blocks, same field layout, same hex encoding). Verified lossless round-trip: parsed the original OSBF → serialized → re-parsed → all 6 binary payloads (85 bytes each) match byte-for-byte.
+- Added `serializeOsbf({productId, eeprom, presets, selectors})` in `pedal-app/src/osbf.js`: mirrors `parseOsbf` text format exactly (START_DATA/END_DATA blocks, same field layout, same hex encoding). Verified lossless round-trip: parsed the original OSBF в†’ serialized в†’ re-parsed в†’ all 6 binary payloads (85 bytes each) match byte-for-byte.
 - Backend `GET /api/export-all`: reads all 6 slots via `readSlotRaw` + `getEEPROM` + productId, serializes via `serializeOsbf`, returns as a downloadable `.osbf` file (Content-Disposition attachment). Mapping: physical slots 0-2 (US0-US2, SELECTORs), slots 3-5 (UP0-UP2, USER_PRESETs).
-- Backend `POST /api/restore`: loads OSBF from `input/2026-07-31_labackup.osbf`, writes all 6 slots via `commitRawPreset(idx, data53, name)`. SELECTORS (US0-US2) → physical slots 0-2, USER_PRESETs (UP0-UP2) → physical slots 3-5. EEPROM NOT written (confirmed: all 3 existing Neuro captures show zero EEPROM_WRITE (0x81) frames). Returns verify results per slot (before/after hex, match flag). Recalls previously-active preset after restore.
+- Backend `POST /api/restore`: loads OSBF from `input/2026-07-31_labackup.osbf`, writes all 6 slots via `commitRawPreset(idx, data53, name)`. SELECTORS (US0-US2) в†’ physical slots 0-2, USER_PRESETs (UP0-UP2) в†’ physical slots 3-5. EEPROM NOT written (confirmed: all 3 existing Neuro captures show zero EEPROM_WRITE (0x81) frames). Returns verify results per slot (before/after hex, match flag). Recalls previously-active preset after restore.
 - Web: added Restore (with confirm dialog) + Export All buttons in the workbench slot-picker row. Restore shows a per-slot verify table (slot#, page, name, ok/MISMATCH). Added `restoreBackup()`, `exportAll()`, `RestoreResult`/`RestoreSlotResult` models, `api.restore()`, `api.exportAllUrl()`.
 - Checks: `node -c` (server, osbf) + `ng build` pass. Backend must be restarted by user to load `/api/restore` and `/api/export-all`. Not committed.
-- NOTE: `commitRawPreset` is ~2s per slot (2x ACTIVE_STORE blocks + ACTIVE_WRITE + recall, each 500ms wait) → full restore ~12s. Acceptable for a restore operation.
+- NOTE: `commitRawPreset` is ~2s per slot (2x ACTIVE_STORE blocks + ACTIVE_WRITE + recall, each 500ms wait) в†’ full restore ~12s. Acceptable for a restore operation.
 
 ## Progress - 2026-08-31 pedal-app+web: restore file-picker + name sanitize
 - Restore now picks the .osbf file on the machine instead of a fixed path: added `loadOsbfText(text)` in osbf.js (refactored block collection from `loadOsbf`) and POST /api/restore accepts `{text}` (OSBF file content). Web: hidden `<input type=file accept=".osbf">` opened by the Restore button, read via FileReader('latin1'), sent to /api/restore.
-- Fixed 500 "LALADY_NAME_SIZE is not defined": the `expect` helper referenced a constant not imported in server.js → added LALADY_NAME_SIZE to the laLadyModel destructure.
-- Fixed the verify column: it compared before-vs-after restore (meaningless — restore is supposed to change the slot). Removed the bogus match; now returns `readbackName` (clean name read back from flash) per slot, UI shows it instead of the raw OSBF name (which carries \u0000 null padding that rendered as squares).
+- Fixed 500 "LALADY_NAME_SIZE is not defined": the `expect` helper referenced a constant not imported in server.js в†’ added LALADY_NAME_SIZE to the laLadyModel destructure.
+- Fixed the verify column: it compared before-vs-after restore (meaningless вЂ” restore is supposed to change the slot). Removed the bogus match; now returns `readbackName` (clean name read back from flash) per slot, UI shows it instead of the raw OSBF name (which carries \u0000 null padding that rendered as squares).
 - Write-side sanitize: `commitRawPreset` + `writePreset` now strip all non-printable bytes ([^\x20-\x7e]) from names before writing to flash, so no null padding ever lands on the device.
 - Diagnostics: added a console.log per restored slot (wrote name vs readback name + data match).
 - Checks: node -c (server, sourceAudio) + ng build pass. Backend restart required to load: LALADY_NAME_SIZE import, write-side strips, /api/restore {text}, readbackName response.
@@ -1379,17 +1379,17 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 ## Progress - 2026-08-31 web: workbench consolidated to Slots tab + circular knob UI
 - Restructured the page into subtabs (Slots / Workbench / Monitor); later moved workbench + backup content around per user request.
 - Slots tab now: removed the page column and the redundant standalone import column; Import button opens a shared hidden file picker (`importSlot(row)` clicks `#importFileInput`, `onImportFileSelected` writes into the originating row); Activate moved before Import. Backup section (Export all / Restore from backup + restore result table) folded into the bottom of the Slots tab; Backup tab removed.
-- Workbench: replaced the long 255px slider rows (uncomfortable — whole range = 255px drag) with compact circular SVG dials. Knobs are grouped into bordered sections laid out in rows: row 1 = Dist 1 | Dist 2, row 2 = Parametric EQ (flex3), row 3 = Noise gate. Param→group mapping by control index: Dist1=[0..12 minus 6], Dist2=[13..25 minus 19], EQ=[27..36 minus 29,31], Gate=[26,37,38,39].
-- Dial geometry: value 0..255 → 270° sweep from lower-left to lower-right (screen coords, Y down); pointer via (x=20+13cos, y=20+13sin), arc via dasharray + fixed 135° start rotation. Edited knobs highlighted amber (`modified` when value != snapshot).
-- Knob interaction: vertical drag (up=up, down=down) at 4px/value step (full range ≈64px vs old 255px), plus mouse wheel; reuses `onParamInput` realtime throttle + Save overrides. Added `knobRows` getter, `knobDown/Move/Up/Wheel`, pointer/wheel geometry helpers.
+- Workbench: replaced the long 255px slider rows (uncomfortable вЂ” whole range = 255px drag) with compact circular SVG dials. Knobs are grouped into bordered sections laid out in rows: row 1 = Dist 1 | Dist 2, row 2 = Parametric EQ (flex3), row 3 = Noise gate. Paramв†’group mapping by control index: Dist1=[0..12 minus 6], Dist2=[13..25 minus 19], EQ=[27..36 minus 29,31], Gate=[26,37,38,39].
+- Dial geometry: value 0..255 в†’ 270В° sweep from lower-left to lower-right (screen coords, Y down); pointer via (x=20+13cos, y=20+13sin), arc via dasharray + fixed 135В° start rotation. Edited knobs highlighted amber (`modified` when value != snapshot).
+- Knob interaction: vertical drag (up=up, down=down) at 4px/value step (full range в‰€64px vs old 255px), plus mouse wheel; reuses `onParamInput` realtime throttle + Save overrides. Added `knobRows` getter, `knobDown/Move/Up/Wheel`, pointer/wheel geometry helpers.
 - Checks: ng build passes. No backend changes this step.
 
 ## Progress - 2026-08-31 web: show currently-active pedal slot in workbench
 - Before, the workbench only showed the slot the user CLICKED; there was no indication of which physical slot the pedal actually had active (set externally via footswitch / Neuro).
-- Added `activeSlotInfo { rawIdx, display, name }` to the component, sourced from GET /api/controls (`activeIndex` raw 0..5, `presetName`). Display number via existing `displaySlotNum(rawIdx)` (SLOT_DISPLAY_ORDER inverse → 1..6).
+- Added `activeSlotInfo { rawIdx, display, name }` to the component, sourced from GET /api/controls (`activeIndex` raw 0..5, `presetName`). Display number via existing `displaySlotNum(rawIdx)` (SLOT_DISPLAY_ORDER inverse в†’ 1..6).
 - Polling: a `workbenchTimer` polls /api/controls every 5s ONLY while the Workbench tab is active (cheap read-only; same pattern the monitor proved safe). Also polls once on ngOnInit, and updates `activeSlotInfo` immediately after `selectSlot(idx)` activates a slot.
-- Tab switching now goes through `setActiveTab()` → `syncActiveSlotPolling()` to start/stop the workbench poll (also used for the tab buttons). Cleaned up timer in ngOnDestroy.
-- UI: workbench shows a "Active: slot N — name" indicator (green dot) and rings the corresponding slot button green (`.phys-active`) to distinguish the pedal-active slot from the merely-selected one (`selectedSlotIdx` blue) — they can differ before you click.
+- Tab switching now goes through `setActiveTab()` в†’ `syncActiveSlotPolling()` to start/stop the workbench poll (also used for the tab buttons). Cleaned up timer in ngOnDestroy.
+- UI: workbench shows a "Active: slot N вЂ” name" indicator (green dot) and rings the corresponding slot button green (`.phys-active`) to distinguish the pedal-active slot from the merely-selected one (`selectedSlotIdx` blue) вЂ” they can differ before you click.
 - Checks: ng build passes. No backend changes.
 
 ## Progress - 2026-09-01 web: browser-native MIDI engage/bypass (CC 102)
@@ -1426,7 +1426,7 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - After adding the distortion-engine dropdown the app became unresponsive for the user. Reverted all uncommitted dist-engines work (server.js /api/engines + parser, models/api/component/html/scss engine-select changes, debug logs) back to the last committed state (912220e / ff9893d). input/dist-engines left in place as a reference (currently unused). ng build + node -c pass.
 
 ## Progress - 2026-09-01 pedal-app: dist-engines select v2
-- Re-implemented the distortion-engine dropdown after the revert. Key change from v1 (which made the app unresponsive): the template no longer uses an ng-template + 'else' reference inside the *ngFor � it renders the select or the dial via two sibling *ngIf blocks instead, eliminating the risky construct.
+- Re-implemented the distortion-engine dropdown after the revert. Key change from v1 (which made the app unresponsive): the template no longer uses an ng-template + 'else' reference inside the *ngFor пїЅ it renders the select or the dial via two sibling *ngIf blocks instead, eliminating the risky construct.
 - Same backend (/api/engines parses input/dist-engines at startup), same identity mapping (verified round-trip: body byte == engine id), same component logic (indices 4/17 as dropdowns, realtime CTRL_SET on change, Save persists, out-of-list bytes shown as '?? N (unknown)').
 - Verified: node -c + ng build pass; throwaway-port smoke test: /api/engines -> 50 engines in ~200ms. Backend restart + dev refresh required for the user to test.
 
@@ -1435,7 +1435,7 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Verified node -c + ng build pass; dist bundle contains the new engine-select code. User must restart BOTH backend and the ng serve dev server (picks up recompile cleanly).
 
 ## Status - 2026-09-01 pedal-app: engine select polish
-- v3 (native select) no longer freezes the UI. Cosmetic pass: dropped the round .engine-ctl circle - the select renders as a plain bordered dropdown below the knob label; option text is now JUST the engine name (no 'id �' prefix). Preselection now uses per-option [selected] bindings (p.value === e.id) instead of [value] on the select, so the current engine is shown even when the engine list loads after the params; unknown bytes keep '?? N (unknown)' auto-selected. ng build passes.
+- v3 (native select) no longer freezes the UI. Cosmetic pass: dropped the round .engine-ctl circle - the select renders as a plain bordered dropdown below the knob label; option text is now JUST the engine name (no 'id пїЅ' prefix). Preselection now uses per-option [selected] bindings (p.value === e.id) instead of [value] on the select, so the current engine is shown even when the engine list loads after the params; unknown bytes keep '?? N (unknown)' auto-selected. ng build passes.
 
 ## Plan - 2026-09-02 pedal-app: Neuro-style discrete controls (selects/toggles/segments)
 - Goal: remake more knobs into Neuro-style controls (selects, toggles, segmented buttons), mirroring the Neuro editor UI, reusing the proven native-element pattern that fixed the UI freeze.
@@ -1514,7 +1514,7 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 - Bug: dragging one knob / changing dist engine caused MANY knobs to move and turn yellow. Root: the 2s mirror always ran, reconciling every control against the pedal's live table and (until the last commit) flagging them as edits; live-vs-flash drift accumulated over passes so one interaction lit up many controls.
 - Fix per user request ('make a button to start observing real values, and stop'):
   - Mirror no longer auto-starts (removed startMirror() from ngOnInit).
-  - Added mirrorOn flag + toggleMirror() and an 'Observe live' / '● Observing live…' button in the workbench slot-picker. Clicking Start begins the 2s /api/controls reconciliation; Stop halts it.
+  - Added mirrorOn flag + toggleMirror() and an 'Observe live' / 'в—Џ Observing liveвЂ¦' button in the workbench slot-picker. Clicking Start begins the 2s /api/controls reconciliation; Stop halts it.
   - Editing (drag/select) only ever writes the single touched control (setField/queueLive) - no other knobs change unless Observation is on and the pedal's live values genuinely move.
   - mirrorControls() also updated earlier (previous commit) to never add to editedOverrides/slotsDirty - yellow now only reflects actual user edits.
 - Files: web/src/app/dist/lalady/lalady.component.ts (mirrorOn, toggleMirror, no auto-start), lalady.component.html (Observe live button), lalady.component.scss (.mirror-toggle/.on). ng build passes.
@@ -1529,19 +1529,19 @@ NEXT: run the UI (nm start) pointing at the running pedal-app server; knobs/butt
 ## Progress - 2026-09-02 pedal-app+web: new read-only 'Observe' tab
 - Added a read-only 'Observe' tab between Workbench and Slots. Shows the CURRENT live state of every control (knobs, selects, toggles, segmented) in the same group layout as the workbench, rendered as plain text labels - nothing editable.
 - Values poll via the existing /api/controls -> monitor (5s, reused monitorOn/toggleMonitor/startMonitor); openObserve() switches tab and auto-starts the poll.
-- Data model: observeGroups getter iterates CONTROL_GROUPS x controlSpecsByIndex (no slotParams dependency); observeNative(spec) reads the live value by spec.liveIndex; observeLabel(spec) formats by type (knob: toUI(native); select/segmented: option text or '?? N (unknown)'; toggle: ON/OFF). Packed/unbound (liveIndex null) show '—' in muted style.
+- Data model: observeGroups getter iterates CONTROL_GROUPS x controlSpecsByIndex (no slotParams dependency); observeNative(spec) reads the live value by spec.liveIndex; observeLabel(spec) formats by type (knob: toUI(native); select/segmented: option text or '?? N (unknown)'; toggle: ON/OFF). Packed/unbound (liveIndex null) show 'вЂ”' in muted style.
 - CSS: .obs-knob/.obs-label/.obs-value read-only cards. ng build passes.
 - Files: web/src/app/dist/lalady/lalady.component.ts, lalady.component.html, lalady.component.scss.
 
 ## Progress - 2026-09-02 pedal-app+web: HID-only MIDI, full 255 knob range, merged Monitor+Observe
-- **MIDI reverted to HID-only**: removed Web MIDI CC sends from queueLive — all knob writes go through `controlLive` (HID CTRL_SET). Removed `LaladyMidiService` import, `controlToCc`/`recentCc`/`CC_GRACE_MS`, `fetchMidiMap()`, `toggleMidiEngage()`, MIDI engage button, MIDI channel chip, `.midi-engage-btn`/`.midi-chip` styles. External MIDI/physical knob changes still visible via the mirror poll.
-- **Knob range 0..255 (full native resolution)**: removed `isKnob()`, `toUI()`, `toNative()` scaling — `fieldValue()` returns raw byte, `toUIMax()` returns `spec.max` for all types. Knobs now have 256 points of resolution instead of 128. SetField uses `Math.min(spec.max, uiValue)` directly.
+- **MIDI reverted to HID-only**: removed Web MIDI CC sends from queueLive вЂ” all knob writes go through `controlLive` (HID CTRL_SET). Removed `LaladyMidiService` import, `controlToCc`/`recentCc`/`CC_GRACE_MS`, `fetchMidiMap()`, `toggleMidiEngage()`, MIDI engage button, MIDI channel chip, `.midi-engage-btn`/`.midi-chip` styles. External MIDI/physical knob changes still visible via the mirror poll.
+- **Knob range 0..255 (full native resolution)**: removed `isKnob()`, `toUI()`, `toNative()` scaling вЂ” `fieldValue()` returns raw byte, `toUIMax()` returns `spec.max` for all types. Knobs now have 256 points of resolution instead of 128. SetField uses `Math.min(spec.max, uiValue)` directly.
 - **Monitor + Observe merged into one tab**: removed Monitor tab from nav and HTML. Observe tab now contains all live value display (same grouped layout). Removed `.unbound` CSS class (no CC tracking). Mirror grace guard removed since no CCs are sent from UI.
 - Files: web/src/app/dist/lalady/lalady.component.ts, lalady.component.html, lalady.component.scss, lalady-midi.service.ts (kept but no longer imported).
 
 ## Progress - 2026-09-02 pedal-app+web: move static inspector to Angular Inspect tab, delete fallback
 - Moved all diagnostic features from `pedal-app/web/index.html` into a new Angular **Inspect** tab.
-- New tab shows: preset flash hex dumps with byte-level breakdown, EEPROM 256-byte dump, MIDI map (CC→control) with region hex, .osbf backup reference with offline .pre export links, EEPROM vs .osbf diff.
+- New tab shows: preset flash hex dumps with byte-level breakdown, EEPROM 256-byte dump, MIDI map (CCв†’control) with region hex, .osbf backup reference with offline .pre export links, EEPROM vs .osbf diff.
 - Added `EepromData`, `OsbfData`, `PresetRow` models to `lalady.models.ts`.
 - Added `eeprom()`, `osbf()`, `exportRefUrl()` API methods to `lalady-api.service.ts`.
 - Added `midiMapBound` getter, `formatHex()`, `exportRefUrl()`, `loadInspect()` to component.
@@ -1646,18 +1646,18 @@ g serve.
 ## Status - 2026-09-05 pedal-app/web: Randomizer implemented (backend + web), builds clean
 - Backend back/lalady/server.js: CORS now allows PUT/DELETE. Added randomizer-data/ JSON store (randLoad/randSave atomic tmp+rename, randUuid ids, normalizeGroup/normalizePreset with regex-validated 106-hex bodyHex and saveToSlot 0..5). CRUD: /api/randomize/groups (GET/POST/PUT/DELETE) and /api/randomize/presets (GET/POST/PUT/DELETE). POST preset name defaults to rand-N; POST/PUT saveToSlot also persist to the pedal slot via persistBody (writePreset -> setActivePreset). Extracted persistBody(rawIdx, body, name) helper; /api/slots/save now reuses it (same call sequence, low regression risk).
 - web lalady.models.ts: RandomizeGroup, RandomizePreset, RandomizePresetCreate, RandomizeList. lalady-api.service.ts: randomizeGroups/Create/Update/Delete + randomizePresets/Create/Update/Delete (update accepts saveToSlot).
-- lalady.component.ts: activeTab extended with "randomize"; openRandomize() loads groups+presets. Scene engine: bodyValues() (53-byte body from loaded slot params), randomTargets() (randAll -> all 45 specs, else per-group random N-props sampling, groups ordered by priority asc), randomizeBody() composes packed bytes in place, applyScene() mutates param bytes + editedOverrides + slotsDirty and pushes each changed spec with a liveIndex via the existing 40ms-coalesced queueLive (multi-spec bytes 26/30/32/38 fire per-spec sub-fields — siblings never clobbered). fieldFor() algorithms: uniform, center (middle +/- 1/6), extremes (0/max), drift (step ~1/12); select/segmented/toggle always resolve to a legal option. Scene history: pushScene truncates forward tail, stepScene(-1/1) applies, play/pause timer at 3/5/7/10s. Groups CRUD editor (name/priority/props + 45-spec checkbox picker keyed "index:name"), presets CRUD (save current workbench body as rand-N preset, Load (push+apply), save to any of 6 slots, Rename via prompt, Delete), fmtTs timestamps. ngOnDestroy clears the rand timer.
+- lalady.component.ts: activeTab extended with "randomize"; openRandomize() loads groups+presets. Scene engine: bodyValues() (53-byte body from loaded slot params), randomTargets() (randAll -> all 45 specs, else per-group random N-props sampling, groups ordered by priority asc), randomizeBody() composes packed bytes in place, applyScene() mutates param bytes + editedOverrides + slotsDirty and pushes each changed spec with a liveIndex via the existing 40ms-coalesced queueLive (multi-spec bytes 26/30/32/38 fire per-spec sub-fields вЂ” siblings never clobbered). fieldFor() algorithms: uniform, center (middle +/- 1/6), extremes (0/max), drift (step ~1/12); select/segmented/toggle always resolve to a legal option. Scene history: pushScene truncates forward tail, stepScene(-1/1) applies, play/pause timer at 3/5/7/10s. Groups CRUD editor (name/priority/props + 45-spec checkbox picker keyed "index:name"), presets CRUD (save current workbench body as rand-N preset, Load (push+apply), save to any of 6 slots, Rename via prompt, Delete), fmtTs timestamps. ngOnDestroy clears the rand timer.
 - Template: nav tab + full Randomize section (player, auto mode, history nav, group editor/list, preset save form + table with per-row slot select). SCSS: dark-theme styles (.randomize, .rand-player, .rand-specs checkbox grid, tags, chips, .rand-presets).
 - Validation: node --check back/lalady/server.js OK; stored-helper logic unit-checked inline via node -e (defaults, regex, key filtering, slot bounds); `npm run build -- --configuration development` clean (AOT compiles templates). NOT committed; backend/UI not yet exercised live against the pedal (per work rules the user runs backend :3111 and ng serve).
 
 ## Plan - 2026-09-05 h90: SikuliX GUI automation for native H90 Control
-- Next session goal: drive the native Windows "H90 Control.exe" (v1.9.13, JUCE) UI via SikuliX image recognition — click its on-screen knobs and presets to trigger REAL MIDI/HID traffic for capture/RE, instead of replayed frames.
+- Next session goal: drive the native Windows "H90 Control.exe" (v1.9.13, JUCE) UI via SikuliX image recognition вЂ” click its on-screen knobs and presets to trigger REAL MIDI/HID traffic for capture/RE, instead of replayed frames.
 - Setup now (this session): put SikuliX + a Java runtime under back/h90/sikulix/, self-contained (no system install): 
-  - sikulixide-2.0.5-win.jar (IDE, ~77 MB) + sikulixapi-2.0.5-win.jar (~75 MB) from Launchpad (SikuliX 2.0.5, built w/ Java 17; requires Java 11+ and VC++ 2015+ x64 redist — v14.42 already present).
+  - sikulixide-2.0.5-win.jar (IDE, ~77 MB) + sikulixapi-2.0.5-win.jar (~75 MB) from Launchpad (SikuliX 2.0.5, built w/ Java 17; requires Java 11+ and VC++ 2015+ x64 redist вЂ” v14.42 already present).
   - Portable Temurin JRE 17 x64 (api.adoptium.net latest/17 ga win x64 jre hotspot) extracted under back/h90/sikulix/jre/.
   - Launch scripts (sikulix-ide.cmd) pinned to same Java 11(17) so it works without a system java.
   - Workspace skeleton back/h90/sikulix/projects/ with a .sikuli smoke script (no patterns needed): captures the current screen to PNG and logs screen size + H90 Control window region, proving the toolchain end-to-end; real knob/preset images to be recorded with the IDE capture tool next session.
-  - README back/h90/sikulix/README.md: versions, URLs, first-run IDE Setup click, script-run commands, pitfalls (DPI scaling vs image match, VC++ redist, ~/.sikulix runtime dir, SikuliX works only on the visible desktop — no headless).
+  - README back/h90/sikulix/README.md: versions, URLs, first-run IDE Setup click, script-run commands, pitfalls (DPI scaling vs image match, VC++ redist, ~/.sikulix runtime dir, SikuliX works only on the visible desktop вЂ” no headless).
 - Repo policy: jars + jre are runtime artifacts -> gitignore back/h90/sikulix/sikulix*jar and /jre/; keep scripts/README/project versioned. Provide download.cmd to re-fetch idempotently.
 
 ## Status - 2026-09-05 h90: SikuliX setup
@@ -1672,8 +1672,8 @@ g serve.
 - User report (repeat of the packed-byte chaos class): while working with the device ENGAGED, Treble Cut Filter (body byte 30, bit 0) changes after touching OTHER knobs.
 - Investigation on the live pedal (:3111, active slot oct2+octFuzz idx 4):
   - Storage path is CLEAN: an API-level churn (flash-commit byte 32, live CTRL_SET idx 30, then a raw /api/slots/save) left body[30]=0x1d and bit 0 intact; the Playwright workbench audit passes 45/45 (probe keeps byte 30, save round-trip byte-exact, restore OK).
-  - REAL DEFECT 1 — allParamsZero() ("all 0" button) routes live writes by BODY index: for (const p of params) controlLive({index: p.index, value:0}); body<->live numbering only agrees 0..25, and packed bytes 26/30/32/38 have no 1:1 live byte. It zeroes the WRONG live controls AND its editedOverrides on the packed bytes zeroes byte 30 (=> Treble Cut Filter -> 0) on the next Save. This is the "treble cut filter changes while fiddling knobs" machine: one click, then Save, and the packed treble byte is gone.
-  - REAL DEFECT 2 (observed hardware behavior, not code): CTRL_SET writes to live indices 0..15 stick (readback confirms), but indices 16..39 are IGNORED by the pedal (readControlBlock never reflects them). So dragging any Parametric EQ / gate / routing knob (live 26..36) is SILENT until Save — the workbench "hears live" promise does not hold for that section on this pedal. Root question (16-bit framing / scaled range) deferred; documented here as a finding.
+  - REAL DEFECT 1 вЂ” allParamsZero() ("all 0" button) routes live writes by BODY index: for (const p of params) controlLive({index: p.index, value:0}); body<->live numbering only agrees 0..25, and packed bytes 26/30/32/38 have no 1:1 live byte. It zeroes the WRONG live controls AND its editedOverrides on the packed bytes zeroes byte 30 (=> Treble Cut Filter -> 0) on the next Save. This is the "treble cut filter changes while fiddling knobs" machine: one click, then Save, and the packed treble byte is gone.
+  - REAL DEFECT 2 (observed hardware behavior, not code): CTRL_SET writes to live indices 0..15 stick (readback confirms), but indices 16..39 are IGNORED by the pedal (readControlBlock never reflects them). So dragging any Parametric EQ / gate / routing knob (live 26..36) is SILENT until Save вЂ” the workbench "hears live" promise does not hold for that section on this pedal. Root question (16-bit framing / scaled range) deferred; documented here as a finding.
 - Fix: allParamsZero() sends one CTRL_SET per distinct liveIndex via the existing queueLive() (specs with liveIndex null e.g. all of byte 30 are not poked at all), and keeps the byte-level editedOverrides (packed bytes zeroed whole on Save = the button's stated intent). No backend change.
 - Tests to add (new web/tests/lalady-treble-cut.audit.spec.ts, self-restoring, workers=1):
   - A) TCI-isolation: for every control EXCEPT the four byte-30 specs, drive it once (wheel select/selopt/toggle/seg), then assert (a) the Treble Cut Filter DOM select still shows the snapshot field and (b) a fresh /api/slot-params read keeps byte 30 === snapshot byte 30.
@@ -1686,18 +1686,18 @@ g serve.
 - Done: new web/tests/lalady-common.ts (shared pure control-map helpers: fieldOf/flashByte/restoreBody/knobRoot/knobValue/changeKnob/pickOtherOption) + web/tests/lalady-treble-cut.audit.spec.ts (CNB treble-cut isolation suite: A drives all 41 other controls asserting TCF DOM select AND flash byte 30 unchanged after each; B Save + reload keep byte 30 + select; C drives the three byte-30 siblings asserting bit 0 stays 1; afterAll restores original 53-byte body via /api/slots/save overrides). First run failed only via a dangling page.waitForResponse (flash-path waiters were created but never awaited) -> driveControl now always settles the relevant waiter (realtime: validates index+value payload; flash: validates target index). Second run full suite: 2 passed (new spec 44.1s + workbench audit 55.5s), pedal restored to original body after each.
 - Done: lalady.component.ts allParamsZero() now maps live writes through controlSpecsByIndex with one queueLive(s,0) per distinct liveIndex (skips liveIndex==null packed specs), keeps byte-level editedOverrides so packed bytes are zeroed whole on Save. No backend change.
 - Verify results: npx playwright test --config=playwright.config.ts => 2 passed (1.8m); ng build --configuration development => clean (lalady-component chunk 158 kB, EXIT=0).
-- Reconfirmed finding: live CTRL_SET indices 16..39 still ignored by the pedal (16..31 read back 0/255 flaky) — deferred to the framing investigation.
+- Reconfirmed finding: live CTRL_SET indices 16..39 still ignored by the pedal (16..31 read back 0/255 flaky) вЂ” deferred to the framing investigation.
 
 ## Plan - 2026-09-05 pedal-app/web: visible action log + packed-byte watchdog + mirror listening guard
-- User follow-up: "add logging to user actions and listen to real value changes... trebleCutFilter is affected by other knobs changes... run playwright on real web, show it to me, fix it!" — the isolation suite passes, so the remaining risk is paths my earlier tests did NOT exercise: the live-value MIRROR (Observe live) and the "all 0" button.
-- Re-inspection found the actual listening flaw: mirrorControls() applies EVERY live-table value for spec.liveIndex — but the pedal provably IGNORES CTRL_SET writes in live 16..39 and reads those slots back as 0/255 stale garbage. So with the observer enabled the workbench clips fresh EQ/gate knob edits with stale pedal reads AND occasionally flashes wrong values in the Parametric EQ group. That, plus the unmonitored Save, is the visible "knobs misbehave" chaos the user keeps hitting.
+- User follow-up: "add logging to user actions and listen to real value changes... trebleCutFilter is affected by other knobs changes... run playwright on real web, show it to me, fix it!" вЂ” the isolation suite passes, so the remaining risk is paths my earlier tests did NOT exercise: the live-value MIRROR (Observe live) and the "all 0" button.
+- Re-inspection found the actual listening flaw: mirrorControls() applies EVERY live-table value for spec.liveIndex вЂ” but the pedal provably IGNORES CTRL_SET writes in live 16..39 and reads those slots back as 0/255 stale garbage. So with the observer enabled the workbench clips fresh EQ/gate knob edits with stale pedal reads AND occasionally flashes wrong values in the Parametric EQ group. That, plus the unmonitored Save, is the visible "knobs misbehave" chaos the user keeps hitting.
 - Add to lalady.component.ts: (a) operator actionLog[] recording every SET (byte/spec/field before->after + live/flash route), LIVE flush, FLASH commit+readback, SAVE overrides, all-0, mirror OBSERVE reads/diffs; rendered as a collapsible panel (data-sel=action-log) and exposed as window.__laladyActions for E2E; (b) packed-byte watchdog: mirror polls + every write re-check bytes 26/30/32/38 against the load-time baseline and emit a CLOBBER line if they moved WITHOUT a user edit on that byte; (c) mirror listening guard: apply only verified-writable live indices (0..15); skip 6/19/16..39 where the pedal ignores writes or reports stale 0/255.
 - New spec web/tests/lalady-listen.audit.spec.ts (self-restoring): (A) enable Observe live, then drive non-byte-30 controls (real mouse drag + wheel + select/toggle/seg) with a Save after each group, asserting after each: TCF select + flash byte 30 stable, and the action log contains NO CLOBBER/byte-30 SET lines from non-TCF controls, and at least 2 OBSERVE poll lines (listener proven on the real web); (B) all-0 -> Save persists byte 30 == 0 (intended) and DOM select shows 0; afterAll restores the original body.
 - Verify: npm run test:e2e:lalady (3 specs, device attached); attach the listen-audit evidence JSON; ng build development clean.
 
 ## Status - 2026-09-05 pedal-app/web: action log + packed-byte watchdog + mirror listening guard
-- Done: lalady.component.ts now keeps an operator action log (SET with spec/field/before->after byte hex + LIVE#/FLASH route, LIVE flush, FLASH commit + readback, SAVE overrides incl byte30Override presence, ZERO, OBSERVE poll/diff/untrusted-skip, REVERT) rendered as a collapsible "Action log" panel (data-sel=action-log, CLOBBER lines turn it ⚠ red) and exposed as window.__laladyActions for E2E. Packed-byte watchdog: every discrete writeback and every observe poll re-checks bytes 26/30/32/38 against the load-time baseline and logs a CLOBBER line if one moved WITHOUT a user edit on that byte; user edits and committed readbacks re-anchor the baseline (credit fix — first run flagged its own legit byte-26/32/38 composed edits until the credit covered all four packed bytes).
-- Done: mirror listening guard — the observe mirror now applies ONLY live indices the pedal provably honors (0..15); 6/19/16..39 (CTRL_SET ignored, reads back stale 0/255) are skipped and the skip is logged. Workbench no longer replays stale pedal reads over fresh EQ/gate knob edits.
+- Done: lalady.component.ts now keeps an operator action log (SET with spec/field/before->after byte hex + LIVE#/FLASH route, LIVE flush, FLASH commit + readback, SAVE overrides incl byte30Override presence, ZERO, OBSERVE poll/diff/untrusted-skip, REVERT) rendered as a collapsible "Action log" panel (data-sel=action-log, CLOBBER lines turn it вљ  red) and exposed as window.__laladyActions for E2E. Packed-byte watchdog: every discrete writeback and every observe poll re-checks bytes 26/30/32/38 against the load-time baseline and logs a CLOBBER line if one moved WITHOUT a user edit on that byte; user edits and committed readbacks re-anchor the baseline (credit fix вЂ” first run flagged its own legit byte-26/32/38 composed edits until the credit covered all four packed bytes).
+- Done: mirror listening guard вЂ” the observe mirror now applies ONLY live indices the pedal provably honors (0..15); 6/19/16..39 (CTRL_SET ignored, reads back stale 0/255) are skipped and the skip is logged. Workbench no longer replays stale pedal reads over fresh EQ/gate knob edits.
 - New web/tests/lalady-listen.audit.spec.ts (self-restoring): observe-live ON -> real mouse drags (Left Drive 0->100, Mid A Freq 1->101 stayed proven) + wheel/select/toggle/seg across 13 other controls, asserting after each: TCF select + fresh flash byte 30 == snapshot, no CLOBBER / no byte-30 SET lines in the log, SAVE keeps byte 30 with byte30Override=none, reload keeps the select; then all-0 -> Save persists a full zero body (byte 26/30/32/38 == 0, intended) with no CLOBBER.
 - Verify results (device engaged, :4211/:3111): npx playwright test -> 3 passed (listen 33.9s incl 19 OBSERVE polls, treble-cut 43.6s, workbench audit 55.4s, total 2.4m); ng build --configuration development clean. Pedal restored to original body after each spec.
 - Finding at the end of the pencil: byte 30 is provably isolated on the real web (single SAVE line recorded byte30Override=none while 11 other-byte overrides persisted). The literal "treble cut filter affected by other knobs" did NOT reproduce; the packed-byte chaos this session exposed lives in the observe-mirror replaying stale live 16..39 (now guarded) and in allParamsZero routing (fixed earlier).
@@ -1713,27 +1713,27 @@ g serve.
 - Done: tests/diag-bass-jump.audit.spec.ts (diagnostic real-web scan, kept in the suite) + lalady-listen.audit.spec.ts extended to the bass family: family baseline (TCF=1, BassCut=0, BassSlope=Low, BassRolloff=0) asserted unchanged after each of 12 other-control drives AND after Save (SAVE idx=4 overrides=10 byte30Override=none) AND after reload; all-0 -> Save full-zero body still no CLOBBER.
 - Done: lalady.component.ts flushDiscrete() readback-stomp guard (only apply readback to the param when no newer discretePending targets the same byte).
 - Verify results (device engaged): npx playwright test -> 4 passed (diag 12.8s, listen 30.3s, treble-cut 43.5s, workbench audit 55.4s, total 2.6m); ng build development clean; all slots restored to original bodies.
-- Outcome: bass byte 32 is as isolated as treble byte 30 on current code + engaged pedal — no mechanism, code path, or observed behavior changes it from other-knob edits (flash API probes + real-web DOM scan + extended listen suite all agree). The two prior real defects behind the whole "jumping" class (untrusted-window mirror replay + flash commit readback stomp) are now fixed and covered.
+- Outcome: bass byte 32 is as isolated as treble byte 30 on current code + engaged pedal вЂ” no mechanism, code path, or observed behavior changes it from other-knob edits (flash API probes + real-web DOM scan + extended listen suite all agree). The two prior real defects behind the whole "jumping" class (untrusted-window mirror replay + flash commit readback stomp) are now fixed and covered.
 
 ## Plan - 2026-09-05 pedal-app/web: field-scoped "modified" highlight for packed bytes
 - User report (slot 2): changing Treble Shelf Slope to Low marks Treble Cut Filter / Treble Boost Maximum / Treble Boost Rolloff with the edited (light-bordered) style, though their values did not change; suspects it may indicate wrong behavior.
-- Cause: workbench "modified" class binds `c.p.value !== initialValue(c.p.index)` — a WHOLE-BYTE comparison. Packed byte 30 hosts 4 fields; any sibling edit changes byte 30 -> all four controls light up. Values and writes are unaffected (masked composition + byte-level overrides, proven by the suites), but the highlight is misleading and masks real field state.
+- Cause: workbench "modified" class binds `c.p.value !== initialValue(c.p.index)` вЂ” a WHOLE-BYTE comparison. Packed byte 30 hosts 4 fields; any sibling edit changes byte 30 -> all four controls light up. Values and writes are unaffected (masked composition + byte-level overrides, proven by the suites), but the highlight is misleading and masks real field state.
 - Fix: field-scoped dirty test, `fieldChanged(spec, p)`: compare ONLY the spec's field bits (`(p.value & mask) >>> shift`) against the snapshot byte's same bits. Swap the four `[class.modified]` bindings (select/toggle/segmented/knob) to it. Remove now-unused `initialValue`. EditedOverrides stay byte-level (Save semantics unchanged).
-- Test: extend lalady-treble-cut STEP C — while driving the byte-30 siblings one at a time, assert only the JUST-driven sibling carries `.modified`; the not-yet-touched siblings must stay clean; after all three drives all byte-30 fields are modified. Values/byte 30 assertions unchanged.
+- Test: extend lalady-treble-cut STEP C вЂ” while driving the byte-30 siblings one at a time, assert only the JUST-driven sibling carries `.modified`; the not-yet-touched siblings must stay clean; after all three drives all byte-30 fields are modified. Values/byte 30 assertions unchanged.
 - Verify: npm run test:e2e:lalady (4 specs, device attached); ng build development clean.
 
 ## Status - 2026-09-05 pedal-app/web: field-scoped "modified" highlight for packed bytes
 - Done: lalady.component.ts `initialValue` (whole-byte snapshot compare) replaced by `fieldChanged(spec, p)` comparing only the spec's field bits (`(p.value & mask) >>> shift`) against the snapshot; the four `[class.modified]` bindings (select/toggle/segmented/knob) now use it. EditedOverrides remain byte-level; Save semantics untouched.
-- Done: lalady-treble-cut STEP C now also checks the highlight is field-scoped while driving each sibling — only the just-driven editor lights up; untouched siblings stay clean.
+- Done: lalady-treble-cut STEP C now also checks the highlight is field-scoped while driving each sibling вЂ” only the just-driven editor lights up; untouched siblings stay clean.
 - Verify results (device engaged): npx playwright test -> 4 passed (2.6m); STEP C reports "modified highlight stayed field-scoped (all clean)"; ng build development clean; slot bodies restored.
 - Outcome: user report (slot 2) was a presentational false positive, not a write/readback defect: whole-byte dirty compare made all byte-30 siblings appear edited when only Treble Shelf Slope changed. Now only the field actually changed is highlighted; byte writes, overrides, and round-trips are unchanged.
 
 ## Plan - 2026-09-06 h90: SikuliX first real run (IDE Setup + H90 Control capture)
-- State check: back/h90/sikulix toolchain complete (jars + Temurin JRE 17, launchers, smoke project). H90 Control v1.9.13 is INSTALLED on this Windows box (registry Uninstall entry present) but not running. ~/.sikulix runtime dir does NOT exist yet => the one-time SikuliX IDE Setup screen (downloads Jython) has NOT been clicked through — that manual GUI step is the gate before any image-recognition script can run.
+- State check: back/h90/sikulix toolchain complete (jars + Temurin JRE 17, launchers, smoke project). H90 Control v1.9.13 is INSTALLED on this Windows box (registry Uninstall entry present) but not running. ~/.sikulix runtime dir does NOT exist yet => the one-time SikuliX IDE Setup screen (downloads Jython) has NOT been clicked through вЂ” that manual GUI step is the gate before any image-recognition script can run.
 - This session (manual, needs visible desktop; per work rules user runs the interactive parts):
   1. Launch H90 Control.exe so the JUCE window is on the primary screen (not minimized, fixed DPI).
   2. Run back/h90/sikulix/sikulix-ide.cmd once; click through the Setup/install buttons (IDE+API, Jython), it quits after creating ~/.sikulix; relaunch to confirm the IDE opens.
-  3. Run the smoke: back/h90/sikulix/sikulix-run.cmd back\h90\sikulix\projects\h90-smoke.sikuli — logs screen size + H90 window region + saves sikuli-smoke-shot.png (proof the toolchain reads the real screen).
+  3. Run the smoke: back/h90/sikulix/sikulix-run.cmd back\h90\sikulix\projects\h90-smoke.sikuli вЂ” logs screen size + H90 window region + saves sikuli-smoke-shot.png (proof the toolchain reads the real screen).
   4. Keep heading: with the IDE capture tool (Ctrl+Shift+drag) record PNGs of the knobs/presets to drive (e.g. a preset thumbnail, a turn-knob), then extend a driver .sikuli that click()s them to fire real MIDI/HID traffic for capture/RE.
 - No code write this session unless a run fails in a fixable way; the .sikuli driver skeleton is the next code target once first PNGs exist.
 ## Status - 2026-09-06 h90: SikuliX first real run on the live H90 Control
@@ -1752,12 +1752,12 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 
 ## Plan - 2026-09-06 pedal-app/web: C4 Synth workbench (echo L.A. Lady)
 - Goal: give the web app a third tab "c4" (beside dist/h90) that interfaces with the connected Source Audio C4 Synth exactly like the L.A. Lady workbench: pick one of 128 user presets, edit its params (hears live), Save persists to the slot. User scoped it to "Workbench only" (no Randomizer/Inspect/Slots parity in v1).
-- Confirmed protocol facts (TeensyC4Synth, MichaelMCE, MIT): C4 is One Series HID VID 0x29a4 PID 0x0302, interface 2, usagePage 0xFFA0; same CMD set as L.A. Lady (CTRL_SET 0x70 / CTRL_GET 0x75 / ACTIVE_STORE 0x76 / ACTIVE_SET 0x77 / ACTIVE_WRITE 0x6e / CONFIG_GET 0x45 / FLASH_READ 0x36 / FLASH_WRITE 0x35 / EEPROM_READ 0x80). 128 user presets at 0x080000 + idx*0x1000, data 128 bytes at page+0x20, name 32B at page+0xA0. Config reply head 0x32: [fw u16][model 249][numPresets 128][activePreset][wysiwyg][bypass][midiChannel] — activePreset byte is directly the preset index (no slot matching like L.A. Lady). Config/midiChannel offsets to be confirmed by live probe before trusting in UI.
+- Confirmed protocol facts (TeensyC4Synth, MichaelMCE, MIT): C4 is One Series HID VID 0x29a4 PID 0x0302, interface 2, usagePage 0xFFA0; same CMD set as L.A. Lady (CTRL_SET 0x70 / CTRL_GET 0x75 / ACTIVE_STORE 0x76 / ACTIVE_SET 0x77 / ACTIVE_WRITE 0x6e / CONFIG_GET 0x45 / FLASH_READ 0x36 / FLASH_WRITE 0x35 / EEPROM_READ 0x80). 128 user presets at 0x080000 + idx*0x1000, data 128 bytes at page+0x20, name 32B at page+0xA0. Config reply head 0x32: [fw u16][model 249][numPresets 128][activePreset][wysiwyg][bypass][midiChannel] вЂ” activePreset byte is directly the preset index (no slot matching like L.A. Lady). Config/midiChannel offsets to be confirmed by live probe before trusting in UI.
 - Control map: 172 entries extracted from ctrl_c4.c as {label, liveIndex, bodyByte, width, shift}. Body bytes 0..125 in use (2 spare). Live index != body byte from voice sections up (e.g. filter1_depth body 38 live 67), mirroring the L.A. Lady body<->live divergence.
-- Write strategy (same as L.A. Lady): whole-byte fields (width 8 shift 0, their own body byte) go realtime via CTRL_SET at liveIndex so edits are heard immediately; bit-packed fields sharing a body byte (voice octave/semitone byte 14, mode/source/envelope byte 15, dest/trem/mod/enable byte 16 + voice 2-4 twins, distortion type/enable 59, filter type/env/invert/enable 41, pitch_track/mix dest 42, envelope type/input 51, fm inputs 62, lfo shape/restart/div 70, harmony byte 110/111, pitch detect 112, ext dest/source/misc bytes 116/117/120/123) use the flash-commit path (ACTIVE_STORE+ACTIVE_WRITE+ACTIVE_SET with the full composed byte). CTRL_GET readback is body-byte-indexed (payload[bodyByte] == body byte) — verify by probe.
-- Backend: new back/c4synth — src/c4Hid.js (PID 0x0302 transport), src/c4Model.js (flash constants + 172-spec control map + MIDI/EEPROM constants), src/c4Protocol.js (config, flashRead, readPreset 128B+name, ACTIVE_* commit, CTRL_SET/GET, EEPROM), server.js Express :3222 (single persistent HID handle, CORS for :4211). Endpoints: /api/device, /api/status, /api/control-map, /api/presets?idx=, /api/activate, /api/control, /api/control/live, /api/presets/save, /api/eeprom, /api/midimap.
-- Enum value->label tables are NOT in the reference repo (midimap_todo.txt is raw HID/pcap dumps) — discrete selects ship as numeric option lists first; foot-noted in UI as "labels TBD from editor"; toggles are width-1 fields. Refinement later from the official editor param lists.
-- Frontend: web/src/app/c4/ — c4.models.ts, c4-api.service.ts (BASE :3222), c4.component.{ts,html,scss} workbench cloned from lalady.component patterns (slot picker 128 locations, Save/Revert/all-0, mirror toggle, action log, SVG knobs), group layout: Level/Input 0-9, Voices 1-4 10-37, Distortion 56-59, Filters+mix 38-47, Envelopes 48-55, FM 60-64, LFO 65-74, Sequencers 75-108, Harmony+pitch 109-113, Knobs/ext 114-125. Tab link in app.component.html + lazy route in app.routes.ts.
+- Write strategy (same as L.A. Lady): whole-byte fields (width 8 shift 0, their own body byte) go realtime via CTRL_SET at liveIndex so edits are heard immediately; bit-packed fields sharing a body byte (voice octave/semitone byte 14, mode/source/envelope byte 15, dest/trem/mod/enable byte 16 + voice 2-4 twins, distortion type/enable 59, filter type/env/invert/enable 41, pitch_track/mix dest 42, envelope type/input 51, fm inputs 62, lfo shape/restart/div 70, harmony byte 110/111, pitch detect 112, ext dest/source/misc bytes 116/117/120/123) use the flash-commit path (ACTIVE_STORE+ACTIVE_WRITE+ACTIVE_SET with the full composed byte). CTRL_GET readback is body-byte-indexed (payload[bodyByte] == body byte) вЂ” verify by probe.
+- Backend: new back/c4synth вЂ” src/c4Hid.js (PID 0x0302 transport), src/c4Model.js (flash constants + 172-spec control map + MIDI/EEPROM constants), src/c4Protocol.js (config, flashRead, readPreset 128B+name, ACTIVE_* commit, CTRL_SET/GET, EEPROM), server.js Express :3222 (single persistent HID handle, CORS for :4211). Endpoints: /api/device, /api/status, /api/control-map, /api/presets?idx=, /api/activate, /api/control, /api/control/live, /api/presets/save, /api/eeprom, /api/midimap.
+- Enum value->label tables are NOT in the reference repo (midimap_todo.txt is raw HID/pcap dumps) вЂ” discrete selects ship as numeric option lists first; foot-noted in UI as "labels TBD from editor"; toggles are width-1 fields. Refinement later from the official editor param lists.
+- Frontend: web/src/app/c4/ вЂ” c4.models.ts, c4-api.service.ts (BASE :3222), c4.component.{ts,html,scss} workbench cloned from lalady.component patterns (slot picker 128 locations, Save/Revert/all-0, mirror toggle, action log, SVG knobs), group layout: Level/Input 0-9, Voices 1-4 10-37, Distortion 56-59, Filters+mix 38-47, Envelopes 48-55, FM 60-64, LFO 65-74, Sequencers 75-108, Harmony+pitch 109-113, Knobs/ext 114-125. Tab link in app.component.html + lazy route in app.routes.ts.
 - Rules respected: no backend process spawn (user runs it); probe scripts are short read-only node -e via back/lalady's node-hid.
 - Verification: node probe (config, flash preset 0, eeprom) against the live pedal; ng build development clean; manual workbench browse on :4211 -> /c4 (user runs :3222).
 
@@ -1772,43 +1772,43 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - Remaining (user runs): npm install + npm start in back/c4synth (node-hid only exists under back/lalady/node_modules), then browse :4211 -> /c4.
 
 ## Plan - 2026-09-06 pedal-app/web: name the C4 select-control enums
-- User: "filter types has titles. find em an name" — the filter1_type/filter2_type selects (body 41/46, 5-bit, values 0..28 in the pedal) should show the editor's titles instead of raw numbers.
-- Found: the official editor ships its full per-pedal module specs bundled in the Neuro Desktop 3 install — `shared-jvm-1.0.0-91965c9ff512b42f7ac3cba096244973.jar/files/sa-249.json` (product 249 = C4) contains dropDownList items for filter1_type/filter2_type: 29 names (3 Parallel Low-Pass, 6 Pole Low-Pass, 2 Pole Low-Pass, Notch/Low-Pass/Peak combos, Bandpass 1/2, Peak/Triple Peak 1-4, Phaser 1-3, High-Pass, Classic Wah, Double Peak, 6 Pole All-Pass, ...). Same file has every other C4 enum we previously left numeric (distortion_type, envelope_type/input, lfo_shape, voice sources/modes, harmony modes, routing, ...).
-- Change: (1) back/c4/src/c4Model.js — add FILTER_TYPES + enumOpts(); filter1_type/filter2_type specs carry options [{value,text}] instead of the numeric numOpts. (2) web c4.component.html — selects render spec.options (named) INSTEAD of the numeric range when present (numeric only as fallback); unknown values 29-31 still show the disabled placeholder via selectValueKnown. Verify: npx ng build development clean.
+- User: "filter types has titles. find em an name" вЂ” the filter1_type/filter2_type selects (body 41/46, 5-bit, values 0..28 in the pedal) should show the editor's titles instead of raw numbers.
+- Found: the official editor ships its full per-pedal module specs bundled in the Neuro Desktop 3 install вЂ” `shared-jvm-1.0.0-91965c9ff512b42f7ac3cba096244973.jar/files/sa-249.json` (product 249 = C4) contains dropDownList items for filter1_type/filter2_type: 29 names (3 Parallel Low-Pass, 6 Pole Low-Pass, 2 Pole Low-Pass, Notch/Low-Pass/Peak combos, Bandpass 1/2, Peak/Triple Peak 1-4, Phaser 1-3, High-Pass, Classic Wah, Double Peak, 6 Pole All-Pass, ...). Same file has every other C4 enum we previously left numeric (distortion_type, envelope_type/input, lfo_shape, voice sources/modes, harmony modes, routing, ...).
+- Change: (1) back/c4/src/c4Model.js вЂ” add FILTER_TYPES + enumOpts(); filter1_type/filter2_type specs carry options [{value,text}] instead of the numeric numOpts. (2) web c4.component.html вЂ” selects render spec.options (named) INSTEAD of the numeric range when present (numeric only as fallback); unknown values 29-31 still show the disabled placeholder via selectValueKnown. Verify: npx ng build development clean.
 
 ## Status - 2026-09-06 pedal-app/web: filter type titles wired (edits only, no device run)
-- Done: back/c4/src/c4Model.js — FILTER_TYPES (29 names, verbatim from shared-jvm/files/sa-249.json, indexed 0..28) + enumOpts(); buildControlSpecs attaches named options to /^filter[12]_type$/ specs (rest unchanged). back folder is back/c4 (user renamed it; start via cd back && npm run start:c4).
-- Done: web/src/app/c4/c4.component.html — select template now prefers spec.options (named) via *ngIf/ng-template else numeric range; the disabled unknown-value placeholder stays.
-- Verify: ng build development clean (c4-component lazy chunk 70.29 kB). Backend not run by me per rules — user starts :3222 and checks the filter Type dropdown on :4211 -> /c4.
+- Done: back/c4/src/c4Model.js вЂ” FILTER_TYPES (29 names, verbatim from shared-jvm/files/sa-249.json, indexed 0..28) + enumOpts(); buildControlSpecs attaches named options to /^filter[12]_type$/ specs (rest unchanged). back folder is back/c4 (user renamed it; start via cd back && npm run start:c4).
+- Done: web/src/app/c4/c4.component.html вЂ” select template now prefers spec.options (named) via *ngIf/ng-template else numeric range; the disabled unknown-value placeholder stays.
+- Verify: ng build development clean (c4-component lazy chunk 70.29 kB). Backend not run by me per rules вЂ” user starts :3222 and checks the filter Type dropdown on :4211 -> /c4.
 - Note for next enum work: sa-249.json remains in the temp extraction; offers ready names for distortion_type, envelope types/inputs, lfo_shape, harmony modes, pitch-detect, routing, etc. when user wants them.
 
 ## Status - 2026-09-06 pedal-app/web: name more C4 selects (destinations, distortion, voiceX)
 - User: "name also selects: destination type, distortion and voiceX_ selects". All names again verbatim from the editor spec shared-jvm/files/sa-249.json presetEditor.controls dropDownList items.
-- Added to back/c4/src/c4Model.js: ENUM_NAMES map (voiceX_mode/source/envelope/destination x4, distortion_type, mix1/mix2_destination, plus existing filter1/2_type now in the same table) — voice sources/13, distortion types/13 (Mild..Max Foldover, from editor's distortion1_type), voice destinations (Filter + Distortion / Filter Only / Direct Output), mix destinations (Output 1 Only / Output 1 + Output 2 / Output 2 Only), envelopes (Envelope OFF/1/2), modes (Fixed Interval / Interval + Harmony 1 / Interval + Sequencer 1).
-- Also converted voice1-4_enable + distortion_enable (both 4-bit on their byte) from numeric selects to proper on/off toggles — the editor renders both as switches; mask/shift fieldValue path handles width-4 toggles unchanged.
-- Verify: ng build development clean (c4-component 70.29 kB, no template change this round — named options already render). Backend restart needed (user runs) to serve the new options on :4211 -> /c4.
+- Added to back/c4/src/c4Model.js: ENUM_NAMES map (voiceX_mode/source/envelope/destination x4, distortion_type, mix1/mix2_destination, plus existing filter1/2_type now in the same table) вЂ” voice sources/13, distortion types/13 (Mild..Max Foldover, from editor's distortion1_type), voice destinations (Filter + Distortion / Filter Only / Direct Output), mix destinations (Output 1 Only / Output 1 + Output 2 / Output 2 Only), envelopes (Envelope OFF/1/2), modes (Fixed Interval / Interval + Harmony 1 / Interval + Sequencer 1).
+- Also converted voice1-4_enable + distortion_enable (both 4-bit on their byte) from numeric selects to proper on/off toggles вЂ” the editor renders both as switches; mask/shift fieldValue path handles width-4 toggles unchanged.
+- Verify: ng build development clean (c4-component 70.29 kB, no template change this round вЂ” named options already render). Backend restart needed (user runs) to serve the new options on :4211 -> /c4.
 
 ## Plan - 2026-09-06 pedal-app/web: name ALL remaining C4 selects from the user guide + editor
 - User added input/c4_synth_user_manual_compressed.pdf (C4 Synth User Guide, 48 pp) and asked to read it and properly name the still-numeric select options. Model can't ingest PDFs directly, so I installed pypdf (user-approved) and extracted text to temp/c4_manual.txt.
-- Confirmed against the manual: 25 filter effects, 14 LFO wave shapes, routing = Auto Detect / Single Input 1 / Dual Input 1 & 2 / External Loop (Pre-Processing) (matches editor), "LFO Time Ratio Dropdown", "Octave/Semitone Pull-Down Menus", "Envelope Type Dropdown", "Beat Division Dropdown", pitch tracking ratios 1/3, 2/3, 1 Octave. The manual is descriptive; the exhaustive option lists live in the editor bundle shared-jvm/files/sa-249.json (controls: items arrays) — used as the enumeration source.
-- Sanity-grounded value ordering using the 128-preset backup: semitone 11 dominant ("Semi --"/unison), octave 4/5 dominant (the -1/-2 sub-octaves bass patches stack), sequencer steps 14 dominant (=16 steps full), lfo_2_multiply 0/1 dominant (1x/2x) — all consistent with direct value==items-index mapping (same as the already-shipped filter1_type mapping).
+- Confirmed against the manual: 25 filter effects, 14 LFO wave shapes, routing = Auto Detect / Single Input 1 / Dual Input 1 & 2 / External Loop (Pre-Processing) (matches editor), "LFO Time Ratio Dropdown", "Octave/Semitone Pull-Down Menus", "Envelope Type Dropdown", "Beat Division Dropdown", pitch tracking ratios 1/3, 2/3, 1 Octave. The manual is descriptive; the exhaustive option lists live in the editor bundle shared-jvm/files/sa-249.json (controls: items arrays) вЂ” used as the enumeration source.
+- Sanity-grounded value ordering using the 128-preset backup: semitone 11 dominant ("Semi --"/unison), octave 4/5 dominant (the -1/-2 sub-octaves bass patches stack), sequencer steps 14 dominant (=16 steps full), lfo_2_multiply 0/1 dominant (1x/2x) вЂ” all consistent with direct value==items-index mapping (same as the already-shipped filter1_type mapping).
 
 ## Status - 2026-09-06 pedal-app/web: all C4 selects named (manual read + editor enums)
 - Tooling: pip-installed pypdf 6.16.2 (python 3.12.6 present); extracted 48-page C4 Synth User Guide -> C:\Users\Thoma\AppData\Local\Temp\opencode\c4_manual.txt (kept for reference).
-- back/c4/src/c4Model.js: ENUM_NAMES now covers 60 specs (eyeball: only fm_sine2_input stays numeric — it's a per-voice 1-bit group in the editor, semantic mismatch for a flat 7-bit field). Added voice octave (7) / semitone (23), filter env source (2: Env/LFO 1/2), filter pitch track (4: OFF + 1/3, 2/3, 1 Octave), envelope type (12) + input (2), lfo shape (14), beat division (6: Whole..Sixteenth), lfo_2_multiply (11: LFO 2 = 1x..64x), harmony key (12) / mode (23 scales) / interval (6: +2nd..+7th), routing (4), pitch detect input/mode (2+2) and low/high note ranges (21 note names G2..B0 / 32 names E6..A3), ext1-3 source (4: OFF + Ctrl In X/Y + Hub Exp) and destination (49), knob1/2 assign (48, = EXT_DESTINATIONS minus External Mod) , sequencer steps (15: 2..16 Steps).
-- Type refinements (editor-aligned): named whole-byte fields promote knob->select (lfo_2_multiply live#105, pitch_detect_high_note live#150, knob1/2_assign live#151/152, sequencer1/2_steps live#109/126 — remain realtime live writes); 1-bit fields with real labels promote toggle->select (filter1/2_envelope, pitch_detect_input, pitch_detect_mode); mix1/2_enable + lfo_midi_clock_sync demote select->toggle (editor shows switches; midi sync is boolean'fied 2-bit). Untrusted upper values (e.g. steps raw 24/255, assign 255=unassigned) fall back to the disabled numeric placeholder via selectValueKnown.
+- back/c4/src/c4Model.js: ENUM_NAMES now covers 60 specs (eyeball: only fm_sine2_input stays numeric вЂ” it's a per-voice 1-bit group in the editor, semantic mismatch for a flat 7-bit field). Added voice octave (7) / semitone (23), filter env source (2: Env/LFO 1/2), filter pitch track (4: OFF + 1/3, 2/3, 1 Octave), envelope type (12) + input (2), lfo shape (14), beat division (6: Whole..Sixteenth), lfo_2_multiply (11: LFO 2 = 1x..64x), harmony key (12) / mode (23 scales) / interval (6: +2nd..+7th), routing (4), pitch detect input/mode (2+2) and low/high note ranges (21 note names G2..B0 / 32 names E6..A3), ext1-3 source (4: OFF + Ctrl In X/Y + Hub Exp) and destination (49), knob1/2 assign (48, = EXT_DESTINATIONS minus External Mod) , sequencer steps (15: 2..16 Steps).
+- Type refinements (editor-aligned): named whole-byte fields promote knob->select (lfo_2_multiply live#105, pitch_detect_high_note live#150, knob1/2_assign live#151/152, sequencer1/2_steps live#109/126 вЂ” remain realtime live writes); 1-bit fields with real labels promote toggle->select (filter1/2_envelope, pitch_detect_input, pitch_detect_mode); mix1/2_enable + lfo_midi_clock_sync demote select->toggle (editor shows switches; midi sync is boolean'fied 2-bit). Untrusted upper values (e.g. steps raw 24/255, assign 255=unassigned) fall back to the disabled numeric placeholder via selectValueKnown.
 - Verify: node require of c4Model.js -> 173 specs, 60 named, type transitions as above; ng build development clean (c4-component 70.29 kB). No template change this round.
-- Remaining (user runs): restart npm run start:c4, browse :4211 -> /c4 — dropdowns now carry the official editor titles sourced from the manual's own product spec.
+- Remaining (user runs): restart npm run start:c4, browse :4211 -> /c4 вЂ” dropdowns now carry the official editor titles sourced from the manual's own product spec.
 
 ## Plan - 2026-09-06 server: nodemon for both C4 and L.A. Lady backends
 - User wants back/lalady and back/c4 to auto-restart on code changes. Both share the same shape (start: node server.js, express + node-hid).
-- Change: in each package.json — "start" becomes "nodemon server.js --ext js" (restarts on .js edits only; backups/runtime .json writes don't trigger), add devDependency "nodemon"; keep all other scripts (lalady "live", c4 "backup") intact. back/package.json start:la / start:c4 forwards unchanged (npm --prefix still picks up each package's "start").
-- Note: per repo rules I only edit code — nodemon must be installed by the user (npm install in back/lalady and back/c4) before the start script works.
+- Change: in each package.json вЂ” "start" becomes "nodemon server.js --ext js" (restarts on .js edits only; backups/runtime .json writes don't trigger), add devDependency "nodemon"; keep all other scripts (lalady "live", c4 "backup") intact. back/package.json start:la / start:c4 forwards unchanged (npm --prefix still picks up each package's "start").
+- Note: per repo rules I only edit code вЂ” nodemon must be installed by the user (npm install in back/lalady and back/c4) before the start script works.
 - Verify: user runs npm run start:la / start:c4, touches a .js, sees nodemon restart log line (no device probing by me this session).
 
 ## Status - 2026-09-06 server: nodemon wired into both backends
-- Done: back/lalady/package.json and back/c4/package.json — "start" now runs "nodemon server.js --ext js" (restarts only on .js changes so backups/preset .json writes don't bounce the server), devDependencies "nodemon": "^3.1.0" added to both; all other scripts untouched. back/package.json unchanged (forwards via npm --prefix).
-- Not done by me (repo rule: only edit code): the nodemon package itself must be installed — user runs "npm install" in back/lalady and back/c4, then start:la / start:c4 auto-restart on save.
+- Done: back/lalady/package.json and back/c4/package.json вЂ” "start" now runs "nodemon server.js --ext js" (restarts only on .js changes so backups/preset .json writes don't bounce the server), devDependencies "nodemon": "^3.1.0" added to both; all other scripts untouched. back/package.json unchanged (forwards via npm --prefix).
+- Not done by me (repo rule: only edit code): the nodemon package itself must be installed вЂ” user runs "npm install" in back/lalady and back/c4, then start:la / start:c4 auto-restart on save.
 - No process spawn / no device probe this session.
 
 ## Status - 2026-09-07 pedal-app/web: add engage btn to C4 preset bar (match L.A. Lady)
@@ -1823,7 +1823,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - Root cause: voice enable fields (voice1..4_enable) are bit-packed (4-bit, width 4
   shift 4 in body bytes 16/23/30/37), so `liveIndex` is null in
   `buildControlSpecs()` (line 595: `wholeByte ? live : null`). Toggle changes go
-  through `flushDiscrete()` → POST /api/control → `commitRawPreset()` which writes
+  through `flushDiscrete()` в†’ POST /api/control в†’ `commitRawPreset()` which writes
   the FULL body to flash then calls `setActivePreset(idx)`. The re-activation causes
   the C4 pedal to reload ALL live control values from flash, overwriting any
   transient CTRL_SET values (like output volume at body byte 8 / live index 8) that
@@ -1834,7 +1834,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   the user modified. This ensures their knob adjustments survive the preset
   re-activation triggered by the flash commit.
 - Verify: ng build passes (pre-existing warning only). User tests on hardware:
-  drag output knob → toggle voice → output volume stays.
+  drag output knob в†’ toggle voice в†’ output volume stays.
 
 ## Progress - 2026-09-07 web: fix C4 output volume reverting after voice toggle
 
@@ -1854,7 +1854,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   after the backend's `commitRawPreset()` returns risks the CTRL_SET values racing
   the firmware's flash-reload of live controls during `setActivePreset()` (which
   blocks ~1.5s in c4Protocol.js). If a CTRL_SET arrives while firmware is still
-  re-loading, it can be overwritten — potentially leaving a voice/injected value
+  re-loading, it can be overwritten вЂ” potentially leaving a voice/injected value
   in an inconsistent state.
 - Fix: wrapped the body of `resendLiveOverrides()` in a `setTimeout(..., 300)` so
   the re-sent CTRL_SETs are deferred ~300ms, giving `setActivePreset()` time to
@@ -1876,7 +1876,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   reset the file on new web session start OR new backend start; inspect that file
   first when debugging control bugs.
 - Approach:
-  - Backend: new `src/c4UiLog.js` — `reset()`/`append()` to
+  - Backend: new `src/c4UiLog.js` вЂ” `reset()`/`append()` to
     `back/c4/runtime-actions/c4-ui.log`; reset on server boot; `POST /api/log`
     (single line or lines[]) and `POST /api/log/reset` endpoints; server-side
     `stamp()` for ACTIVATE/FLASH/LIVE/SAVE ops so pedal talk is in the log too.
@@ -1905,7 +1905,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   blocks, each `{id,title,indices}` (Input & level, Voice 1-4, Filter 1+Mix 1,
   Filter 2+Mix 2, Envelope 1, Envelope 2, Distortion, FM, LFO, Sequencer 1,
   Sequencer 2, Harmony, Pitch Detect, Knobs, Routing & Misc, External 1-3);
-  removed `KNOB_ROWS` pairing — `knobGroups` getter returns flat block list;
+  removed `KNOB_ROWS` pairing вЂ” `knobGroups` getter returns flat block list;
   added `blockVisibility` + `loadBlockVisibility()`/`blockVisible()`/`toggleBlock()`
   persisted to localStorage key `c4.blockVisibility.v1`; `logOpen` controls the
   sidebar; all UI actions log through `logAction()`.
@@ -1913,7 +1913,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   of `.block-chip` toggles per block; block divs render only when visible;
   header has `.icon-btn` (hamburger) to toggle the log sidebar; the old footer
   action-log removed. Tabs use `setTab()` for logging.
-- `c4.component.scss`: compact layout — `.knob-group` margin 8px, knob width
+- `c4.component.scss`: compact layout вЂ” `.knob-group` margin 8px, knob width
   62px, knob body 44px, selects/toggles shrunk; `.action-log` is a 340px sticky
   right sidebar (stacks below on <900px); `.block-chip`/`.icon-btn` styles added.
 - Verify: `ng build` passes (2 pre-existing warnings only); `node --check` clean
@@ -1922,13 +1922,13 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 ## Progress - 2026-09-07 web: C4 workbench controls flow several-per-row
 
 - User: "make controls not full width each, allow them be few in row". The wide
-  selects (engine specs, `isEngineSpec` → `.knob-wide`) were `width: 100%` so each
+  selects (engine specs, `isEngineSpec` в†’ `.knob-wide`) were `width: 100%` so each
   took the entire block row.
 - Fix: `.knob-wide` is now `flex: 1 1 150px; min-width: 110px; max-width: 240px`
   with `align-items: stretch`, so several fit per row and share the available
   width; the underlying `.ctl-select` keeps `width: 100%` of its flex item.
   Regular knobs already sat a few-per-row (62px).
-- Verify: `ng build` passes (only budget warnings — c4.component.scss now 16 bytes
+- Verify: `ng build` passes (only budget warnings вЂ” c4.component.scss now 16 bytes
   over the 8.19 kB style budget; cosmetic).
 
 ## Progress - 2026-09-07 web: C4 workbench 2-column layout on large monitors
@@ -1975,8 +1975,8 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   left holding the `<h3>` rotated 45deg (`transform: rotate(45deg)`, origin 0 0),
   and the `.knobs` content column beside it. The h3 is a distinct `#2a2a3a`
   label chip (light text, `#3f3f4d` border, slight shadow) and floats over the
-  block gap instead of spanning the full width — removes the full-width header
-  row → more vertical room. The rail uses `z-index: 1` so the diagonal chip
+  block gap instead of spanning the full width вЂ” removes the full-width header
+  row в†’ more vertical room. The rail uses `z-index: 1` so the diagonal chip
   overlays the 8-10px block gaps rather than being clipped.
 - Bumped `anyComponentStyle` budget to 12kB warning / 24kB error in angular.json
   (c4.component.scss grew past the old 8kB; lalady still over but was pre-existing).
@@ -1988,7 +1988,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - Reworked `.knob-group` heading: `.group-head` is now absolutely positioned in a
   24px gutter at the block's top-left (inside the block, padding-left 24px on the
   group) instead of floating in the gap; the `<h3>` uses `writing-mode: vertical-rl`
-  (text runs top-to-bottom, effectively the 90° rotation) with a 3px accent
+  (text runs top-to-bottom, effectively the 90В° rotation) with a 3px accent
   border-left. Added a `head` accent color to every CONTROL_GROUPS entry
   (distinct hues: input/blue, voice1/2/3/4 = green/amber/purple/pink,
   filter1/2 teal/olive, distortion/red, lfo/purple, seq/amber, etc.) bound via
@@ -2017,7 +2017,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 - Added `isSeqGroup()`, `seqLabel()`, `seqCellBg()` to c4.component.ts; added
   `onSeqStepsChange()` because `ngModelChange` emits the value (the
   reused `onSelectChange` reads `event.target.value`, which is wrong for
-  ngModelChange — fixed only for the new seq select for now).
+  ngModelChange вЂ” fixed only for the new seq select for now).
 - Verified: `ng build` passes (only pre-existing lalady budget warning).
 
 ## Progress - 2026-09-07 web: fix envelope source knob on voice blocks not working
@@ -2206,11 +2206,11 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
 
 ## Status 2026-09-09 web+c4model: LFO numeric tempo input (BPM)
 
-- Added lfo_tempo as a 32-bit LE 'tempo' spec (body 71..74, max 127795200 �s,
+- Added lfo_tempo as a 32-bit LE 'tempo' spec (body 71..74, max 127795200 пїЅs,
   liveIndex null) in c4Model.js; LFO group extended to byte 71.
-- Frontend renders a numeric BPM input (BPM = 60,000,000 / �s, clamped to the
+- Frontend renders a numeric BPM input (BPM = 60,000,000 / пїЅs, clamped to the
   official spec max). Read assembles 4 LE bytes from slotParams; write splits
-  BPM -> �s into 4 bytes and commits all four atomically via /api/presets/save
+  BPM -> пїЅs into 4 bytes and commits all four atomically via /api/presets/save
   overrides {71,72,73,74} (single-byte /api/control would leave the field
   half-written). Tempo excluded from observe/mirror (set-only).
 - Verified: model exports the spec (count 174, index 71 :: lfo_tempo :: tempo);
@@ -2236,7 +2236,7 @@ ode back/h90/capture-h90.js (listens on the XC-05987/H90 MIDI port) or the proxy
   (c4.models.ts), observe/mirror tempo filters, LABEL_EXACT entry, and all
   tempo write helpers (tempoBpm/onTempoBpmChange/setTempoByte/flushTempo*).
 - Added read-only BPM candidates derived from lfo_speed (byte 65, live 101):
-  linear 0..254/0..300, 1%=1Hz/0.5Hz, �s=max�speed/254, �s=max�(1-speed/254).
+  linear 0..254/0..300, 1%=1Hz/0.5Hz, пїЅs=maxпїЅspeed/254, пїЅs=maxпїЅ(1-speed/254).
   Panel renders under the LFO knobs; no writes are attempted.
 - ng build passes (only pre-existing NG8102 and lalady budget warnings).
 - Next: compare candidates against the pedal to identify the true mapping,
@@ -2478,9 +2478,9 @@ of only ticking a giant checkbox list under Groups.
 - lalady.component.ts randomTargets(): exclude-group specKeys are removed from
   the pool first; randAll now skips excluded controls too. Include groups pick
   `props` members per scene as before.
-- Per-knob picker: each knob has a `⊕` button (shows `⊕ N` when the control is
+- Per-knob picker: each knob has a `вЉ•` button (shows `вЉ• N` when the control is
   in N groups; turns red when any group excludes it). Opens a popover listing
-  every group with a membership checkbox + ✓/✕ mode chip (click chip = flip
+  every group with a membership checkbox + вњ“/вњ• mode chip (click chip = flip
   include/exclude), plus a "new group" input with `+ include` / `+ exclude`
   buttons. New methods: openGroupPicker, grpPickerIs, specOfExclude, groupsOf,
   specInGroup, setSpecInGroup (PUT specKeys), toggleGroupMode (PUT mode),
@@ -2490,27 +2490,27 @@ of only ticking a giant checkbox list under Groups.
 - SCSS: .grp-btn (knob corner), .grp-picker popover, .grp-mode chips,
   .rand-mode-toggle in editor, .chip.exclude.
 - ng build passes (only the pre-existing SCSS budget warning).
-- Next: confirm in browser that knob ⊕ opens the picker and picker overlap over
+- Next: confirm in browser that knob вЉ• opens the picker and picker overlap over
   neighbor knobs is acceptable; excluded controls should visibly never change
   under Generate/Play.
 
 ### Status
 2026-09-10 lalady: added group-edit mode for knob-based membership.
 - Flow: click "New group"/"Edit group" in the Groups panel -> groupEditMode=true.
-  Every workbench knob's grp button becomes a toggle: GREEN ⊕=add this control,
-  RED −=already in the group (click removes). Popover is suppressed while in
+  Every workbench knob's grp button becomes a toggle: GREEN вЉ•=add this control,
+  RED в€’=already in the group (click removes). Popover is suppressed while in
   edit mode (openGroupPicker guards on groupEditMode).
-- Clicking a knob toggles randKeysChecked[specKey] locally (no HTTP until Save) —
+- Clicking a knob toggles randKeysChecked[specKey] locally (no HTTP until Save) вЂ”
   same map the Groups editor checkbox grid reads, so counts stay in sync.
 - "Cancel"/Save returns to regular mode (cancelEditGroup flips groupEditMode
   false; saveGroup calls cancelEditGroup on success, so knobs go back to normal
   automatically).
 - UI: knobs get .edit-add (green) / .edit-del (red) styles; a .grp-edit-banner
-  shows above the knob rows ("Group edit mode — click = add to X / already in
+  shows above the knob rows ("Group edit mode вЂ” click = add to X / already in
   group / Cancel").
 - TS: groupEditMode flag, toggleSpecInEditGroup(spec), editGroupHasSpec(spec).
 - Fixed an HTML bug during wiring: literal double-quotes inside the double-quoted
-  [attr.title] binding terminated the tag — titles now avoid embedded quotes.
+  [attr.title] binding terminated the tag вЂ” titles now avoid embedded quotes.
 - ng build passes (pre-existing SCSS budget warning only).
 - Next: verify green/red knob toggles + Save persists memberships, and format
   the banner as you like.
@@ -2519,7 +2519,7 @@ of only ticking a giant checkbox list under Groups.
 
 ### Plan
 2026-09-11 lalady: (1) In the Groups editor's controls-selected list every row
-appends "byte <index>" next to the effect name � remove that noise. (2) In the
+appends "byte <index>" next to the effect name пїЅ remove that noise. (2) In the
 created-groups list, add an "on" toggle per group so a group can be turned off
 temporarily (it stops being randomized; an exclude group also stops locking its
 controls) without deleting it. enabled persists to the backend and defaults
@@ -2546,7 +2546,7 @@ groups and keep randomized controls consistent.
 ### Status
 2026-09-11 lalady: fixed saved randomizer groups not showing on session start.
 - Root cause: activeTab initializes to 'workbench', so the workbench tab renders
-  without ever firing openWorkbench() � the only call to refreshRand(). Groups
+  without ever firing openWorkbench() пїЅ the only call to refreshRand(). Groups
   and presets therefore stayed empty until the user clicked the Workbench tab or
   saved a new group.
 - Fix: call refreshRand() from ngOnInit (alongside refresh/refreshDeviceInfo),
@@ -2578,9 +2578,9 @@ resets right after each Generate.
 2026-09-11 lalady: the presets table's "slot" column shows the pedal slot each
 preset was last written to. Because a pedal slot holds one preset at a time,
 writing a next preset to the same slot left the previous preset also marked with
-that slot � both displayed slot=2. Fix: when a preset claims a slot (POST/PUT
+that slot пїЅ both displayed slot=2. Fix: when a preset claims a slot (POST/PUT
 with saveToSlot), clear the slot on any other preset still pointing at it.
-Verify: node --check + in-app check that the overwritten preset shows "�" after
+Verify: node --check + in-app check that the overwritten preset shows "пїЅ" after
 refresh.
 
 ### Status
@@ -2610,7 +2610,7 @@ build passes; after clicking "-> slot" the workbench loads that slot and its
 header shows the preset name, while the Slots tab updates too.
 
 ### Status
-2026-09-11 lalady: considered �
+2026-09-11 lalady: considered пїЅ
 - The write path ALREADY saves the name: persistBody(...) is called with
   preset.name (PUT) / the new preset name (POST), and writePreset commits the
   85-byte slot body (53 data + 32 name) with read-back verify (validated by
@@ -2654,10 +2654,10 @@ checkbox label itself gets a distinct highlight. Verify: ng build passes.
   the saved-groups list (.rand-group-list) dim (opacity 0.45); New group, Save,
   Cancel, the per-row on/mode/Edit/Delete controls, and the group/on-labels are
   all disabled via [disabled]="... || randAll".
-- Group list rows show a tooltip "Randomized all controls � this group is
+- Group list rows show a tooltip "Randomized all controls пїЅ this group is
   ignored" while randAll is on (li and the on-toggle both).
 - ng build passes (pre-existing c4 warning only).
-2026-09-11 lalady: follow-up fix � with "Randomize all controls" engaged the
+2026-09-11 lalady: follow-up fix пїЅ with "Randomize all controls" engaged the
 groups create/edit form was still editable (only the action buttons were
 disabled). Now the name/priority/props inputs, the include/exclude mode
 buttons, and every control-selector checkbox in the editor are [disabled] too,
@@ -2667,10 +2667,10 @@ matching the dimmed groups list. ng build passes.
 
 ### Plan
 2026-09-11: write two READMEs to make porting the L.A. Lady randomizer to the
-C4 Synth pedal easy and low-risk: (1) back/lalady/docs/randomizer.md � reference
+C4 Synth pedal easy and low-risk: (1) back/lalady/docs/randomizer.md пїЅ reference
 doc for the existing implementation (data model, backend endpoints/persistence,
 frontend state/methods/algorithms, UI pieces, exact file paths); (2)
-back/c4/docs/randomizer-port.md � a step-by-step port checklist mapping every
+back/c4/docs/randomizer-port.md пїЅ a step-by-step port checklist mapping every
 L.A. Lady file/method to the C4 backend (128 presets, 128-byte body, port 3222)
 and C4 frontend, including the specific constants/regexes that must change.
 Verify: both docs render and cross-link; ng check unaffected (docs only).
@@ -2741,7 +2741,7 @@ On screens <900px the flex-direction column (existing media query) still stacks
 workbench and randomizer vertically; the .rand-cols single-column rule also
 applies on mobile. Verified: ng build passes (same pre-existing warnings only).
 
-## Progress - 2026-09-11 web: C4 CTRL_SET silently ignored � route all writes through flash commit
+## Progress - 2026-09-11 web: C4 CTRL_SET silently ignored пїЅ route all writes through flash commit
 
 - User: "i dont hear c4synth changes on knobs change"
 - Log analysis: LIVE writes (CTRL_SET 0x70) fire without backend errors, but no
@@ -2752,7 +2752,7 @@ applies on mobile. Verified: ng build passes (same pre-existing warnings only).
   whole-byte knob change was routed through queueLive() > CTRL_SET which had no
   effect; only packed fields (already on the flash path) were audible.
 - Fix: removed the if (spec.liveIndex != null) { queueLive; return } branch from
-  setField() — ALL knob changes now go through the debounced 300ms
+  setField() вЂ” ALL knob changes now go through the debounced 300ms
   flushDiscrete() > api.control() > commitRawPreset() flash-commit path.
   Updated applyScene() (randomizer) to commit the full changed body via
   api.slotSave({overrides}) so scenes are audible immediately.  Updated
@@ -2766,7 +2766,7 @@ applies on mobile. Verified: ng build passes (same pre-existing warnings only).
   change) like in lalady. 2.when i turn gain 1 - sound is jumping. when i turn
   'mix' it seems some others 'knobs' reseted. watch logs fix it".
 - Bug analysis: discretePending held only ONE {p, byte}. Turning gain1 then mix
-  within the 300ms debounce overwrote the first change — it was never committed
+  within the 300ms debounce overwrote the first change вЂ” it was never committed
   to flash, and the next single-byte /api/control commit recalled the preset
   (setActivePreset) from a flash body that lacked it, so the knob audibly
   "jumped" / other knobs "reset".  Each single-byte commit also fired its own
@@ -2796,7 +2796,7 @@ applies on mobile. Verified: ng build passes (same pre-existing warnings only).
   workbench knob and a .commit-strip (flashPendingCount + lastAppliedName) under
   the block-bar in c4.component.html/.scss.  clearFlashPhases() runs on
   load/revert so stale badges never persist.
-- Layout fix: the commit-strip was first placed as a direct child of .wb-main —
+- Layout fix: the commit-strip was first placed as a direct child of .wb-main вЂ”
   at >=1600px that grid is column-major with a fixed row count, so an extra
   full-width grid cell pushed all control blocks around ("control blocks now
   chaotic").  Moved the strip INSIDE .block-bar (width:100%, wraps to its own
@@ -3107,7 +3107,7 @@ Off); a user program save is required to persist.
 
 ## Progress - 2026-09-14 h90: Slot-A General block (In Gain/Out Gain/Bypass/Tails/Tempo Mode/HotKnob) CC 10..15 assigned and verified
 General rows sit under the Band Delay effect block inside the left Algorithm
-Parameters panel (x326-619, y871/y995) � NOT in the right panel which is Preset B.
+Parameters panel (x326-619, y871/y995) пїЅ NOT in the right panel which is Preset B.
 Value click instead of label click required to reveal rangeButton for Tails,
 Tempo Mode and HotKnob (label click does nothing for those three). State saved
 to midi_cc_state.json (16 total entries CC 0-15, all verified). Re-runs skip done
@@ -3326,7 +3326,7 @@ Status:
 
 Next: Ducked Delay (the next Delay-submenu effect) using the same pipeline.
 
-## Progress � 2026-09-14 Ducked Delay + Filter Pong + Head Space mapping (pipeline hardening)
+## Progress пїЅ 2026-09-14 Ducked Delay + Filter Pong + Head Space mapping (pipeline hardening)
 
 Plan (appended before work): map the remaining Delay-submenu effects to sequential
 CCs and save m1 delay <Effect> library entries, applying the normalize fixes
@@ -3366,7 +3366,7 @@ Status:
 Remaining after this: Mod Delay, MultiTap, Reverse, Tape Echo, UltraTap,
 Vintage Delay.
 
-## Progress � 2026-09-14 Multi-page scroll pipeline: remaining Delay effects all mapped
+## Progress пїЅ 2026-09-14 Multi-page scroll pipeline: remaining Delay effects all mapped
 
 Plan (appended before work): with the scrollbar WHEEL_ANCHOR + multi-page effect
 loop baselined on Head Space (30 CCs), map the remaining Delay-submenu effects.
@@ -3387,36 +3387,36 @@ Regression: Filter Pong dry-run still 10+7 -> 17 CCs, history intact. Earlier
 estimates of knob counts (MultiTap 13, UltraTap 12, Vintage 8) were all wrong;
 the live panel walk now reports actuals.
 
-## Plan — 2026-09-15 CC mapping local DB + HTML page
+## Plan вЂ” 2026-09-15 CC mapping local DB + HTML page
 
 Goal: create a local SQLite DB (`midi_cc_map.db`) in `back/h90` with proper
-entity relations (effects → assignments), then generate a self-contained HTML
+entity relations (effects в†’ assignments), then generate a self-contained HTML
 page (`midi_cc_map.html`) showing one big sortable table of every CC assignment
 across all 12 Delay effects.
 
 Schema:
 - `effects` (id PK, name, slot, slug, cc_layout, library_name)
-- `assignments` (id PK, effect_id FK→effects, cc, control, type, values,
+- `assignments` (id PK, effect_id FKв†’effects, cc, control, type, values,
   verified, section [effect|general])
 
 Scripts:
-- `build_cc_db.py` — reads `midi_cc_state.json` + `midi_cc_states/*.json`,
+- `build_cc_db.py` вЂ” reads `midi_cc_state.json` + `midi_cc_states/*.json`,
   creates/updates `midi_cc_map.db`
-- `gen_cc_map_page.py` — queries DB, writes `midi_cc_map.html`
+- `gen_cc_map_page.py` вЂ” queries DB, writes `midi_cc_map.html`
 
-Verified by: opening the HTML in a browser and confirming 12 effects × expected
+Verified by: opening the HTML in a browser and confirming 12 effects Г— expected
 row counts appear.
 
-Progress — 2026-09-15 CC mapping local DB + HTML page
+Progress вЂ” 2026-09-15 CC mapping local DB + HTML page
 
 Done:
-- `back/h90/build_cc_db.py` — creates/updates `back/h90/midi_cc_map.db`
+- `back/h90/build_cc_db.py` вЂ” creates/updates `back/h90/midi_cc_map.db`
   (SQLite). Tables: `effects` (id PK, name UNIQUE, slot, slug, cc_layout,
   library_name) and `assignments` (id PK, effect_id FK, cc, control, type,
   values, verified, section). Reads legacy `midi_cc_state.json` (Band Delay) +
   `midi_cc_states/*.json`; upserts on (name) / (effect_id, cc); library_name
   computed with the same rule as save_to_library.py (cap 23).
-- `back/h90/gen_cc_map_page.py` — queries the DB and writes self-contained
+- `back/h90/gen_cc_map_page.py` вЂ” queries the DB and writes self-contained
   `back/h90/midi_cc_map.html`: one big sortable/filterable table
   (Effect + library name | CC | Sec | Control | Type | Value/range | Verified),
   with filter dropdown, search, "only unverified" and "show General" toggles.
@@ -3431,19 +3431,19 @@ Result: `midi_cc_map.html` opens in a browser and shows all 12 effects with
 their full CC mappings. Next step (if wanted): serve the page via Express
 static, and/or extend the DB with value ranges pulled from knob-map.json.
 
-## Plan — 2026-09-15 lib tracking + save remaining effects
+## Plan вЂ” 2026-09-15 lib tracking + save remaining effects
 
 Goal: the HTML table must reflect TRUE library-save status. Add a `lib`
 column to the table and append "+" to filter-option labels for effects already
 saved to the H90 library, driven by a `library_saved.json` source-of-truth
 file. Then LOAD + RE-MAP (replay) + SAVE to library the 6 remaining (currently
 unsaved) effects: Mod Delay, MultiTap, Reverse, Tape Echo, UltraTap, Vintage
-Delay — as `m1 delay <Effect>_name` per the naming rule.
+Delay вЂ” as `m1 delay <Effect>_name` per the naming rule.
 
 Verified by: after each save, `library_saved.json` marks it saved; rebuilt DB
 shows lib column correctly; app header shows the saved library name.
 
-Progress — 2026-09-15 lib tracking + save remaining effects
+Progress вЂ” 2026-09-15 lib tracking + save remaining effects
 
 Done:
 - `library_saved.json` in `back/h90` is now the source of truth for whether an
@@ -3474,14 +3474,14 @@ Result: every mapped delay effect is persisted to the library under
 `m1 delay <Effect>`, and the HTML table + filter now track true save status.
 Next: none required (optional: serve the page via Express static).
 
-## Plan — 2026-09-15 lib-column removal + distortion mapping
+## Plan вЂ” 2026-09-15 lib-column removal + distortion mapping
 
 Goal: Remove the Lib column from the HTML table, then map and save all
 Distortion category effects to the H90 library.
 
 ### Steps
 1. Remove `Lib` column (th + td + sort logic) from `gen_cc_map_page.py`.
-   Keep the "+" filter marker and "only saved to library" checkbox — they
+   Keep the "+" filter marker and "only saved to library" checkbox вЂ” they
    are separate UI elements, not table columns.
    Rebuild HTML; verify 12 delay rows render with 7 columns.
 2. Generalize `load_effect.py` to accept `--category` (default "Delay") so
@@ -3504,7 +3504,7 @@ Distortion category effects to the H90 library.
   "only saved to library" checkbox shows all effects.
 - Each save confirmed by `save_to_library.py` printing "OK: program saved ...".
 
-Progress — 2026-09-15 lib-column removal + distortion mapping
+Progress вЂ” 2026-09-15 lib-column removal + distortion mapping
 
 Done:
 - Removed the Lib column from the HTML table (`gen_cc_map_page.py`: header
@@ -3533,7 +3533,7 @@ saved under `m1 dist <Effect>`; the page now covers 17 effects (12 delay + 5
 distortion). Next: none required (H90 has more families - harmonizer/mod if
 desired).
 
-## Progress — 2026-09-15 EQ family mapping
+## Progress вЂ” 2026-09-15 EQ family mapping
 
 Done:
 - Discovered the EQ category contains a single algorithm: EQ Compressor.
@@ -3551,7 +3551,7 @@ Result: EQ family fully mapped and saved under `m1 eq EQ_Compressor`; page
 covers 18 effects (12 delay + 5 distortion + 1 EQ).
 Next: Harmonizer / Modulation families if desired.
 
-## Plan — 2026-09-15 all remaining families (harm, looper, mod, multi, reverb, synth, utility)
+## Plan вЂ” 2026-09-15 all remaining families (harm, looper, mod, multi, reverb, synth, utility)
 
 Goal: map + save every remaining H90 algorithm from the categories not yet
 covered (Delay 12, Distortion 5, EQ 1 are done).
@@ -3575,7 +3575,7 @@ covered (Delay 12, Distortion 5, EQ 1 are done).
 - HTML filter contains all effect names; "only saved" shows all.
 - save_to_library.py prints "OK: program saved ..." per effect.
 
-## Progress — 2026-09-15 all remaining families mapped and saved (72/72)
+## Progress вЂ” 2026-09-15 all remaining families mapped and saved (72/72)
 
 Result: every remaining H90 algorithm is mapped to sequential CCs (effect knobs
 0..N-1, General block N..N+6), saved to the device library under `m1 <slug> <name>`
@@ -3595,7 +3595,7 @@ Done this session:
 
 Tooling fixes made along the way:
 - `save_to_library.py`: SLUGS now includes `looper`; `set_edit_text` escapes
-  `+ ^ % { }` (pywinauto treats `+` as Shift → "Quadravox+" had been typed as
+  `+ ^ % { }` (pywinauto treats `+` as Shift в†’ "Quadravox+" had been typed as
   "Quadravox", creating a stray `m1 harmp Quadravox` library entry).
 - `map_delay_effects.py`: `--slug` choices now include `looper`; utility-only
   algorithms (Mute/Thru, zero effect knobs) map just the 7 General knobs to
@@ -3606,7 +3606,7 @@ Tooling fixes made along the way:
   and opened the wrong popup. Band 170..228 + x 360..690 filters out first-row
   knob labels that intrude into the header row.
 
-## Progress — 2026-09-15 all remaining families mapped and saved (72/72)
+## Progress вЂ” 2026-09-15 all remaining families mapped and saved (72/72)
 
 Result: every remaining H90 algorithm is mapped to sequential CCs (effect knobs
 0..N-1, General block N..N+6), saved to the device library under `m1 <slug> <name>`
@@ -3626,7 +3626,7 @@ Done this session:
 
 Tooling fixes made along the way:
 - `save_to_library.py`: SLUGS now includes `looper`; `set_edit_text` escapes
-  `+ ^ % { }` (pywinauto treats `+` as Shift → "Quadravox+" had been typed as
+  `+ ^ % { }` (pywinauto treats `+` as Shift в†’ "Quadravox+" had been typed as
   "Quadravox", creating a stray `m1 harmp Quadravox` library entry).
 - `map_delay_effects.py`: `--slug` choices now include `looper`; utility-only
   algorithms (Mute/Thru, zero effect knobs) map just the 7 General knobs to
@@ -3647,7 +3647,7 @@ Caveats:
 Next: none required for CC mapping; optionally verify control of a few effects
 from the web front end, or start import-protocol write-path work.
 
-## Plan — 2026-09-15 slot-B m2 presets: all 72 effects, CC base 50 (via slot A)
+## Plan вЂ” 2026-09-15 slot-B m2 presets: all 72 effects, CC base 50 (via slot A)
 
 Goal: produce a second library preset per effect like m1 but for the slot-B /
 m2 range: algorithm loaded/mapped while sitting in Slot A (already-known
@@ -3659,15 +3659,15 @@ saved under the `display` key `<Effect> m2`. Rebuild DB + HTML so the page shows
 Steps:
 1. `map_delay_effects.py`: add `--cc-base` (default 0). Start batch + General
    offsets at `cc_base`; write state to `midi_cc_states/<slug>-m2.json` with
-   `slot=m2`, `display="<Effect> m2"`, `cc_layout="effect 50..50+N-1, General …"`.
+   `slot=m2`, `display="<Effect> m2"`, `cc_layout="effect 50..50+N-1, General вЂ¦"`.
    Zero-knob path (Mute/Thru) becomes General-only CC 50..56.
 2. `map_family.py`: forward `--slot m2 --cc-base 50`; mark saved under the
    `display` key in `library_saved.json`.
 3. `build_cc_db.py`: use `display` as the DB `name` and as the `lib_saved`
    lookup key; keep the plain effect name for `library_name(slot, slug, effect)`
-   so it stays `m2 delay Band_Delay` (not `…Band_Delay_m2`).
+   so it stays `m2 delay Band_Delay` (not `вЂ¦Band_Delay_m2`).
 4. `save_to_library.py`: no coordinate changes; confirm m2 naming works.
-5. Rebuild DB + HTML; verify all 72 m2 rows exist with `[+]` and CC ≥ 50.
+5. Rebuild DB + HTML; verify all 72 m2 rows exist with `[+]` and CC в‰Ґ 50.
 
 Verification: build_cc_db.py lists 144 effects all `[+]`; each m2 library name
 `m2 <slug> <name>`; m2 assignments start at CC 50; page filter shows the m2
@@ -3992,11 +3992,11 @@ library_saved.json has "UltraTap m2": true; lib name "m2 delay UltraTap".
   once saw the real rect (595,914,694,940) but UIA now reports the canvas rects.
 - Change: find_save_button()/find_cancel_button() return UIA ELEMENTS; callers
   must invoke() them (never click the bogus rects). Overwrite popover
-  ("Подтверждение сохранения в файле ... уже существует ... хотите заменить его?")
-  is detected textually and its ДА/Yes button invoked - verified working on a
+  ("РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ СЃРѕС…СЂР°РЅРµРЅРёСЏ РІ С„Р°Р№Р»Рµ ... СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ ... С…РѕС‚РёС‚Рµ Р·Р°РјРµРЅРёС‚СЊ РµРіРѕ?")
+  is detected textually and its Р”Рђ/Yes button invoked - verified working on a
   live popover (dialog closed, file preserved).
 - Stop pre-deleting the target: keep the popover appearing, wait for it, invoke
-  ДА, then verify file + dialog closed. Add (N)-suffix guard on the filename.
+  Р”Рђ, then verify file + dialog closed. Add (N)-suffix guard on the filename.
 - Verify: single export "m2 delay Band_Delay" returned 'saved' with file present.
 - Next: background full 72-export, verify 72 files, rebuild CC db/html, append
   Progress entry.
@@ -4006,8 +4006,8 @@ library_saved.json has "UltraTap m2": true; lib name "m2 delay UltraTap".
 - Code action: rewrote the save-dialog layer in export_m2_lib.py. find_save_button
   /find_cancel_button now return UIA ELEMENTS (invoke, never click - the JUCE
   dialog reports bogus 1920x1040 canvas rects). Added find_overwrite_modal_buttons
-  (text detection: уже существует / хотите заменить) and dismiss_save_overwrite_modal
-  invokes its ДА button. export_one_popup no longer pre-deletes the target (so the
+  (text detection: СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ / С…РѕС‚РёС‚Рµ Р·Р°РјРµРЅРёС‚СЊ) and dismiss_save_overwrite_modal
+  invokes its Р”Рђ button. export_one_popup no longer pre-deletes the target (so the
   overwrite popover appears) and waits for it before proceeding. Added literal_keys()
   to escape send_keys specials ('+' was being swallowed as the Shift modifier).
 - Verified: single export "m2 delay Band_Delay" -> 'saved' with popover reacted;
@@ -4034,3 +4034,436 @@ library_saved.json has "UltraTap m2": true; lib name "m2 delay UltraTap".
 - Session outcome: m2 dedupe + 69/72 m2 .preset90 exports (overwrite popover
   handled via UIA invoke) + CC db/html rebuilt. Remaining (optional): import the
   3 absent presets into the m2 library and export them.
+
+## 2026-09-17 Plan - migrate UIA automation to Eventide Control 2.2.0 + preset import to Slot A
+
+- The user replaced the native "H90 Control" app with "Eventide Control 2.2.0"
+  (exe C:\Program Files\Eventide\Eventide Control.exe, window title "Eventide
+  Control"). Confirmed live (non-elevated PID, UIA tree visible): the new app has
+  the SAME geometry as the old (window at L1,T31,R1023,B1039 matching
+  export_m2_lib REF_X=1,REF_Y=31) and the same controls (Preset Library tab at
+  (841,997,1024,1039), library row list, "importButton" at (80,1006), search edit).
+- Root cause of earlier "app not visible": first launch spawned from the elevated
+  installer -> High integrity -> UIA subtree blocked. Fixed by relaunching the app
+  non-elevated. Note affinity: auto-detect must prefer "Eventide Control.exe"
+  and fall back to "H90 Control.exe".
+- Goal A: create back/h90/h90_app.py - single shared module exporting app-name
+  detection (PREFERRED "Eventide Control.exe" / title "Eventide Control", fallback
+  "H90 Control.exe") plus connect()/main_window() adapters; port all consumers
+  (uia_driver, assign_cc, save_to_library, load_effect, test_assign_cc,
+  export_m2_lib) off their hard-coded exe/title names.
+- Goal B: new function to import a preset from a file into the H90 Slot A via the
+  app's own Import flow (importButton -> file-open dialog -> select .h90/.preset90
+  -> confirm), verified by the app showing the preset in Slot A.
+- Verify: py_compile all changed modules; live single-command smoke against the
+  running Eventide Control; end-to-end import of one known preset file into Slot A.
+
+## Progress — 2026-09-17 migrate UIA automation to Eventide Control 2.2.0 + preset import to Slot A
+
+- h90_app.py done (detect Eventide Control, fallback H90 Control; connect/main_window/desktop/popup helpers; 8.3 short-name aliases).
+- Ported all consumers off hard-coded exe/title: export_m2_lib.py (h90_connect/h90_is_main), uia_driver.py (WIN_TITLE = running_title()), assign_cc.py (find_pid), save_to_library.py (APP_TITLE/top_windows), test_assign_cc.py (skipTest when app not running). load_effect.py / map_delay_effects.py had no refs.
+- py_compile all modules OK; live smoke detection OK (Eventide Control PID 3024, window L1,T31,R1023,B1039).
+- Explored app's import flow: Slot-A header menu button (309,206) -> popup "Import..." (439,336) -> NATIVE "Select a Preset file" dialog at REAL screen coords (filename Edit 213,501; Open 748,525; Cancel 848,525), filter *.preset9;*.preset90;*.h9z;*.tide. Replaces the assumption of importButton->list-file (that was a different, library-list path).
+- New back/h90/import_preset.py: import_preset(path) orchestrates open dialog -> type full path into filename Edit -> invoke Open; slot A name + algorithm read back for verification.
+- Fixed bug: filename-edit finder initially matched library "Bank 11" edit; tightened geometry (top 485-530, left 200-740, height<=40) and button row (top 500-600, left>700).
+- End-to-end validated live: import_preset('C:\server\fx\input\m1delay_band.preset90') -> STATUS imported, SLOT A 'm1 delay Band_Delay / Band Delay'. Slot A overwritten as approved.
+- Next: optionally push commit 5fb7cf5; port ~8 SikuliX knob-driver scripts that still reference App("H90 Control").
+
+## Plan - 2026-09-17 auto-launch wrapper: import preset to Slot A without manual app start
+
+Goal: single CLI command imports a preset file into Slot A while the user never
+manually opens Eventide Control. If the app is already running, reuse it
+(leave it open afterward); otherwise spawn Eventide Control, wait for the H90
+connection, run the verified import_preset.import_preset() flow, then close the
+app (only the instance we launched) and wait for process exit.
+
+Artifact: back/h90/auto_import.py (CLI only; no server.js change). Verify:
+py_compile both modules; end-to-end with the app fully closed
+(python auto_import.py input\m1delay_band.preset90 -> STATUS imported, Slot A
+changes, app exits); re-run with the app already open (reuse path, app stays up).
+
+## Plan - 2026-09-17 store local Eventide login creds for auto-login
+
+The account screen (Log In / Request new password / Create new Eventide account)
+appears non-deterministically at app launch and blocks the cold-start connect
+flow. The app stores only userName, not the password; a click on "Log In" with no
+typed password did advance to the update-check splash and then the main UI, but to
+make login deterministic the password must be available to automation.
+
+Artifact: put login+password in a LOCAL, gitignored file (back/h90/eventide_creds.txt)
+- NOT committed ('.gitignore' entry), never logged. auto_import may read it to type
+into the two Edits (username at 312,249..712,284; password at 312,300..712,335) and
+click Log In (462,407..562,435) on the account screen. Verify: py_compile; repeat
+cold-start run with account screen up -> reaches main UI and imports.
+
+## Plan - 2026-09-17 manual-login pause in auto_import (no auth automation)
+
+The Eventide account screen appears non-deterministically at app launch and blocks
+the cold-start connect flow. User will handle account login manually: when the
+script detects the "Log In" button, it pauses, prints a prompt, and blocks on
+stdin until the user types 'done' + Enter; the connect timeout is suspended during
+the pause.
+
+Remove the creds-based auto-login attempt (CREDS_PATH/_load_creds/_dismiss_login and
+eventide_creds.txt - deleted, gitignore entry removed). Verify: py_compile;
+cold-start run; if login appears, script pauses for the user.
+
+## Progress - 2026-09-17 manual-login pause in auto_import (no auth automation)
+
+- Removed auth automation from back/h90/auto_import.py: CREDS_PATH, _load_creds(),
+  _dismiss_login(), literal_keys import all gone (user handles account login).
+- Added wait_for_manual_login(): blocking prompt 'type done + Enter'; connect deadline
+  extended by WAIT_DEVICE_TIMEOUT after the pause so the user is not rushed.
+- Deleted back/h90/eventide_creds.txt and removed its .gitignore entry.
+- py_compile OK. Cold-start retest PASSED: launched app, hit account screen, paused via wait_for_manual_login(), user logged in + typed done, STATUS imported (m1 delay Band_Delay), SLOT A verified, app closed cleanly.
+
+## Plan - 2026-09-17 set_slot_a.py: MIDI-recall program N + import + save
+
+Goal: close the app (free the MIDI port), recall program slot N via MIDI PC,
+relaunch the app, import the preset file into Slot A, click Save so the change
+persists on the pedal, verify header number == N and Slot A shows the preset.
+
+Steps:
+1. recall.js - PC sender matching port name 'H90 Pedal' (fallback XC-05987);
+   args --channel (default 11) --program N --brute (all 16 channels).
+2. Fix h90-send.js port match to include 'H90 Pedal'.
+3. set_slot_a.py main(): always control app lifecycle - close running app
+   (dismiss modified modal), node recall.js, launch app, wait device,
+   import_preset(path), click Save (911,141), verify header Text number == N
+   and Slot A name == imported preset, close app.
+
+Verify: py_compile; live run python set_slot_a.py 1 "input\lib\m1 harm PitchFlex.preset90"
+- header number becomes 1 and SLOT A shows m1 harm PitchFlex.
+
+## Progress - 2026-09-17 set_slot_a.py: MIDI-recall + import + save (done)
+
+- Key discovery: Eventide Control holds the 'H90 Pedal' MIDI port ONLY while
+  CONNECTED. While disconnected (My Devices screen) the port is free, so MIDI
+  Program Change recalls a slot without closing/relaunching the app (no login).
+- PC Offset on this pedal is OFF and receive channel is 11 -> PC byte N recalls
+  slot N directly (not N-1). Verified: byte1->slot01 delay, byte2->slot02 harm,
+  byte3->slot03 INIT q-plus, byte5->slot05 INIT Program.
+- back/h90/recall.js: new standalone PC sender that matches port 'H90 Pedal',
+  sends byte=N by default (--offset for N-1), --brute for all channels.
+- back/h90/h90-send.js: port match fixed to accept 'H90 Pedal' (was aborting).
+- back/h90/set_slot_a.py: full automation - attach/launch app (manual login
+  pause only if cold-start login screen), disconnect (frees port), MIDI recall
+  program N, connect, verify header number == N, import_preset(path) into Slot
+  A, click header Save, verify saved, disconnect + leave app open for next run.
+- Live PASS on program 1 with input\lib\m1 harm PitchFlex.preset90 and program
+  3 with m2 harm PitchFlex.preset90. After reconnect the pedal shows the saved
+  Slot A names (persisted on device).
+- Note: multiple stray app instances can accumulate if previous runs are
+  interrupted; set_slot_a attaches to the running instance and disconnects it.
+
+## Plan - 2026-09-17 set_slot_a --headless: transparent-window automation
+
+Goal: keep Eventide Control off the screen while preserving the fixed-coordinate
+click automation. The window is made fully transparent (WS_EX_LAYERED +
+SetLayeredWindowAttributes LWA_ALPHA=0) but stays hit-testable, so cursor clicks
+and UIA keep working. The native import Open dialog is also made transparent.
+
+Steps:
+1. Feasibility probe: alpha=0 on the running app window -> run set_slot_a.py
+   end-to-end -> confirm clicks land (Slot A saved + header number correct).
+2. h90_app.py: set_window_transparent(hwnd) / set_window_opaque(hwnd).
+3. set_slot_a.py: --headless (default) applies transparency after connect /
+   login; --show restores. Native dialog made transparent when detected.
+4. Verify on program 1 (m1 harm PitchFlex) and program 3 (m2 harm PitchFlex).
+5. DECISIONS + H90-IMPORT-NOTES entries.
+
+## Progress - 2026-09-17 set_slot_a --headless: transparent-window automation
+
+Implemented and verified.
+
+h90_app.py: set_window_transparent(hwnd [, alpha]) / set_window_opaque(hwnd) /
+transparent_supported(hwnd) / hide_app_windows() / show_app_windows() using
+WS_EX_LAYERED + SetLayeredWindowAttributes LWA_ALPHA.
+
+KEY FINDING: alpha must be >= 1. At alpha=0 the layered window also stops
+receiving mouse input (click-through), silently breaking the coordinate clicks
+(Disconnect never fired, recall ran while the app still held the MIDI port,
+header stayed on the previous program). alpha=1 (1/255 opacity) is imperceptible
+to the eye but fully clickable. Documented in the helper docstring.
+
+set_slot_a.py: --headless is now the default (--show opts out). After
+login/connect the main window is hidden; a daemon thread re-hides app windows
+(including the native import dialog which opens later) during the import step.
+
+Live end-to-end PASS (all headless, window transparent):
+  program 1 <- m1 harm PitchFlex.preset90  (header 1, imported, saved)
+  program 3 <- m2 harm PitchFlex.preset90  (header 3, imported, saved)
+After each run: app left running, disconnected, invisible (alpha=1).
+
+A cold start that requires manual login still shows the login screen briefly
+(login cannot be automated).
+
+## Plan - 2026-09-17 automate auth (cold-start login)
+
+Goal (carry-over): remove the manual login pause so a cold start of Eventide
+Control reaches the device without human typing. Currently
+connect_if_needed -> wait_for_manual_login() blocks on 'done' when a Log In
+button is present, and --headless must stay visible until login+connect.
+
+Findings so far (informs the plan):
+
+* %APPDATA%\Eventide\Eventide Control\credentials.esm (and the legacy
+  H90 Control\credentials.esm) contain a JWT in the clear:
+  header {"typ":"JWT","alg":"HS256"}; payload:
+  {"iss":"audio.eventide","aud":"audio.eventide","iat":1789643923,
+   "nbf":1789643933,"exp":1884251923,"userName":"antoshkin","userID":624405,
+   "clientID":"Wf5150844-0574-4ca5-a798-c650de1b56fa"}
+* Aliases the stored JWT across the two app profiles (Eventide Control +
+  H90 Control) -> byte-identical claim/userID/clientID, separate signatures.
+* Timestamps (local): tokens issued 2026-09-16 18:18 / 2026-09-17 14:18,
+  theirs exp 2029-09-15/16 -> the stored token is LONG-lived (3 y) and NOT
+  expired. settings userName=antoshkin matches the JWT.
+* eventide-control-log.txt: a single 'Invalid token' at Session 12:04 PM -
+  BEFORE the profile's token was rewritten at 14:18. No 'Invalid token' after
+  14:18. => The earlier forced logins were almost certainly due to a stale/
+  invalid token, not a broken 'remember session' mechanism. A cold start with
+  the currently-valid esm may now auto-login with NO manual step.
+* Repeated 'Could not communicate with Eventide server' in the log, yet a
+  direct TCP 443 + DNS check to services-prod.aws.eventideaudio.com SUCCEEDS
+  (54.243.68.181, ELB health endpoint names resolve). So the log entries are
+  app-side only (update checks), not firewall-blocked auth.
+
+Hypothesis to verify first (cheap): with the current valid esm, a cold start
+skips login entirely -> then "auth automation" reduces to guaranteeing a valid
+credentials.esm exists before each run + a fallback refresh, and --headless can
+be applied immediately at launch (no visible login).
+
+Plan:
+1. Cold-start test: close the app fully, launch, watch for a Log In button or
+   direct device/Home. Record skeleton of the login screen's UIA tree (Email/
+   Password Edits + Log In button coords) in case refresh is ever needed.
+2. auth.py (new, back/h90): 
+   - read_jwt(): parse + validate current credentials.esm (exp, userName).
+   - ensure_auth(): if esm missing/invalid AND app binary present -> launch
+     app, drive a login via the transparent-click technique (or reuse the
+     existing wait_for_manual_login as fallback), wait until esm updates.
+   - backup/restore: keep a known-good esm copy (e.g. h90-notes/) so a bad
+     token can be re-seeded.
+3. Teach connect_if_needed / set_slot_a / auto_import to call ensure_auth()
+   instead of unconditionally pausing; --headless hides right after launch
+   when a valid token already exists.
+4. Re-verify end-to-end headless from a fully-cold start (program N import).
+5. DECISIONS plan/progress + note the token storage location (do NOT commit
+   antoshkin's JWT to the repo).
+
+Open question for the user when back: keep login mediation inside the app
+(recommended) vs reverse a/services token refresh endpoint to mint a new JWT
+offline (only if the cold-start hypothesis fails and no login can be driven).
+
+## Progress - 2026-09-18 automate auth: forced logout -> login fully automated (login.py)
+
+Goal carried from the 2026-09-17 plan (line 4201): remove the manual login pause
+so Eventide Control reaches the device without human typing, including a forced
+logout -> login round-trip.
+
+Done:
+- back/h90/auth.json: local credentials store (email + password), gitignored
+  (never commit creds/JWT). Read by login.py via read_credentials().
+- back/h90/login.py: CLI (login.py login [email] [pass] | logout | check) +
+  state() (home/login) / logout() / do_login() helpers.
+  - Login screen geometry (window L1,T31,R1023,B1039): Email Edit
+    (312,249,712,284), Password Edit (312,300,712,335), Log In button
+    (462,407,562,435). Logout: app menu (25,93) -> Log Out row (137,167).
+  - Logout verified live: LOGOUT: ok, back at login screen.
+- KEY FINDING — JUCE "Login Failed, Try Again" modal: after a logout the FIRST
+  submit is often rejected, and the JUCE modal is app-modal (blocks ALL input
+  behind it, including subsequent typing/clicks), poisoning the next attempt
+  until dismissed. do_login() now: click each field with a REAL cursor click
+  (set_focus() alone does not reliably give JUCE keyboard focus) -> ^a -> type
+  (with_spaces=True for the bare email / no-space password) -> click Log In ->
+  poll; on reach of a Login Failed modal, click OK and re-submit (up to 3
+  tries). Also gave logout() a settle sleep so the fields are interactable.
+- Verified live (multiple round-trips): LOGOUT ok -> login attempt 1 rejected
+  (modal dismissed) -> attempt 2 -> home; check -> home. Each login writes a
+  FRESH JWT to %APPDATA%\Eventide\Eventide Control\credentials.esm
+  (iat = session time, exp 2029), confirming a real server-side login.
+- Deferred (per open question): token-offline minting not attempted; login stays
+  mediated through the app UI.
+
+Next (if wanted): wire do_login/state into connect_if_needed / set_slot_a /
+auto_import as ensure_auth() so --headless hides the window immediately at
+launch even on a cold start (currently the login screen shows while the user
+logs in manually).
+
+## Plan - 2026-09-18 wire auto-auth into headless cold start
+
+Make the whole cold start fully automatic, no manual login pause:
+
+1. login.py: add ensure_auth() -> returns True when the app is not at the
+   login screen, or reads auth.json + runs do_login() and returns its result
+   (False if no credentials exist -> caller falls back to the manual prompt).
+2. auto_import.connect_if_needed(): replace the wait_for_manual_login() pause
+   with _try_auto_login() (lazy `import login` to avoid the module cycle),
+   falling back to the manual prompt only when credentials are missing. Keep
+   the deadline-reset so login time does not eat into the device wait budget.
+3. set_slot_a.main(): when --headless, start the keep-hidden thread as soon
+   as the app process is up (before connect_if_needed) so a cold-start login
+   screen never flashes on screen; drop the two later standalone
+   hide_app_windows() calls in favour of the single running keeper.
+4. Verify cold start: kill the app, run set_slot_a headless, confirm no login
+   pause and a hidden window throughout.
+
+Files: back/h90/login.py, back/h90/auto_import.py, back/h90/set_slot_a.py.
+
+## Progress - 2026-09-18 wire auto-auth into headless cold start: DONE + verified live
+
+Implemented the plan above:
+
+- login.py: added ensure_auth(timeout=40) -> True when already past the login
+  screen (home/device), or reads auth.json + runs do_login() and returns its
+  result; False when no credentials configured.
+- auto_import.py: connect_if_needed() now calls _try_auto_login() (lazy
+  `import login` to avoid the login<->auto_import module cycle) on seeing the
+  Log In button instead of immediately pausing for the manual prompt; it only
+  falls back to wait_for_manual_login() when no credentials exist. Deadline
+  reset preserved so login time is not charged to the device-wait budget.
+- set_slot_a.py: _keep_hidden() helper (daemon thread + stop event) started
+  right after ensure_app_running() when --headless, so the window is hidden
+  from launch INCLUDING a cold-start login screen; the two later standalone
+  hide_app_windows() calls and the per-import keep-hidden block were removed
+  in favour of the single keeper, stopped at the end of main().
+
+Verified live (forced logout -> cold-start-ish login through the new path):
+
+  LOGOUT: ok -> at login screen
+  LOGIN: submitted credentials (attempt 1)
+  LOGIN: attempt 1 rejected (Login Failed modal)   <- known JUCE first-submit race
+  LOGIN: submitted credentials (attempt 2)
+  LOGIN: left login screen -> none
+  result: connect_if_needed(...) = True
+  check -> state=device
+
+So the first-submit-after-logout rejection (and its retry) now runs inside the
+regular wait path, and connect_if_needed returns True with the device attached,
+all without any manual prompt or visible window.
+
+Remaining (optional): the only unverified branch is the cold start where the
+app was fully killed and relaunched (set_slot_a cold-start import, plan step 4).
+The logic is the same ensure_auth path; can be exercised on a real run.
+
+## Progress - 2026-09-18 set_slot_a program-7 live test: INIT-name save fix
+
+Live run of `set_slot_a.py 7 C:\server\fx\input\lib\m1 harm Resonator.preset90`
+(headless) exposed two real bugs:
+
+1. STALE APP MIDI ENDPOINT: with the app instance that had been running since
+   the earlier session (pid 4604), recall PC ch11 -> program 7 did NOT move the
+   pedal (header stayed 03 even with --brute on all 16 channels). After the app
+   was fully closed and relaunched, EVERY recall worked (5->3->7 all land).
+   Whatever the old process held (likely a stale MIDI-over-USB input endpoint /
+   stale program-change subscription) cleared on relaunch. Recommendation: cold-
+   start the app for a set_slot_a run rather than reusing a long-lived instance.
+2. FACTORY 'INIT Program' SAVE BLOCK: program 7 was a factory program named
+   `INIT Program*` (reserved). Import into Slot A worked (SLOT A: m1 harm
+   Resonator / Resonator), but clicking Save raised a JUCE modal 'Program Name
+   Error. Programs cannot be named "INIT Program"!' which is app-modal: it
+   blocked UIA access to the main-window edits, so click_save could not verify
+   and returned save-fail.
+
+Fix in set_slot_a.py:
+- program_name(win): reads the header program-name Edit (header row, not Slot A).
+- set_program_name(win, name): clicks the header edit, ^a, types the new name.
+- prep_program_name(win, path): if the current program name starts with 'init'
+  (INIT Program / INIT q-plus / ...), renames the whole program from the preset
+  filename (max 40 chars) so Save is allowed.
+- click_save(win): now verifies via program_name(win) (drops '*' marker check
+  on slot_a_preset_name) and dismisses any 'Program Name Error' modal first.
+- main(): calls prep_program_name(win, path) right before click_save.
+
+Result: second full run PASSED end-to-end headless, program 7 saved permanently:
+  RECALL 7 / HEADER 7 / SLOT A m1 harm Resonator / SAVED / header still 7.
+
+## Plan - 2026-09-18 pin app window rect for multi-monitor stability
+
+All fixed coordinates (login fields/buttons, header_number/program_name bands,
+SLOT_A_MENU, SAVE_BUTTON, native-dialog regions) were measured on the window at
+(L1,T31,R1023,B1039), i.e. canonical size 1022x1008 at 96 DPI/1920x1080. The
+app window is resizable (WS_THICKFRAME) and no code positions it, so on a
+different monitor/resolution the app may open elsewhere and every constant
+misses.
+
+Per user choice: PIN WINDOW ONLY (no relative-coordinate rewrite, no DPI work).
+
+1. h90_app.py: add pin_window() -> SetWindowPos the main window to
+   (1,31,1022x1008) if it is not already there (SWP_NOZORDER|SWP_NOACTIVATE),
+   sleep ~0.5s for relayout, return the window. Reuses ctypes user32 like
+   set_window_transparent.
+2. auto_import.connect_if_needed(): call h90_app.pin_window() once per window
+   resolution so every caller (set_slot_a, auto_import, login) is covered
+   without individual edits.
+3. Call pin_window() early in set_slot_a.main() after ensure_app_running()
+   before the headless keeper starts (keeper must see it pinned).
+
+Files: back/h90/h90_app.py, back/h90/auto_import.py, back/h90/set_slot_a.py.
+Verify: pin_window() twice on current monitor, then a set_slot_a --show dry run.
+
+## Progress - 2026-09-18 pin window rect: DONE + verified
+
+Implemented and verified live:
+
+- h90_app.pin_window(max_tries=4): drives the main window to the canonical
+  rect (L1,T31,R1023,B1039 = 1022x1008) via SetWindowPos on the real hwnd,
+  and self-calibrates the Win10+ invisible-frame offsets each call
+  (GetWindowRect vs pywinauto rect). Measured locally: SetWindowPos coords are
+  offset by (-8 left, -31 top, +16 width, +39 height) from pywinauto's rect,
+  which are the DWM invisible resize borders in pywinauto's space; deriving
+  them at runtime (rather than hardcoding) keeps the pin valid across
+  monitors/DPIs. Verified: displacing to (408,331,1416,1192) then pin ->
+  (1,31,1023,1039) and identical on a second call (idempotent).
+- auto_import.connect_if_needed(): pins once on first window found (pinned
+  flag), so set_slot_a, auto_import and login all inherit the positioning.
+- set_slot_a.main(): pin immediately after ensure_app_running, before the
+  headless keeper starts.
+
+Live verification during the build test run:
+  app pid 8668 -> pin in connect_if_needed -> RECALL 7 / HEADER 7 / SLOT A
+  m1 harm Resonator / SAVED / header still 7 -> PASS headless.
+  After recovery (device reconnected via UIA invoke on the Connect button
+  when an earlier raw-coordinate click at (117,354) did not reattach), state
+  device, header 7, window confirmed at canonical rect.
+
+Caveats discovered:
+- The Connect button's raw coordinate click can fail to reattach on the My
+  Devices screen; el.invoke() on the UIA button succeeded. Noted for future
+  hardening; not changed (unrelated to pinning, and connect_if_needed clicks
+  worked in other runs).
+- Pinning assumes the app can actually reach 1022x1008: on a physical screen
+  smaller than ~1024x1040 (e.g. 1366x768 laptop, or scaled DPI) SetWindowPos
+  would clamp and fixed coords would still miss. DPI/relative-coord work is
+  explicitly out of scope (user chose "pin window only").
+
+## Plan - 2026-09-18 send Eventide Control to the back when the script ends
+
+User request: after the procedure finishes, Eventide Control should sit at the
+BOTTOM of the z-order (behind other windows), not above them. Right now the
+headless flow only makes it transparent (alpha=1); it stays in the front of the
+z-order (clicks/SetFocus kept it up), so it can still obscure covered windows?
+
+1. h90_app.py: add lower_window() -> SetWindowPos(hwnd, HWND_BOTTOM=1, 0,0,0,0,
+   SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE) on every app top-level window.
+2. set_slot_a.py main(): call lower_window() at the very end (after disconnect
+   and keeper stop) regardless of --show/--headless, so the app is left behind
+   other windows. Keep the transparent state as-is for headless.
+3. Verify with an overlaid window / z-order? Minimal live check: run the
+   pin + lower functions and confirm the hwnd order via GetWindow.
+
+Files: back/h90/h90_app.py, back/h90/set_slot_a.py.
+
+## Progress - 2026-09-18 lower Eventide Control z-order on completion: DONE
+
+- h90_app.lower_window(): SetWindowPos each app top-level window to HWND_BOTTOM
+  (SWP_NOSIZE|SWP_NOMOVE|SWP_NOACTIVATE). Verified live: after the call the
+  app window sits BELOW a visible window (Core Temp) in the z-order walk.
+- set_slot_a.main(): calls lower_window() at the very end (after disconnect +
+  keeper stop), for both --headless and --show.
+- While re-verifying, the raw-coordinate Connect click keeping failing to
+  reattach the device (state stayed on My Devices). Fixed in
+  auto_import.connect_if_needed(): try UIA invoke() on the Connect button
+  first, fall back to the real click. Verified: connect ret True -> device.
+- Full headless program-7 run PASSED again after the connect fix; app left
+  behind other windows.
