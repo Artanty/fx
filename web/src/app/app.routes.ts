@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { BrowseComponent } from './pages/browse/browse.component';
 import { PresetDetailComponent } from './pages/preset-detail/preset-detail.component';
+import { StartersComponent } from './pages/starters/starters.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dist', pathMatch: 'full' },
@@ -11,6 +12,7 @@ export const routes: Routes = [
     children: [
       { path: '', component: BrowseComponent },
       { path: 'preset/:slug', component: PresetDetailComponent },
+      { path: 'starters', component: StartersComponent },
     ],
   },
   {

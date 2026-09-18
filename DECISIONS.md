@@ -4467,3 +4467,151 @@ Files: back/h90/h90_app.py, back/h90/set_slot_a.py.
   first, fall back to the real click. Verified: connect ret True -> device.
 - Full headless program-7 run PASSED again after the connect fix; app left
   behind other windows.
+
+## Plan - 2026-09-18 connect Patch Explorer to real patchstorage.com downloads
+
+User request: the H90 Patch Explorer currently has all 501 catalog rows from
+patchstorage.com metadata only - every files.path is NULL, patchstorage/ does
+not exist, so the Download button 404s and family/algorithm/notes filters are
+empty. User picked: real downloads from patchstorage (on-demand lazy per file +
+a bulk "sync all"), with the sync control on BOTH the browse sidebar and the
+preset detail page.
+
+1. back/h90/fetch_presets.py (new): read api_cache.json (fetch if absent) ->
+   map filename -> {url, filesize}; download missing files into
+   back/h90/patchstorage/ via .part+rename; scan each binary with build_db
+   helpers (extract_json_blobs/extract_notes/ALGORITHM_FAMILIES) and UPDATE the
+   files row IN PLACE (path, filesize, preset_name, algorithm,
+   secondary_algorithm, effect_family, notes) + repopulate file_algorithms (no
+   DB rebuild; server.js holds the DB read-only). CLI: `--only <filename>` for
+   single lazy fetch, default all.
+2. back/h90/server.js: GET /api/files/:id/download fetches-then-serves when
+   path is null; new POST /api/h90/fetch {fileId} spawns fetch_presets.py
+   --only; new POST /api/h90/sync spawns the full fetch streaming progress log
+   (SSE/chunked), single-flight guard, 503 if python/cache missing.
+3. web frontend: api.service.ts fetchH90File/syncH90 helpers; preset-detail
+   Download becomes async (fetch then download) + "Sync all from patchstorage"
+   with live log; browse sidebar H90 panel gets the same sync button; fix
+   broken card links (/preset -> /h90/preset) and detail back link (-> /h90).
+
+Verify: python fetch_presets.py --only <one real file> populates the DB row;
+GET download serves it; node --check server.js; angular build passes.
+Files: back/h90/fetch_presets.py, back/h90/server.js, web/src/app/services/
+api.service.ts, web/src/app/pages/preset-detail/*, web/src/app/pages/browse/*.
+
+## Progress - 2026-09-18 patchstorage downloads + sync: DONE
+
+Backend:
+- back/h90/fetch_presets.py (new): reads api_cache.json (via build_db), maps
+  filename -> {url,filesize}, downloads to patchstorage/ (.part+rename, skip
+  existing), scans binaries with build_db helpers and UPDATEs the files row in
+  place (path/filesize/preset_name/algorithm/secondary/effect_family/notes) +
+  repopulates file_algorithms (DELETE+INSERT). CLI: --only <file>, --limit N
+  (test), default all. Writable sqlite conn with busy_timeout=60s, so it works
+  alongside the server's read-only handle.
+- server.js: GET /api/files/:id/download now fetch-then-serve when path is
+  null (502 if fetch fails); POST /api/h90/fetch {fileId} = single lazy fetch;
+  POST /api/h90/sync = SSE stream of the full fetch (event: done at the end),
+  single-flight guard (409), spawns `python fetch_presets.py`.
+- PYTHON env override (default "python").
+
+Frontend:
+- api.service.ts: H90SyncEvent type, fetchH90File(fileId), syncH90() (fetch
+  ReadableStream -> SSE parser -> Observable).
+- preset-detail: Download becomes a button; if not local it POSTs /fetch
+  ("Fetching…"), then navigates to the download URL; "Sync all from
+  patchstorage" + live log in the File panel. isLocal() shows "Not downloaded
+  yet". Back link fixed -> /h90.
+- browse: "Sync all from patchstorage" + log in the H90 sidebar panel; card
+  links fixed /preset -> /h90/preset.
+
+Verification:
+- python fetch_presets.py --only <file> x2 -> downloaded, path/filesize/notes
+  populated; re-run idempotent (skipped).
+- --limit 5 -> fetched 4, 1 patchstorage-side 404 (COLLECTION*.lst90) handled
+  gracefully, continued. DB: 6 rows with path, notes on all 6, preset_name on
+  the 3 binaries that embed b64 JSON.
+- Observed: patchstorage .pgm90/.preset90 mostly do NOT embed the `eyJ` JSON
+  blob that factory exports carry, so algorithm/effect_family stays NULL for
+  most catalog files (same as build_db.scan_files behavior); notes still parse.
+  Filters will populate only for files that carry the blob.
+- node --check server.js OK; python py_compile OK; `ng build --configuration
+  development` passes (pre-existing c4 NG8102 warning unrelated).
+
+Next steps (not done): run the bulk sync from the UI; optionally render
+artwork; consider parsing .lst90 containers for algorithms.
+
+## Plan - 2026-09-18 effect-starter import UI (Slot A/B)
+
+User request: new h90 subtab listing effect-starters (the exported
+input/lib/*.preset90 factory programs, named 'm1|m2 <family> <Name>.preset90'),
+filterable by type (family) and name. Each item has 'Slot A' and 'Slot B'
+buttons; clicking imports that file into the chosen slot of a selected program
+number. Basically set_slot_a generalized to both slots, driven from the UI.
+
+Backend:
+1. import_preset.py: parameterize slot A vs B - SLOT_MENU per slot
+   (A=(309,206), B=(672,206)), ITEM_IMPORT fallback (A=(439,336),
+   B=(802,336)), slot name/algorithm reader geometry (A: name edit 440-660x,
+   B: 700-1007x; algo text band per slot). Keep old names as A wrappers.
+2. set_slot_a.py: add --slot {A|B} (default A), pass through to
+   import_preset.import_preset(path, slot), verify via slot_preset_name(slot).
+3. server.js: GET /api/h90/starters?type=&q= -> list input/lib files parsed as
+   {file, name, family, bank(m1/m2), path} with family/text filters; POST
+   /api/h90/import {file, slot, program} -> spawn set_slot_a.py <program>
+   <path> --slot <slot>, SSE progress like /sync, single-flight guard.
+4. web: api.service getStarters()/importStarter() (SSE); new
+   pages/starters component (family select + name search + program number
+   select + list with Slot A/B buttons + per-import SSE log); route
+   /h90/starters; sub-nav links Browse/Starters in both h90 pages.
+
+Verify: python set_slot_a.py 7 <starter> --slot B headless PASS; GET starters
+lists+parses; ng build; importStarter import runs and reports SLOT A/B names.
+Files: back/h90/import_preset.py, back/h90/set_slot_a.py, back/h90/server.js,
+web/src/app/pages/starters/*, web/src/app/services/api.service.ts,
+web/src/app/app.routes.ts, web/src/app/pages/browse/* (subnav).
+
+## Progress - 2026-09-18 effect-starter import UI (Slot A/B)
+
+Implemented the new 'Effect Starters' h90 subtab; live-verified Slot B import.
+
+Backend:
+- import_preset.py now slot-parameterized: SLOT_MENUS A(309,206)/B(672,206),
+  ITEM_IMPORT A(439,336)/B(802,336), SLOT_NAME_BAND and SLOT_ALGO_BAND per
+  slot. slot_a_preset_name/algorithm -> slot_preset_name(slot)/slot_algorithm(slot);
+  open_slot_a_import_dialog -> open_slot_import_dialog(slot); import_preset(path,
+  slot). main() gained --slot. Old 'A' coords/graph kept as defaults.
+- set_slot_a.py gained --slot {A|B} (default A), printed SLOT X / saved to
+  program N / after-save lines reflect the target slot.
+- server.js: generalized runFetch into runPython(script,...); added
+  GET /api/h90/starters (scan input/lib/*.preset90 named 'm1|m2 <family>
+  <Name>', filters type=q, returns families list) and POST /api/h90/import
+  {file, slot, program} -> SSE of set_slot_a.py <program> <path> --slot <slot>,
+  single-flight with the shared fetchBusy guard.
+- Web: api.service.ts gained getStarters()/importStarter() and a shared
+  sseStream() helper (refactored syncH90 onto it); new pages/starters
+  component (family select + name search + program number input + item rows
+  with Slot A / Slot B buttons + side import log); route /h90/starters;
+  browse and starters topbars now share a Browse-on-presets / Effect-starters
+  tab strip (routerLinkActive import was required for the standalone page).
+
+Verification:
+- Live headless run: set_slot_a.py 7 'm1 delay Band_Delay.preset90' --slot B
+  -> HEADER NUMBER 7, STATUS imported, SLOT B 'm1 delay Band_Delay / Band Delay',
+  SAVED to program 7, AFTER SAVE verified. (First attempt failed midway: the
+  earlier slot-B menu inspection had left a popup 'Import...' window open,
+  which masked the device view; Esc-closing it fixed state.)
+- starters endpoint logic checked against input/lib: 141 .preset90 files,
+  11 families (delay,dist,eq,harm,harmp,looper,mod,multi,reverb,synth,utility).
+- node --check server.js OK; py_compile import_preset/set_slot_a OK;
+  ng build (development default) passes; only pre-existing c4 NG8102 / scss
+  budget warnings remain.
+
+## Progress - 2026-09-18 tab strip placed above the filter bar (both pages)
+
+The subtab strip is now DOM-first on both pages: nav.tabs (line 1) ->
+header.topbar (search/sort + family filter) -> .layout (sidebar + list).
+Starters page had tabs BELOW the topbar (wrong); reordered. Tabs are a
+static strip (no sticky offsets collide with the sticky topbar/search bar),
+so both Browse presets and Effect starters keep 'tabs above filters' when
+scrolled. ng build passes.

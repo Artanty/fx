@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { ApiService, H90TurnRequest } from '../../services/api.service';
 import { PatchDetail } from '../../models';
 
@@ -12,7 +13,7 @@ import { PatchDetail } from '../../models';
   styleUrl: './preset-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PresetDetailComponent implements OnInit {
+export class PresetDetailComponent implements OnInit, OnDestroy {
   patch: PatchDetail | null = null;
   error: string | null = null;
   loading = true;
@@ -22,6 +23,13 @@ export class PresetDetailComponent implements OnInit {
   knobBusy = false;
   knobError: string | null = null;
   knobLog = '';
+
+  downloading = false;
+  downloadError: string | null = null;
+  syncBusy = false;
+  syncLog = '';
+
+  private destroyed = new Subject<void>();
 
   constructor(private route: ActivatedRoute, private api: ApiService, private cdr: ChangeDetectorRef) {}
 
@@ -46,8 +54,78 @@ export class PresetDetailComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.destroyed.next();
+    this.destroyed.complete();
+  }
+
+  isLocal(): boolean {
+    return !!this.patch?.path;
+  }
+
   downloadUrl(): string {
     return this.patch ? this.api.getFileDownloadUrl(this.patch.file_id) : '#';
+  }
+
+  download(): void {
+    if (!this.patch || this.downloading) return;
+    if (this.isLocal()) {
+      window.location.href = this.downloadUrl();
+      return;
+    }
+    this.downloading = true;
+    this.downloadError = null;
+    this.cdr.markForCheck();
+    this.api.fetchH90File(this.patch.file_id).subscribe({
+      next: (r) => {
+        this.downloading = false;
+        if (!r.ok) {
+          this.downloadError = r.stderr || r.log || 'fetch failed';
+          this.cdr.markForCheck();
+          return;
+        }
+        const slug = this.patch?.slug;
+        this.api.getPatch(slug!).subscribe((p) => {
+          this.patch = p;
+          this.cdr.markForCheck();
+        });
+        window.location.href = this.downloadUrl();
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.downloading = false;
+        this.downloadError = e?.error?.error || e?.message || 'request failed';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  syncAll(): void {
+    if (this.syncBusy) return;
+    this.syncBusy = true;
+    this.syncLog = 'Starting sync...';
+    this.cdr.markForCheck();
+    this.api
+      .syncH90()
+      .pipe(takeUntil(this.destroyed))
+      .subscribe({
+        next: (e) => {
+          if (e.line) this.syncLog += '\n' + e.line;
+          if (e.ok !== undefined) {
+            this.syncLog += '\n' + (e.ok ? 'DONE.' : 'FAILED: ' + (e.stderr || ''));
+          }
+          this.cdr.markForCheck();
+        },
+        error: (e) => {
+          this.syncBusy = false;
+          this.syncLog += '\nERROR: ' + (e?.message || e);
+          this.cdr.markForCheck();
+        },
+        complete: () => {
+          this.syncBusy = false;
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   formatDate(s: string | null): string {

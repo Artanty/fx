@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { Filters, PatchItem, PatchesResponse } from '../../models';
@@ -17,7 +17,7 @@ interface Selection {
 @Component({
   selector: 'app-browse',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, RouterLinkActive],
   templateUrl: './browse.component.html',
   styleUrl: './browse.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,6 +49,8 @@ export class BrowseComponent implements OnInit, OnDestroy {
   h90Channel = new FormControl<number>(11, [Validators.min(1), Validators.max(16)]);
   h90Busy = false;
   h90Status: string | null = null;
+  syncBusy = false;
+  syncLog = '';
 
   private destroyed = new Subject<void>();
 
@@ -76,6 +78,8 @@ export class BrowseComponent implements OnInit, OnDestroy {
     this.sortControl.valueChanges
       .pipe(takeUntil(this.destroyed))
       .subscribe(() => this.reload());
+
+    this.load();
   }
 
   sendToH90(): void {
@@ -98,6 +102,34 @@ export class BrowseComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  syncAll(): void {
+    if (this.syncBusy) return;
+    this.syncBusy = true;
+    this.syncLog = 'Starting sync...';
+    this.cdr.markForCheck();
+    this.api
+      .syncH90()
+      .pipe(takeUntil(this.destroyed))
+      .subscribe({
+        next: (e) => {
+          if (e.line) this.syncLog += '\n' + e.line;
+          if (e.ok !== undefined) {
+            this.syncLog += '\n' + (e.ok ? 'DONE.' : 'FAILED: ' + (e.stderr || ''));
+          }
+          this.cdr.markForCheck();
+        },
+        error: (e) => {
+          this.syncBusy = false;
+          this.syncLog += '\nERROR: ' + (e?.message || e);
+          this.cdr.markForCheck();
+        },
+        complete: () => {
+          this.syncBusy = false;
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   reload(): void {

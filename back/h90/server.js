@@ -180,15 +180,184 @@ app.get("/api/patches/:slug", (req, res) => {
   }
 });
 
-app.get("/api/files/:id/download", (req, res) => {
+const PYTHON = process.env.PYTHON || "python";
+const FETCH_SCRIPT = path.join(__dirname, "fetch_presets.py");
+const SET_SLOT_SCRIPT = path.join(__dirname, "set_slot_a.py");
+const STARTERS_DIR = path.join(__dirname, "..", "..", "input", "lib");
+
+let fetchBusy = false;
+
+function runPython(script, args, onLine) {
+  return new Promise((resolve) => {
+    const child = spawn(PYTHON, [script, ...args], {
+      cwd: ROOT_DIR,
+      windowsHide: true,
+    });
+    let out = "";
+    let err = "";
+    const finish = (code) => resolve({ code, out, err });
+    child.stdout.on("data", (d) => {
+      const s = String(d);
+      out += s;
+      if (onLine) onLine(s);
+    });
+    child.stderr.on("data", (d) => {
+      err += String(d);
+      if (onLine) onLine(String(d));
+    });
+    child.on("close", finish);
+    child.on("error", (e) => {
+      err += e.message;
+      finish(-1);
+    });
+  });
+}
+
+function runFetch(args, onLine) {
+  return runPython(FETCH_SCRIPT, args, onLine);
+}
+
+const STARTER_NAME_RE = /^(m[12])\s+([\w-]+)\s+(.+)$/;
+
+// effect-starters are the exported factory programs in input/lib, named
+// "m1|m2 <family> <Name>.preset90"
+app.get("/api/h90/starters", (req, res) => {
   try {
-    const row = db.prepare("SELECT path, filename FROM files WHERE id = ?").get(req.params.id);
-    if (!row || !row.path) return res.status(404).json({ error: "file not found" });
-    const full = path.join(ROOT_DIR, row.path);
-    if (!fs.existsSync(full)) return res.status(404).json({ error: "file missing on disk" });
-    res.download(full, row.filename);
+    if (!fs.existsSync(STARTERS_DIR)) {
+      return res.status(200).json({ effects: [], families: [] });
+    }
+    const items = [];
+    for (const f of fs.readdirSync(STARTERS_DIR)) {
+      const m = STARTER_NAME_RE.exec(path.basename(f, path.extname(f)));
+      if (!m || !f.toLowerCase().endsWith(".preset90")) continue;
+      items.push({
+        file: m[0] + ".preset90",
+        path: path.join(STARTERS_DIR, f).replace(/\\/g, "/"),
+        bank: m[1],
+        family: m[2],
+        name: m[3].replace(/_/g, " "),
+      });
+    }
+    const type = (req.query.type || "").trim().toLowerCase();
+    const q = (req.query.q || "").trim().toLowerCase();
+    let effects = items;
+    if (type && type !== "all") {
+      effects = effects.filter((e) => (e.bank + " " + e.family).toLowerCase().includes(type) || e.family.toLowerCase() === type);
+    }
+    if (q) {
+      effects = effects.filter((e) => (e.name + " " + e.bank + " " + e.family).toLowerCase().includes(q));
+    }
+    effects.sort((a, b) => a.bank.localeCompare(b.bank) || a.family.localeCompare(b.family) || a.name.localeCompare(b.name));
+    const families = [...new Set(items.map((e) => e.family))].sort();
+    res.json({ effects, families, total: items.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/h90/import", async (req, res) => {
+  if (fetchBusy) return res.status(409).json({ error: "another import/fetch is still running" });
+  const body = req.body || {};
+  const program = Number(body.program);
+  const slot = String(body.slot || "A").toUpperCase();
+  if (!Number.isInteger(program) || program < 1 || program > 100) {
+    return res.status(400).json({ error: "program must be an integer 1-100" });
+  }
+  if (!["A", "B"].includes(slot)) {
+    return res.status(400).json({ error: "slot must be A or B" });
+  }
+  const file = String(body.file || "");
+  const full = path.join(STARTERS_DIR, path.basename(file));
+  if (!fs.existsSync(full)) {
+    return res.status(404).json({ error: "starter file not found: " + file });
+  }
+  fetchBusy = true;
+  try {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    const send = (msg) => {
+      if (res.writableEnded) return;
+      res.write("data: " + JSON.stringify({ line: msg.replace(/\r?\n$/, "") }) + "\n\n");
+    };
+    send(`Importing into Slot ${slot} at program ${program}...`);
+    const r = await runPython(SET_SLOT_SCRIPT, [String(program), full, "--slot", slot], send);
+    if (res.writableEnded) return;
+    res.write(`event: done\ndata: ${JSON.stringify({ ok: r.code === 0, code: r.code, log: r.out, stderr: r.err })}\n\n`);
+    res.end();
+  } catch (err) {
+    if (!res.writableEnded) {
+      res.write(`event: done\ndata: ${JSON.stringify({ ok: false, error: err.message })}\n\n`);
+      res.end();
+    }
+  } finally {
+    fetchBusy = false;
+  }
+});
+
+app.get("/api/files/:id/download", async (req, res) => {
+  try {
+    const row = db.prepare("SELECT path, filename FROM files WHERE id = ?").get(req.params.id);
+    if (!row) return res.status(404).json({ error: "file not found" });
+    let full = row.path ? path.join(ROOT_DIR, row.path) : null;
+    if (full && fs.existsSync(full)) return res.download(full, row.filename);
+    // not local yet - fetch it from patchstorage, then serve
+    res.setHeader("X-Fetching", "1");
+    const r = await runFetch(["--only", row.filename]);
+    if (r.code !== 0) {
+      return res.status(502).json({ error: "fetch failed: " + (r.err || r.out || "python error") });
+    }
+    const full2 = path.join(ROOT_DIR, "patchstorage", row.filename);
+    if (!fs.existsSync(full2)) return res.status(404).json({ error: "file missing on disk" });
+    res.download(full2, row.filename);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/h90/fetch", async (req, res) => {
+  try {
+    const id = Number((req.body || {}).fileId);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: "fileId must be an integer" });
+    const row = db.prepare("SELECT filename FROM files WHERE id = ?").get(id);
+    if (!row) return res.status(404).json({ error: "file not found" });
+    if (fetchBusy) return res.status(409).json({ error: "another fetch is still running" });
+    fetchBusy = true;
+    try {
+      const r = await runFetch(["--only", row.filename]);
+      res.json({ ok: r.code === 0, code: r.code, log: r.out, stderr: r.err });
+    } finally {
+      fetchBusy = false;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/h90/sync", async (req, res) => {
+  if (fetchBusy) return res.status(409).json({ error: "another fetch is still running" });
+  fetchBusy = true;
+  try {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    const send = (msg) => {
+      if (res.writableEnded) return;
+      res.write("data: " + JSON.stringify({ line: msg.replace(/\r?\n$/, "") }) + "\n\n");
+    };
+    const r = await runFetch([], send);
+    if (res.writableEnded) return;
+    res.write(`event: done\ndata: ${JSON.stringify({ ok: r.code === 0, code: r.code, stderr: r.err })}\n\n`);
+    res.end();
+  } catch (err) {
+    if (!res.writableEnded) {
+      res.write(`event: done\ndata: ${JSON.stringify({ ok: false, error: err.message })}\n\n`);
+      res.end();
+    }
+  } finally {
+    fetchBusy = false;
   }
 });
 

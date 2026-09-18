@@ -210,20 +210,19 @@ def _keep_hidden():
 
 
 def main():
-    show = "--show" in sys.argv
-    args = [a for a in sys.argv[1:] if a != "--show"]
-    if len(args) < 2:
-        print("usage: python set_slot_a.py <program-N> <path-to-preset-file> [--show]")
-        return 2
-    try:
-        n = int(args[0])
-    except ValueError:
-        print("STATUS: bad-program (%s)" % args[0])
-        return 2
+    import argparse
+    parser = argparse.ArgumentParser(description="Recall program N and import a specified preset file into Slot A or B, then Save.")
+    parser.add_argument("program", type=int, help="program slot number 1-100")
+    parser.add_argument("path", help="path to preset file")
+    parser.add_argument("--slot", choices=["A", "B"], default="A", help="target slot (default: A)")
+    parser.add_argument("--show", action="store_true", help="keep app windows visible")
+    args = parser.parse_args()
+    n = args.program
+    slot = args.slot
     if not (1 <= n <= 100):
         print("STATUS: program-out-of-range (%d)" % n)
         return 2
-    path = os.path.abspath(args[1])
+    path = os.path.abspath(args.path)
     if not os.path.isfile(path):
         print("STATUS: no-file (%s)" % path)
         return 1
@@ -237,7 +236,7 @@ def main():
     h90_app.pin_window()   # canonical rect: all fixed coords were measured on it
 
     # keep every app window hidden from launch (cold start login included)
-    if not show:
+    if not args.show:
         keeper_thread, keeper_stop = _keep_hidden()
         print("HEADLESS: app windows hidden (pass --show to keep visible)")
     else:
@@ -274,10 +273,10 @@ def main():
         print("STATUS: wrong-program (want %d got %s)" % (n, num))
         return 1
 
-    # 6. import into Slot A
-    status, info = import_preset.import_preset(path)
+    # 6. import into the target slot
+    status, info = import_preset.import_preset(path, slot)
     print("STATUS: %s" % status)
-    print("SLOT A: %s" % info)
+    print("SLOT %s: %s" % (slot, info))
     if status != "imported":
         return 1
 
@@ -286,13 +285,13 @@ def main():
     if not click_save(win):
         print("STATUS: save-fail")
         return 1
-    print("SLOT A SAVED to program %d" % n)
+    print("SLOT %s SAVED to program %d" % (slot, n))
 
     # 8. re-verify after save
     num = header_number(win)
     print("HEADER NUMBER AFTER SAVE: %s" % num)
-    name = import_preset.slot_a_preset_name()
-    print("SLOT A AFTER SAVE: %s" % name)
+    name = import_preset.slot_preset_name(slot)
+    print("SLOT %s AFTER SAVE: %s" % (slot, name))
 
     # 9. disconnect and leave the app open for the next run
     disconnect(win)

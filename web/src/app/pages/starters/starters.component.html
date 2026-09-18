@@ -1,0 +1,71 @@
+<nav class="tabs">
+  <a routerLink="/h90" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Browse presets</a>
+  <a routerLink="/h90/starters" routerLinkActive="active">Effect starters</a>
+</nav>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" [routerLink]="['/h90']">H90</span>
+    <div class="title-block">
+      <h1>Effect Starters</h1>
+      <span class="subtitle">{{ effects.length }} shown &middot; {{ total }} total &middot; factory single-algo presets</span>
+    </div>
+  </div>
+
+  <div class="filters">
+    <select [formControl]="type" aria-label="Effect family">
+      <option value="all">All families</option>
+      <option *ngFor="let f of families" [value]="f">{{ f }}</option>
+    </select>
+    <input
+      type="search"
+      placeholder="Filter by name…"
+      [formControl]="search"
+      aria-label="Search name"
+    />
+  </div>
+
+  <div class="program-box">
+    <label>Program
+      <input type="number" [formControl]="program" min="1" max="100" aria-label="Program number" />
+    </label>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h2>Import log</h2>
+    <pre *ngIf="log" class="log">{{ log }}</pre>
+    <p *ngIf="!log" class="hint">
+      Pick a program number, then click <b>Slot A</b> or <b>Slot B</b> on any
+      effect. The H90 app must be installed and you must be logged in —
+      the import is driven through the Eventide Control app on this machine.
+    </p>
+    <p *ngIf="busy" class="busy">Import in progress…</p>
+  </aside>
+
+  <main class="content">
+    <div class="results-bar">
+      <span *ngIf="!loading">{{ effects.length }} result{{ effects.length === 1 ? '' : 's' }}</span>
+      <span *ngIf="loading" class="loading">Loading…</span>
+    </div>
+
+    <div *ngIf="effects.length === 0 && !loading" class="empty">
+      No effects match your filters.
+    </div>
+
+    <div class="list" [class.blur]="loading || busy">
+      <article *ngFor="let item of effects; trackBy: trackBy" class="row">
+        <div class="info">
+          <span class="bank" [class.b2]="item.bank === 'm2'">{{ bankLabel(item.bank) }}</span>
+          <span class="family">{{ item.family }}</span>
+          <span class="name">{{ item.name }}</span>
+        </div>
+        <div class="actions">
+          <button class="slot slot-a" (click)="importItem(item, 'A')" [disabled]="busy">Slot A</button>
+          <button class="slot slot-b" (click)="importItem(item, 'B')" [disabled]="busy">Slot B</button>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>

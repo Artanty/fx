@@ -1,4 +1,4 @@
-<a class="back" routerLink="/">&larr; Back to presets</a>
+<a class="back" routerLink="/h90">&larr; Back to presets</a>
 
 <div *ngIf="loading" class="state">Loading…</div>
 <div *ngIf="error" class="state error">{{ error }}</div>
@@ -59,18 +59,28 @@
 
     <section class="panel">
       <h2>File</h2>
-      <div class="file-row">
-        <div class="file-info">
-          <span class="file-name">{{ patch.filename }}</span>
-          <span class="file-size">{{ filesize() }} &middot; {{ patch.extension }}</span>
-          <span *ngIf="patch.preset_name" class="file-preset">Preset: {{ patch.preset_name }}</span>
+<div class="file-row">
+          <div class="file-info">
+            <span class="file-name">{{ patch.filename }}</span>
+            <span class="file-size">{{ filesize() }} &middot; {{ patch.extension }}</span>
+            <span *ngIf="patch.preset_name" class="file-preset">Preset: {{ patch.preset_name }}</span>
+            <span *ngIf="!isLocal()" class="file-preset">Not downloaded yet</span>
+          </div>
+          <button class="download-btn" (click)="download()" [disabled]="downloading">
+            {{ downloading ? 'Fetching…' : 'Download' }}
+          </button>
         </div>
-        <a class="download-btn" [href]="downloadUrl()">Download</a>
-      </div>
-      <p class="hint">
-        Also on <a [href]="patch.url" target="_blank" rel="noopener">patchstorage.com</a>
-        <span *ngIf="patch.license"> &middot; {{ patch.license }}</span>
-      </p>
+        <p *ngIf="downloadError" class="file-error">{{ downloadError }}</p>
+        <p class="hint">
+          Also on <a [href]="patch.url" target="_blank" rel="noopener">patchstorage.com</a>
+          <span *ngIf="patch.license"> &middot; {{ patch.license }}</span>
+        </p>
+        <div class="sync-row">
+          <button class="btn" (click)="syncAll()" [disabled]="syncBusy">
+            {{ syncBusy ? 'Syncing…' : 'Sync all from patchstorage' }}
+          </button>
+          <span *ngIf="syncLog" class="knob-log">{{ syncLog }}</span>
+        </div>
     </section>
 
     <section class="panel knob-panel">

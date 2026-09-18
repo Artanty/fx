@@ -28,14 +28,20 @@ from pywinauto.mouse import click
 import h90_app
 from export_m2_lib import literal_keys
 
-# Slot-A header menu button and the "Import..." item offset (measured on the
-# running Eventide Control 2.2.0 window at L1,T31,R1023,B1039).
-SLOT_A_MENU = (309, 206)          # slot-A 'menuButton' center
-ITEM_IMPORT = (439, 336)          # "Import..." row in the popup
+# Slot header menu buttons and the "Import..." item offset for each slot
+# (measured on the running Eventide Control 2.2.0 window at L1,T31,R1023,B1039).
+# Slot A menuButton (297,194,321,218); slot B menuButton (660,194,684,218).
+SLOT_MENUS = {"A": (309, 206), "B": (672, 206)}
+ITEM_IMPORT = {"A": (439, 336), "B": (802, 336)}   # "Import..." row per popup
 
 # Native dialog geometry (real screen coords while open).
 FN_EDIT = (213, 501, 716, 516)    # 'Имя файла:' filename Edit
 DIALOG_REGION_TOP = 470           # real dialog controls sit below this y
+
+# Slot name-edit and algorithm-label horizontal bands (measured on the running
+# app). Slot A name Edit (450,181,578,231); slot B name Edit (825,181,912,231).
+SLOT_NAME_BAND = {"A": (440, 660, 175, 230), "B": (700, 1007, 175, 230)}
+SLOT_ALGO_BAND = {"A": (360, 690, 175, 230), "B": (700, 1007, 175, 230)}
 
 
 def _pipe(w):
@@ -118,46 +124,49 @@ def dismiss_stale_dialog():
     return wait_dialog_close(tries=10)
 
 
-def slot_a_preset_name():
-    """Return the current Slot-A program/preset name read from the app's own
-    header edit (control_type Edit, left band of the slot header)."""
+def slot_preset_name(slot="A"):
+    """Return the current slot's program/preset name read from the app's own
+    header edit (control_type Edit, in that slot's horizontal band)."""
     try:
         win = h90_app.main_window()
     except Exception:
         return None
+    lo, hi, top, bottom = SLOT_NAME_BAND[slot]
     for el in win.descendants():
         try:
             if el.element_info.control_type != "Edit":
                 continue
             r = el.rectangle()
-            if 440 <= r.left <= 660 and 175 <= r.top <= 230:
+            if lo <= r.left <= hi and top <= r.top <= bottom:
                 return (el.get_value() or "").strip()
         except Exception:
             continue
     return None
 
 
-def slot_a_algorithm():
-    """Return the Slot-A algorithm label text (Text right of the 'A' letter)."""
+def slot_algorithm(slot="A"):
+    """Return the slot's algorithm label text (Text right of the slot letter)."""
     try:
         win = h90_app.main_window()
     except Exception:
         return None
+    lo, hi, top, bottom = SLOT_ALGO_BAND[slot]
     for el in win.descendants():
         try:
             if el.element_info.control_type != "Text":
                 continue
             t = el.window_text()
             r = el.rectangle()
-            if t.strip() and t.strip() not in ("A", "B") and 360 <= r.left <= 690 and 175 <= r.top <= 230:
+            if (t.strip() and t.strip() not in ("A", "B")
+                    and lo <= r.left <= hi and top <= r.top <= bottom):
                 return t.strip()
         except Exception:
             continue
     return None
 
 
-def open_slot_a_import_dialog():
-    """Open the Slot-A menu, click Import..., wait for the native dialog.
+def open_slot_import_dialog(slot="A"):
+    """Open the slot menu, click Import..., wait for the native dialog.
     Returns True when the filename Edit is present."""
     if dialog_open():
         return True
@@ -170,7 +179,7 @@ def open_slot_a_import_dialog():
     send_keys("{ESC}")
     time.sleep(0.4)
 
-    click(coords=SLOT_A_MENU)
+    click(coords=SLOT_MENUS[slot])
     time.sleep(1.2)
     # popup items live in a narrow secondary window of the app
     app = _pipe(None)
@@ -187,7 +196,7 @@ def open_slot_a_import_dialog():
             break
     if item is None:
         # fallback: fixed measured position of the Import... row
-        click(coords=ITEM_IMPORT)
+        click(coords=ITEM_IMPORT[slot])
     else:
         try:
             item.invoke()
@@ -218,19 +227,20 @@ def set_filename(path):
         return False
 
 
-def import_preset(path):
-    """Import a preset file into Slot A. Returns (status, slot_a_name)."""
+def import_preset(path, slot="A"):
+    """Import a preset file into the given slot ('A' or 'B').
+    Returns (status, slot_name)."""
     path = os.path.abspath(path)
     if not os.path.isfile(path):
-        return ("no-file", slot_a_preset_name())
+        return ("no-file", slot_preset_name(slot))
 
-    if not open_slot_a_import_dialog():
+    if not open_slot_import_dialog(slot):
         # maybe a stale dialog is already up
         if not dialog_open():
-            return ("no-dialog", slot_a_preset_name())
+            return ("no-dialog", slot_preset_name(slot))
 
     if not set_filename(path):
-        return ("type-fail", slot_a_preset_name())
+        return ("type-fail", slot_preset_name(slot))
 
     ok = open_button()
     if ok is None:
@@ -240,7 +250,7 @@ def import_preset(path):
                 cancel.invoke()
             except Exception:
                 pass
-        return ("no-open", slot_a_preset_name())
+        return ("no-open", slot_preset_name(slot))
 
     try:
         ok.invoke()
@@ -253,8 +263,8 @@ def import_preset(path):
         if not dialog_open():
             break
 
-    name = slot_a_preset_name()
-    algo = slot_a_algorithm()
+    name = slot_preset_name(slot)
+    algo = slot_algorithm(slot)
     if not dialog_open():
         return ("imported", "%s / %s" % (name or "?", algo or "?"))
 
@@ -268,12 +278,14 @@ def import_preset(path):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("usage: python import_preset.py <path-to-preset-file>")
-        return 2
-    status, info = import_preset(sys.argv[1])
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path", help="path to preset file")
+    parser.add_argument("--slot", choices=["A", "B"], default="A")
+    args = parser.parse_args()
+    status, info = import_preset(args.path, args.slot)
     print("STATUS: %s" % status)
-    print("SLOT A: %s" % info)
+    print("SLOT %s: %s" % (args.slot, info))
     return 0 if status == "imported" else 1
 
 

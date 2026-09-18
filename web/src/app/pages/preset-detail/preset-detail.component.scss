@@ -130,13 +130,58 @@
   .download-btn {
     flex-shrink: 0;
     background: #ffb454;
+    border: none;
+    cursor: pointer;
     color: #1b1b21;
     font-weight: 700;
     font-size: 14px;
     padding: 10px 20px;
     border-radius: 8px;
     text-decoration: none;
-    &:hover { background: #ffc26f; }
+    &:hover:not(:disabled) { background: #ffc26f; }
+    &:disabled { opacity: 0.5; cursor: default; }
+  }
+}
+
+.file-error {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #ff7b7b;
+  white-space: pre-wrap;
+}
+
+.sync-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #2a2a32;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .btn {
+    align-self: flex-start;
+    background: #26262e;
+    border: 1px solid #3a3a44;
+    color: #e5e5ee;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    &:hover:not(:disabled) { background: #30303a; border-color: #ffb454; }
+    &:disabled { opacity: 0.45; cursor: default; }
+  }
+  .knob-log {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #b5b5c0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 260px;
+    overflow: auto;
+    background: #101015;
+    border: 1px solid #2a2a32;
+    border-radius: 8px;
+    padding: 10px 12px;
   }
 }
 

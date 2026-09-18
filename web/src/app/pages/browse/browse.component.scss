@@ -1,3 +1,26 @@
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 20px 0;
+  background: rgba(18, 18, 22, 0.92);
+  border-bottom: 1px solid #2a2a32;
+  a {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #9a9aa5;
+    text-decoration: none;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 2px solid transparent;
+    &.active {
+      color: #ffb454;
+      border-bottom-color: #ffb454;
+      background: #1b1b21;
+    }
+    &:hover:not(.active) { color: #d5d5de; }
+  }
+}
+
 .topbar {
   position: sticky;
   top: 0;
