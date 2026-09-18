@@ -134,6 +134,32 @@ export class ApiService {
     return this.http.post<{ ok: boolean; code: number; log: string; stderr?: string }>('/api/h90/fetch', { fileId });
   }
 
+  saveH90FileToInput(fileId: number): Observable<{
+    ok: boolean;
+    code: number;
+    log: string;
+    stderr?: string;
+    saved?: boolean;
+    path?: string | null;
+    preset_name?: string | null;
+    algorithm?: string | null;
+    secondary_algorithm?: string | null;
+    effect_family?: string | null;
+  }> {
+    return this.http.post<{
+      ok: boolean;
+      code: number;
+      log: string;
+      stderr?: string;
+      saved?: boolean;
+      path?: string | null;
+      preset_name?: string | null;
+      algorithm?: string | null;
+      secondary_algorithm?: string | null;
+      effect_family?: string | null;
+    }>('/api/h90/save', { fileId });
+  }
+
   syncH90(): Observable<H90SyncEvent> {
     return sseStream('/api/h90/sync', { method: 'POST' });
   }

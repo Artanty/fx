@@ -47,6 +47,14 @@ export interface PatchesResponse {
   items: PatchItem[];
 }
 
+export interface PatchSlot {
+  slot: 'A' | 'B';
+  algorithm: string | null;
+  preset_name: string | null;
+  product_id: string | null;
+  knobs: Record<string, number | boolean | string>;
+}
+
 export interface PatchDetail {
   id: number;
   slug: string;
@@ -77,6 +85,8 @@ export interface PatchDetail {
   categories: string[];
   tags: string[];
   tag_slugs: string[];
+  slots: PatchSlot[] | null;
+  saved_input: boolean;
 }
 
 export interface PatchParams {

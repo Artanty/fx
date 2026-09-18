@@ -66,11 +66,12 @@
             <span *ngIf="patch.preset_name" class="file-preset">Preset: {{ patch.preset_name }}</span>
             <span *ngIf="!isLocal()" class="file-preset">Not downloaded yet</span>
           </div>
-          <button class="download-btn" (click)="download()" [disabled]="downloading">
-            {{ downloading ? 'Fetching…' : 'Download' }}
+          <button class="download-btn" (click)="saveToInput()" [disabled]="downloading">
+            {{ downloading ? 'Saving…' : (patch.saved_input ? 'Saved ✓' : 'Save to input/patchstorage') }}
           </button>
         </div>
         <p *ngIf="downloadError" class="file-error">{{ downloadError }}</p>
+        <p *ngIf="savedMessage" class="file-saved">{{ savedMessage }}</p>
         <p class="hint">
           Also on <a [href]="patch.url" target="_blank" rel="noopener">patchstorage.com</a>
           <span *ngIf="patch.license"> &middot; {{ patch.license }}</span>
@@ -81,6 +82,24 @@
           </button>
           <span *ngIf="syncLog" class="knob-log">{{ syncLog }}</span>
         </div>
+    </section>
+
+    <section *ngIf="patch.slots?.length" class="panel">
+      <h2>Saved preset knobs</h2>
+      <p class="hint">Knob values read from the saved preset file, per slot.</p>
+      <div class="slot" *ngFor="let sv of slotViews()">
+        <div class="slot-head">
+          <span class="slot-badge">Slot {{ sv.slot }}</span>
+          <span *ngIf="sv.algorithm" class="slot-algo">{{ sv.algorithm }}</span>
+          <span *ngIf="sv.preset_name" class="slot-name">{{ sv.preset_name }}</span>
+        </div>
+        <div class="knob-grid">
+          <div class="knob-cell" *ngFor="let row of sv.rows">
+            <span class="knob-label" title="{{ row.label }}">{{ row.label }}</span>
+            <span class="knob-value">{{ row.value }}</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="panel knob-panel">

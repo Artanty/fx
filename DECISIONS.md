@@ -4615,3 +4615,229 @@ Starters page had tabs BELOW the topbar (wrong); reordered. Tabs are a
 static strip (no sticky offsets collide with the sticky topbar/search bar),
 so both Browse presets and Effect starters keep 'tabs above filters' when
 scrolled. ng build passes.
+
+## Progress - 2026-09-18 save patchstorage preset to input/patchstorage (buttons on card + detail)
+
+Implemented:
+- fetch_presets.py: fetch_one(filename, todir=None) + --todir CLI flag (default
+  unchanged: back/h90/patchstorage). Reuses download() + update_row(), so the
+  files row is populated in place (path -> ..\..\input\patchstorage\<file>,
+  preset_name, algorithm, secondary, family).
+- server.js: INPUT_PATCH_DIR const; POST /api/h90/save {fileId} runs
+  fetch_presets.py --only <file> --todir <dir> under the shared fetchBusy
+  single-flight guard; returns {ok, code, log, saved, filename, path,
+  filesize, preset_name, algorithm, secondary_algorithm, effect_family}.
+  node --check OK.
+- api.service.ts: saveH90FileToInput(fileId).
+- preset-detail: Download button repurposed into 'Save to input/patchstorage'
+  (server-side only, no browser redirect); reloads the patch after save to
+  reflect path; success message in green (.file-saved).
+- browse card: per-item Save button in card-meta (.save-btn, saved state green
+  'Saved ✓'), busy text per row, title tooltip shows the error, in-page
+  savedIds seeded from items that already have a path.
+- ng build (development) passes; python live-tested: Anomalous-Radiation-Hall
+  saved to input/patchstorage (15792 B), DB row id 2 updated (Reverse Reverb).
+  Row 115 (Haunting-Lead) was already present from the earlier manual save.
+
+Note: the running backend on :3000 is the user's instance and does not yet
+have /api/h90/save (404 until restarted) - per convention the user runs it.
+
+## Plan - 2026-09-18 show both slot knob values on preset detail page
+
+Request: parse both slots' knob values from a patchstorage-saved preset and
+show them in the web UI. Choices confirmed with user: friendly H90 labels
+(raw key fallback when unknown), detail page only (no browse-card change).
+
+- server.js: port build_db.extract_json_blobs (~12 lines; find 'eyJ', consume
+  base64 chars, base64/Buffer -> JSON.parse, collect dict blobs). In
+  GET /api/patches/:slug: when row.path resolves to an existing non-zip file
+  on disk, read bytes, extract blobs, attach
+  slots: [{slot:'A'|'B', algorithm, preset_name, product_id, knobs:{...}}];
+  position order = file order (blob 0 = Slot A, blob 1 = Slot B as observed
+  in Haunting-Lead). Read-only: DB untouched, parses at request time, so
+  already-saved files work with no backfill.
+- models.ts: PatchDetail.slots type.
+- h90-labels.ts (new): param key -> friendly H90 label map (dcay->Delay Time,
+  efbk->Feedback, eton->Echo Tone, hilv->High Level, lolv->Low Level,
+  fxmx->Loop Mix, mmix->Mix, mrat->Mod Rate, pdly->Predelay, dpth->Depth,
+  itsy->Intensity, sped->Speed, wdth->Width, shpe->Shape, smod->Mod Shape,
+  msrc->Mod Source, preset_mix->Preset Mix, killdry->Kill Dry, tmpv->Tempo,
+  x/y/z_switch->X/Y/Z Switch, bypa_normal->Bypass). Unknown keys fall back raw.
+- preset-detail: 'Saved preset knobs' panel when patch.slots?.length; per slot
+  header (Slot A/B, algorithm, preset name) + label/value grid; values:
+  numbers trimmed, booleans on/off, switches show bound knob label.
+- Verify: node --check server.js; ng build; endpoint/slots sanity check.
+
+## Progress - 2026-09-18 show both slot knob values on preset detail page
+
+Implemented:
+- server.js: const B64_CHARS + isB64Char() + extractJsonBlobs(buf) (JS port of
+  build_db.extract_json_blobs) + slotsForFile(filePath). GET /api/patches/:slug
+  now resolves the local file (row.path first, then INPUT_PATCH_DIR/<filename>
+  fallback) and, when it exists and parses, attaches
+  slots: [{slot:'A'|'B', algorithm, preset_name, product_id, knobs:{...}}]
+  (position order = file order; blob 0 -> Slot A). Read-only, no backfill
+  needed; DB untouched. node --check OK.
+- models.ts: PatchDetail gains optional slots: PatchSlot[] | null;
+  new PatchSlot interface (slot, algorithm, preset_name, product_id, knobs).
+- h90-labels.ts (new): knobLabel(algorithm, key) maps ModEchoVerb + ModFilter
+  param keys and generic H90 params to friendly panel labels; unknown keys
+  fall back to the raw key.
+- preset-detail: 'Saved preset knobs' panel (shown when patch.slots?.length)
+  renders one block per slot (Slot A/B badge, algorithm, preset name) with a
+  responsive knob grid; values formatted (numbers trim, booleans on/off,
+  x/y/z_switch resolve to the bound knob's friendly label); meta keys
+  (algorithm_name/preset_name/product_id/version) excluded.
+- Verified: node --check server.js; inline extractJsonBlobs decodes both
+  Haunting-Lead blobs (ModEchoVerb + ModFilter) with correct values; ng build
+  passes (only pre-existing lalady scss budget warning); DB + file-path
+  resolution confirmed for slug 'haunting-lead'. Running :3000 server does
+  NOT have the slots code yet - needs a restart to serve slots.
+
+## Plan + Progress - 2026-09-18 auto-save preset to input/patchstorage on open
+
+Plan: when the preset detail page opens a patchstorage preset that is not yet
+saved to input/patchstorage, save it there automatically (no button click).
+
+- server.js: GET /api/patches/:slug now also returns saved_input (true when
+  input/patchstorage/<filename> exists on disk).
+- models.ts: PatchDetail gains saved_input: boolean.
+- preset-detail: after getPatch resolves, if !patch.saved_input, call
+  saveToInput() automatically (existing save + re-fetch flow; single-flight
+  fetchBusy in backend prevents concurrent fetches). Button label now driven
+  by patch.saved_input instead of isLocal().
+- Verified: node --check server.js; ng build passes (pre-existing lalady
+  budget warning only). Needs backend restart to serve saved_input.
+
+## CONTINUATION - save for tomorrow (2026-09-18 session end)
+
+### Feature: assign any preset from a .lst90 (list) to any program# any slot, keep effect MIDI-controlled
+
+User requirements (confirmed via Q&A):
+1. Patchstorage presets are OFTEN a LIST of presets (`.lst90` banks; e.g.
+   ORGANS-LESLIES-...lst90 holds 23 independent one-algorithm presets as 23
+   base64 JSON blobs). Blob 0/1 = Slot A/B ONLY holds for dual-slot `.pgm90`.
+2. Must be able to assign ANY preset in the list to ANY program # (1-100) and
+   ANY slot A/B.
+3. The effect must REMAIN MIDI-controlled, so: FIRST import the appropriate
+   effect starter from input/lib (m1 for slot A, m2 for slot B) into the
+   target program+slot (importing the raw patchstorage file would lose the
+   CC layout - CC assignments live only in saved programs, doc
+   docs/midi-cc-assign.md:142). THEN read the preset's knob values from the
+   patchstorage blob and send them via MIDI CC to the pedal.
+
+User choices:
+- Value->CC conversion: EXACT via per-effect calibration (batch --discover
+  pass producing knob-maps per m1/m2 starter with lo/hi/k), NOT % guessing.
+- Assign UX: "Assign & Send" one-click = import starter THEN auto-send knobs.
+
+### Current repo state (verified 2026-09-18)
+
+Already committed earlier: 6e2c146 effect-starter import UI (Slot A/B) +
+patchstorage downloads/sync.
+
+UNCOMMITTED work in tree right now (needs single commit with this summary):
+- back/h90/fetch_presets.py: fetch_one(filename, todir=None), --todir CLI,
+  reuses download() + update_row() so files row is populated in place
+  (path -> ..\..\input\patchstorage\<file>, preset_name/algorithm/family).
+- back/h90/server.js:
+  - INPUT_PATCH_DIR const; POST /api/h90/save {fileId} (server-side save to
+    input/patchstorage under shared fetchBusy single-flight; returns ok/code/
+    log/saved/filename/path/filesize/preset_name/algorithm/etc).
+  - GET /api/patches/:slug returns slots[] + saved_input. slots via a JS port
+    extractJsonBlobs(data) + slotsForFile(filePath) (find 'eyJ', consume
+    base64 chars, base64->Buffer->JSON.parse) - blob i==0 -> Slot A,
+    i==1 -> Slot B, position order = file order. saved_input = file exists at
+    input/patchstorage/<filename>. File resolution: row.path first, then
+    INPUT_PATCH_DIR/<filename> fallback. Read-only, no backfill.
+  - node --check OK.
+- web/src/app/models.ts: PatchSlot + PatchDetail.slots?: PatchSlot[]|null +
+  PatchDetail.saved_input: boolean.
+- web/src/app/h90-labels.ts (NEW, untracked): knobLabel(algorithm,key) map for
+  ModEchoVerb + ModFilter param keys + generic H90 params -> friendly labels,
+  unknown keys fall back raw.
+- web preset-detail.component.ts/html/scss:
+  - 'Saved preset knobs' panel per slot (Slot A/B badge, algorithm, preset
+    name, knob grid; numbers trimmed, booleans on/off, x/y/z_switch resolve to
+    bound knob friendly label; meta keys excluded, sorted by label).
+  - Download button repurposed -> saveToInput() server-side, label driven by
+    patch.saved_input (Saving.../Saved connected/otherwise 'Save to ...').
+  - AUTO-SAVE ON OPEN: after getPatch, if !patch.saved_input -> saveToInput()
+    automatically (existing save+re-fetch flow).
+  - .file-saved green msg style added.
+- web browse.component.ts/html/scss: per-item Save button in card-meta
+  (saveToInput(item) via api.saveH90FileToInput(item.file_id)), savedIds
+  Set seeded from items already having path, savingId busy state, save-error
+  text, title tooltip shows error message; .save-btn styles (+ .saved green).
+- web/src/app/services/api.service.ts: saveH90FileToInput(fileId) -> POST
+  /api/h90/save.
+- git status shows untracked: back/h90/server.log, server.err.log (runtime
+  logs, leave untracked), input/patchstorage/ (user's + test saves), and
+  web/src/app/h90-labels.ts (new, must be added).
+- Running :3000 backend is USER-RUN; it does NOT yet have the newer
+  server.js code (slots/saved_input/save). Needs user restart to serve them.
+  Per AGENTS.md never spawn the backend.
+
+### Tomorrow's plan (Stage 1 first - no hardware dependency, then Stage 2)
+
+Stage 1 - list rendering + assignment (web + backend):
+1. preset-detail: fix slot rendering - for .lst90 / multi-blob files render
+   ALL embedded presets as an assignable list (each row = algorithm +
+   preset_name + friendly knob grid), not just blob 0/1 as Slot A/B. Keep
+   Slot A/B presentation for dual-slot .pgm90.
+2. Each list row: program# stepper (1-100) + Slot A / Slot B buttons ->
+   "Assign & Send" (one click).
+3. Backend new POST /api/h90/assign {fileId, blobIndex, program, slot}:
+   - read local file, extractJsonBlobs, pick blobIndex -> algorithm_name +
+     knob dict
+   - resolve starter: slot A -> "m1 <family> <Name>.preset90", slot B ->
+     "m2 ..." in input/lib by normalized name match vs algorithm_name
+     (STARTER_NAME_RE exists server.js:277); 422 clear error if missing
+   - stream import via existing set_slot_a.py --slot (SSE same as
+     /api/h90/import) -> loads algorithm WITH its CC layout
+   - then auto-send knob values via MIDI CC (Stage 2)
+   - return {ok, log, sent: [{cc, control, value}], skipped: [...]}
+
+Stage 2 - exact value->CC via per-effect calibration:
+1. Calibration script (e.g. back/h90/build_knob_maps.py, analog of
+   run_m2_all.py) - user runs on desktop one-time-per-effect: load each
+   input/lib m1 (and m2) starter into H90 Control (UIA), scan knobs with
+   existing uia_driver --discover machinery, save knob-maps/<effect>-m1.json /
+   -m2.json with {label, cc (from midi_cc_states/*.json), lo, hi, k, type}.
+2. VERIFY param-key order alignment: blob key order (dcay/efbk/...) vs
+   discover scan order, per algorithm, to map dcay <-> "Decay" etc. If order
+   doesn't hold, fall back to curated key<->label override map (like
+   h90-labels.ts but CC-keyed).
+3. CC transport in server.js: send CC bytes [0xB0 | (ch-1), cc, value] on
+   existing midi channel/port (H90 channel 11, same as recall/set_slot).
+   Numeric: invert lo/hi/k -> rv, cc = round(rv*127). Enum (Type/Bypass/...):
+   map value->option index->CC via discovered enum order; unmapped enums
+   skipped + reported.
+Non-CC-addressable blob params (in1/out sens, *_start_exp/_end_exp,
+*hot_switch etc.) skipped with report line.
+
+### Validation used after each change
+- node --check back/h90/server.js
+- python -m py_compile back/h90/*.py (or fetch_presets.py)
+- npm run build (web/) - only pre-existing lalady scss budget warning
+
+### Key data files/locations
+- input/lib/ - 141 starter files "m1|m2 <family> <Name>.preset90"; 105 have 1
+  JSON blob, 36 have 0 (use *-obj binary format).
+- midi_cc_states/<slug>.json + <slug>-m2.json: per-effect CC assignments
+  (control label -> cc#, m1 base ~0..16, m2 base ~50..66; ModEchoVerb m1 =
+  0-16, m2 = 50-66, ModFilter m1 effect 0..N-1 General N..N+6).
+- knob-map.json: INIT-program calibration (lo/hi/k/rv/label/bucket) - only
+  INIT, not per-algorithm yet (Stage 2 fills this).
+- back/h90/patchstorage/ has 8 fetched files; input/patchstorage/ has 6 files
+  (incl. user's Haunting-Lead-...pgm90 = dual slot ModEchoVerb JUNGLEAPPETITE
+  A + ModFilter WATERYFILTER DARK B; Anomalous-Radiation-Hall saved test).
+- build_db.py: ALGORITHM_FAMILIES, VALID_EXT={pgm90,preset90,lst90,zip},
+  extract_json_blobs/extract_notes (python source of truth for blob parsing).
+- server.js: ROOT_DIR=__dirname, DB readonly better-sqlite3, db at
+  back/h90/presets.db (files table: id, patch_id, filename, extension, path,
+  filesize, preset_name, algorithm, secondary_algorithm, effect_family,
+  notes; no knob columns - knob values come from file bytes at request time).
+- research.txt lives on (explore) task ses_f499bde60ffeLFF72clAoUSX2D with the
+  full architecture survey (import flow, CC scheme, starters, lst90 blobs,
+  browse/starters pages).

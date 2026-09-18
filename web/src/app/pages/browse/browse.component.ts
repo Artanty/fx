@@ -40,6 +40,10 @@ export class BrowseComponent implements OnInit, OnDestroy {
   data: PatchesResponse = { total: 0, page: 1, per_page: 24, pages: 1, items: [] };
   loading = false;
 
+  savingId: number | null = null;
+  savedIds = new Set<number>();
+  saveErrors = new Map<number, string>();
+
   tagsLimit = 30;
   showAllTags = false;
 
@@ -132,6 +136,33 @@ export class BrowseComponent implements OnInit, OnDestroy {
       });
   }
 
+  saveToInput(item: PatchItem): void {
+    if (this.savingId !== null) return;
+    this.savingId = item.file_id;
+    this.saveErrors.delete(item.file_id);
+    this.cdr.markForCheck();
+    this.api.saveH90FileToInput(item.file_id).subscribe({
+      next: (r) => {
+        this.savingId = null;
+        if (r.ok) {
+          this.savedIds.add(item.file_id);
+          item.path = r.path ?? null;
+          if (r.preset_name) item.preset_name = r.preset_name;
+          if (r.algorithm) item.algorithm = r.algorithm;
+          if (r.effect_family) item.effect_family = r.effect_family;
+        } else {
+          this.saveErrors.set(item.file_id, r.stderr || r.log || 'save failed');
+        }
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.savingId = null;
+        this.saveErrors.set(item.file_id, e?.error?.error || e?.message || 'request failed');
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
   reload(): void {
     this.page = 1;
     this.load();
@@ -154,6 +185,9 @@ export class BrowseComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (d) => {
           this.data = d;
+          for (const it of d.items) {
+            if (it.path) this.savedIds.add(it.file_id);
+          }
           this.loading = false;
           this.cdr.markForCheck();
         },

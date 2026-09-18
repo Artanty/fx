@@ -149,7 +149,19 @@
             <span *ngIf="item.view_count" title="Views">&#128065; {{ formatNumber(item.view_count) }}</span>
             <span *ngIf="item.like_count" title="Likes">&#128077; {{ formatNumber(item.like_count) }}</span>
           </span>
+          <button
+            class="save-btn"
+            (click)="saveToInput(item)"
+            [disabled]="savingId !== null" [class.saved]="savedIds.has(item.file_id)"
+            [attr.title]="saveErrors.get(item.file_id) || 'Save to input/patchstorage'"
+          >
+            <ng-container *ngIf="savingId === item.file_id">Saving…</ng-container>
+            <ng-container *ngIf="savingId !== item.file_id && savedIds.has(item.file_id)">Saved ✓</ng-container>
+            <ng-container *ngIf="savingId !== item.file_id && !savedIds.has(item.file_id)">Save</ng-container>
+          </button>
         </div>
+
+        <p *ngIf="saveErrors.get(item.file_id)" class="save-error">Save failed</p>
 
         <div *ngIf="item.tags.length" class="tags">
           <span *ngFor="let t of item.tags" class="tag">{{ t }}</span>

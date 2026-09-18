@@ -102,16 +102,18 @@ def ensure_cache(log=print):
     return build_db.fetch_api()
 
 
-def fetch_one(filename, log=print):
+def fetch_one(filename, log=print, todir=None):
+    """Download one file. todir defaults to PATCHDIR (back/h90/patchstorage)."""
     cache = ensure_cache(log)
     meta = file_url_map(cache).get(filename)
     if not meta:
         raise RuntimeError(f"no patchstorage file entry for {filename!r}")
     if not meta.get("url"):
         raise RuntimeError(f"file entry for {filename!r} has no download URL")
-    os.makedirs(PATCHDIR, exist_ok=True)
-    rel = os.path.join("patchstorage", filename)
-    full = os.path.join(ROOT, rel)
+    dest = os.path.abspath(todir) if todir else PATCHDIR
+    os.makedirs(dest, exist_ok=True)
+    full = os.path.join(dest, filename)
+    rel = os.path.relpath(full, ROOT)
     if not os.path.exists(full):
         download(meta["url"], full, log)
     else:
@@ -173,10 +175,11 @@ def fetch_all(log=print, limit=None):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Download H90 presets from patchstorage and fill presets.db")
     ap.add_argument("--only", help="download only this filename (lazy single-file fetch)")
+    ap.add_argument("--todir", help="download into this directory (default back/h90/patchstorage)")
     ap.add_argument("--limit", type=int, help="fetch at most N files (test mode)")
     args = ap.parse_args(argv)
     if args.only:
-        rel = fetch_one(args.only)
+        rel = fetch_one(args.only, todir=args.todir)
         print(f"OK {rel}")
     else:
         fetch_all(limit=args.limit)

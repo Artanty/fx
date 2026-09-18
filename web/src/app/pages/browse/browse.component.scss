@@ -303,6 +303,31 @@
     .stats { display: flex; gap: 10px; }
   }
 
+  .save-btn {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #e8e8ec;
+    background: #26262e;
+    border: 1px solid #3a3a44;
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+    &:hover:not(:disabled) { border-color: #ffb454; color: #ffb454; }
+    &:disabled { opacity: 0.5; cursor: default; }
+    &.saved {
+      color: #7fe0bb;
+      border-color: #2c6b54;
+      background: #12251e;
+    }
+  }
+
+  .save-error {
+    margin: 0;
+    font-size: 11px;
+    color: #ff7b7b;
+  }
+
   .tags {
     display: flex;
     flex-wrap: wrap;

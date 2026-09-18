@@ -93,6 +93,58 @@
   }
 }
 
+.slot {
+  margin-bottom: 16px;
+  &:last-child { margin-bottom: 0; }
+
+  .slot-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+
+    .slot-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #ffb454;
+      color: #1b1b21;
+    }
+
+    .slot-algo {
+      font-size: 13px;
+      font-weight: 600;
+      color: #b7a5ff;
+    }
+
+    .slot-name {
+      font-size: 13px;
+      color: #f0f0f4;
+    }
+  }
+
+  .knob-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
+
+    .knob-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: #22222a;
+      border: 1px solid #2c2c35;
+      border-radius: 8px;
+      padding: 6px 10px;
+
+      .knob-label { font-size: 11px; color: #8a8a95; }
+      .knob-value { font-size: 13px; font-weight: 600; color: #f0f0f4; }
+    }
+  }
+}
+
 .description {
   font-size: 14px;
   line-height: 1.6;
@@ -148,6 +200,12 @@
   font-size: 12px;
   color: #ff7b7b;
   white-space: pre-wrap;
+}
+
+.file-saved {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #7fe0bb;
 }
 
 .sync-row {

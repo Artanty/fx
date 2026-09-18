@@ -3,7 +3,22 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { ApiService, H90TurnRequest } from '../../services/api.service';
-import { PatchDetail } from '../../models';
+import { PatchDetail, PatchSlot } from '../../models';
+import { knobLabel } from '../../h90-labels';
+
+const SLOT_META_KEYS = new Set(['algorithm_name', 'preset_name', 'product_id', 'version']);
+
+interface SlotKnobRow {
+  label: string;
+  value: string;
+}
+
+export interface SlotViewModel {
+  slot: 'A' | 'B';
+  algorithm: string | null;
+  preset_name: string | null;
+  rows: SlotKnobRow[];
+}
 
 @Component({
   selector: 'app-preset-detail',
@@ -26,6 +41,7 @@ export class PresetDetailComponent implements OnInit, OnDestroy {
 
   downloading = false;
   downloadError: string | null = null;
+  savedMessage: string | null = null;
   syncBusy = false;
   syncLog = '';
 
@@ -45,6 +61,7 @@ export class PresetDetailComponent implements OnInit, OnDestroy {
         this.patch = p;
         this.loading = false;
         this.cdr.markForCheck();
+        if (!p.saved_input) this.saveToInput();
       },
       error: () => {
         this.error = 'Preset not found.';
@@ -73,23 +90,28 @@ export class PresetDetailComponent implements OnInit, OnDestroy {
       window.location.href = this.downloadUrl();
       return;
     }
+    this.saveToInput();
+  }
+
+  saveToInput(): void {
+    if (!this.patch || this.downloading) return;
     this.downloading = true;
     this.downloadError = null;
+    this.savedMessage = null;
     this.cdr.markForCheck();
-    this.api.fetchH90File(this.patch.file_id).subscribe({
+    this.api.saveH90FileToInput(this.patch.file_id).subscribe({
       next: (r) => {
         this.downloading = false;
         if (!r.ok) {
-          this.downloadError = r.stderr || r.log || 'fetch failed';
+          this.downloadError = r.stderr || r.log || 'save failed';
           this.cdr.markForCheck();
           return;
         }
-        const slug = this.patch?.slug;
-        this.api.getPatch(slug!).subscribe((p) => {
+        this.savedMessage = `Saved to input/patchstorage (${r.preset_name || this.patch?.filename || 'file'}).`;
+        this.api.getPatch(this.patch!.slug).subscribe((p) => {
           this.patch = p;
           this.cdr.markForCheck();
         });
-        window.location.href = this.downloadUrl();
         this.cdr.markForCheck();
       },
       error: (e) => {
@@ -143,6 +165,38 @@ export class PresetDetailComponent implements OnInit, OnDestroy {
     if (b < 1024) return b + ' B';
     if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
     return (b / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  slotViews(): SlotViewModel[] {
+    if (!this.patch?.slots) return [];
+    return this.patch.slots.map((s) => ({
+      slot: s.slot,
+      algorithm: s.algorithm,
+      preset_name: s.preset_name,
+      rows: this.slotRows(s),
+    }));
+  }
+
+  private slotRows(s: PatchSlot): SlotKnobRow[] {
+    const out: SlotKnobRow[] = [];
+    for (const [key, val] of Object.entries(s.knobs || {})) {
+      if (SLOT_META_KEYS.has(key)) continue;
+      out.push({ label: knobLabel(s.algorithm, key), value: this.formatKnobValue(s, key, val) });
+    }
+    out.sort((a, b) => a.label.localeCompare(b.label));
+    return out;
+  }
+
+  private formatKnobValue(s: PatchSlot, key: string, val: number | boolean | string): string {
+    if (key === 'x_switch' || key === 'y_switch' || key === 'z_switch') {
+      return typeof val === 'string' ? knobLabel(s.algorithm, val) : String(val);
+    }
+    if (typeof val === 'number') {
+      if (Number.isInteger(val)) return String(val);
+      return String(Number(val.toFixed(3)));
+    }
+    if (typeof val === 'boolean') return val ? 'on' : 'off';
+    return String(val);
   }
 
   scanKnobs(): void {

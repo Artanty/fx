@@ -41,6 +41,54 @@ function splitList(value) {
   return String(value).split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+const B64_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+
+function isB64Char(c) {
+  return B64_CHARS.includes(c);
+}
+
+function extractJsonBlobs(data) {
+  // JS port of build_db.extract_json_blobs: find embedded base64 JSON blobs
+  // (they start with "eyJ" = base64 of a JSON object) and decode each.
+  const blobs = [];
+  const needle = Buffer.from("eyJ", "ascii");
+  let i = 0;
+  while (true) {
+    const s = data.indexOf(needle, i);
+    if (s < 0) break;
+    const seg = data.subarray(s, s + 200000);
+    let j = 0;
+    while (j < seg.length && isB64Char(String.fromCharCode(seg[j]))) j++;
+    try {
+      const obj = JSON.parse(Buffer.from(seg.subarray(0, j).toString("ascii"), "base64").toString("utf8"));
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) blobs.push(obj);
+    } catch (err) {
+      // not a decodable blob - keep scanning after this offset
+    }
+    i = s + 1;
+  }
+  return blobs;
+}
+
+function slotsForFile(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return null;
+    const data = fs.readFileSync(filePath);
+    const blobs = extractJsonBlobs(data);
+    if (!blobs.length) return null;
+    return blobs.map((b, idx) => ({
+      slot: idx === 0 ? "A" : "B",
+      algorithm: b.algorithm_name ?? null,
+      preset_name: b.preset_name ?? null,
+      product_id: b.product_id ?? null,
+      knobs: b,
+    }));
+  } catch (err) {
+    return null;
+  }
+}
+
 function buildQuery(q) {
   const where = [];
   const params = [];
@@ -169,11 +217,19 @@ app.get("/api/patches/:slug", (req, res) => {
       WHERE p.slug = ?
       ORDER BY f.id LIMIT 1`).get(req.params.slug);
     if (!row) return res.status(404).json({ error: "patch not found" });
+    const candidates = [];
+    if (row.path) candidates.push(path.join(ROOT_DIR, row.path));
+    if (INPUT_PATCH_DIR) candidates.push(path.join(INPUT_PATCH_DIR, row.filename));
+    const filePath = candidates.find((p) => fs.existsSync(p)) || null;
+    const savedInput =
+      row.filename && fs.existsSync(path.join(INPUT_PATCH_DIR, row.filename));
     res.json({
       ...row,
       categories: row.categories ? row.categories.split("|") : [],
       tags: row.tags ? row.tags.split("|") : [],
       tag_slugs: row.tag_slugs ? row.tag_slugs.split("|") : [],
+      slots: filePath ? slotsForFile(filePath) : null,
+      saved_input: !!savedInput,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -184,6 +240,7 @@ const PYTHON = process.env.PYTHON || "python";
 const FETCH_SCRIPT = path.join(__dirname, "fetch_presets.py");
 const SET_SLOT_SCRIPT = path.join(__dirname, "set_slot_a.py");
 const STARTERS_DIR = path.join(__dirname, "..", "..", "input", "lib");
+const INPUT_PATCH_DIR = path.join(__dirname, "..", "..", "input", "patchstorage");
 
 let fetchBusy = false;
 
@@ -327,6 +384,35 @@ app.post("/api/h90/fetch", async (req, res) => {
     try {
       const r = await runFetch(["--only", row.filename]);
       res.json({ ok: r.code === 0, code: r.code, log: r.out, stderr: r.err });
+    } finally {
+      fetchBusy = false;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save a patchstorage preset file into input/patchstorage (server-side, no
+// browser download). Also updates the files row in place (path, preset_name,
+// algorithm, family) via fetch_presets.py's update_row.
+app.post("/api/h90/save", async (req, res) => {
+  try {
+    const id = Number((req.body || {}).fileId);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: "fileId must be an integer" });
+    const row = db.prepare("SELECT id, filename FROM files WHERE id = ?").get(id);
+    if (!row) return res.status(404).json({ error: "file not found" });
+    if (fetchBusy) return res.status(409).json({ error: "another fetch is still running" });
+    fetchBusy = true;
+    try {
+      const r = await runFetch(["--only", row.filename, "--todir", INPUT_PATCH_DIR]);
+      if (r.code !== 0) {
+        return res.json({ ok: false, code: r.code, log: r.out, stderr: r.err });
+      }
+      const info = db
+        .prepare("SELECT filename, path, filesize, preset_name, algorithm, secondary_algorithm, effect_family FROM files WHERE id = ?")
+        .get(row.id);
+      const saved = path.join(INPUT_PATCH_DIR, row.filename);
+      res.json({ ok: true, code: 0, log: r.out, saved: fs.existsSync(saved), ...info });
     } finally {
       fetchBusy = false;
     }
