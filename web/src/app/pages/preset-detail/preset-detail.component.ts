@@ -14,7 +14,8 @@ interface SlotKnobRow {
 }
 
 export interface SlotViewModel {
-  slot: 'A' | 'B';
+  slot: 'A' | 'B' | null;
+  index: number | null;
   algorithm: string | null;
   preset_name: string | null;
   rows: SlotKnobRow[];
@@ -44,6 +45,11 @@ export class PresetDetailComponent implements OnInit, OnDestroy {
   savedMessage: string | null = null;
   syncBusy = false;
   syncLog = '';
+
+  // per-slot assignment state (keyed by slot list index)
+  assignBusy: Record<number, boolean> = {};
+  assignProgram: Record<number, number> = {};
+  assignResult: Record<number, string> = {};
 
   private destroyed = new Subject<void>();
 
@@ -169,12 +175,72 @@ export class PresetDetailComponent implements OnInit, OnDestroy {
 
   slotViews(): SlotViewModel[] {
     if (!this.patch?.slots) return [];
-    return this.patch.slots.map((s) => ({
+    return this.patch.slots.map((s, i) => ({
       slot: s.slot,
+      index: i,
       algorithm: s.algorithm,
       preset_name: s.preset_name,
       rows: this.slotRows(s),
     }));
+  }
+
+  slotBadge(sv: SlotViewModel): string {
+    // labelled rows (<=2 blobs) keep "Slot A/B" (imported), list rows are "#N"
+    if (sv.slot === 'A' || sv.slot === 'B') return 'Slot ' + sv.slot;
+    return '#' + (sv.index! + 1);
+  }
+
+  canAssign(sv: SlotViewModel): boolean {
+    if (!this.patch || this.patch.file_id == null || sv.index == null) return false;
+    const slot = this.patch.slots?.[sv.index];
+    return !!slot && slot.blob_index != null;
+  }
+
+  private slotBlobIndex(sv: SlotViewModel): number {
+    return this.patch?.slots?.[sv.index!]?.blob_index as number;
+  }
+
+  assignProgramOf(sv: SlotViewModel): number {
+    return this.assignProgram[sv.index!] ?? 1;
+  }
+
+  setAssignProgram(sv: SlotViewModel, value: string): void {
+    const n = Number(value);
+    if (sv.index == null || !Number.isInteger(n) || n < 1 || n > 100) return;
+    this.assignProgram[sv.index] = n;
+  }
+
+  assignBusyOf(sv: SlotViewModel): boolean {
+    return sv.index != null && !!this.assignBusy[sv.index];
+  }
+
+  assignResultOf(sv: SlotViewModel): string {
+    return sv.index != null ? this.assignResult[sv.index] || '' : '';
+  }
+
+  assign(sv: SlotViewModel, slot: 'A' | 'B'): void {
+    if (!this.canAssign(sv) || this.assignBusy[sv.index!]) return;
+    const idx = sv.index!;
+    this.assignBusy[idx] = true;
+    this.assignResult[idx] = '';
+    this.cdr.markForCheck();
+    this.api.assignH90(this.patch!.file_id, this.slotBlobIndex(sv), this.assignProgramOf(sv), slot).subscribe({
+      next: (r) => {
+        if (r.sent && r.sent.length) r.log = r.sent.map((s) => `CC ${s.cc} ${s.control}=${s.value}`).join('\n');
+        this.assignResult[idx] = r.error || 'Assigned slot ' + slot + '.';
+        if (r.skipped && r.skipped.length) {
+          this.assignResult[idx] += '\nSkipped:\n' + r.skipped.map((s) => `${s.control} — ${s.reason}`).join('\n');
+        }
+        if (r.log) this.assignResult[idx] += '\n' + r.log;
+      },
+      error: (e) => {
+        this.assignResult[idx] = 'ERROR: ' + (e?.error?.error || e?.message || e);
+      },
+      complete: () => {
+        this.assignBusy[idx] = false;
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   private slotRows(s: PatchSlot): SlotKnobRow[] {

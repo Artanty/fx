@@ -83,14 +83,27 @@ def desktop():
     return Desktop(backend="uia")
 
 
-def main_window(d=None):
-    """Return the app's main (wide) window wrapper for the running app."""
+MAIN_WINDOW_WAIT = 45.0    # cold start: PID appears well before its window
+MAIN_WINDOW_POLL = 0.5
+
+
+def main_window(d=None, timeout=MAIN_WINDOW_WAIT):
+    """Return the app's main (wide) window wrapper for the running app.
+
+    Cold startups create the process long before the UIA window tree exists
+    (set_slot_a crashed here right after spawning Eventide Control), so retry
+    the scan for `timeout` seconds before giving up."""
     d = d or desktop()
     pid = find_pid()
-    for w in d.windows(process=pid):
-        r = w.rectangle()
-        if r.width() >= 800 and r.height() >= 400:
-            return w
+    deadline = time.time() + timeout
+    while True:
+        for w in d.windows(process=pid):
+            r = w.rectangle()
+            if r.width() >= 800 and r.height() >= 400:
+                return w
+        if time.time() >= deadline:
+            break
+        time.sleep(MAIN_WINDOW_POLL)
     raise RuntimeError("main window not found")
 
 

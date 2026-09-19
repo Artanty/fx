@@ -1,9 +1,11 @@
 <header class="site-head">
-  <span class="site-title">fx</span>
+  <span class="site-title" [routerLink]="['/']">fx</span>
   <nav class="site-nav">
-    <a routerLink="/dist" routerLinkActive="active">dist</a>
-    <a routerLink="/h90" routerLinkActive="active">h90</a>
-    <a routerLink="/c4" routerLinkActive="active">c4</a>
+    <a routerLink="/" [routerLinkActive]="['active']" [routerLinkActiveOptions]="{ exact: true }">home</a>
+    <a routerLink="/dist" [routerLinkActive]="['active']" [routerLinkActiveOptions]="{ exact: true }">dist</a>
+    <a routerLink="/h90" [routerLinkActive]="['active']" [routerLinkActiveOptions]="{ exact: true }">h90 presets</a>
+    <a routerLink="/h90/starters" [routerLinkActive]="['active']" [routerLinkActiveOptions]="{ exact: true }">h90 starters</a>
+    <a routerLink="/c4" [routerLinkActive]="['active']" [routerLinkActiveOptions]="{ exact: true }">c4synth</a>
   </nav>
 </header>
 <div class="site-body">

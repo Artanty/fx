@@ -124,6 +124,69 @@ def dismiss_stale_dialog():
     return wait_dialog_close(tries=10)
 
 
+IMPORT_ERROR_TITLES = ("Import Error", "\u041e\u0448\u0438\u0431\u043a\u0430 \u0438\u043c\u043f\u043e\u0440\u0442")
+
+
+def _import_error_popup():
+    """Return the app's top-level window titled 'Import Error', or None."""
+    try:
+        app = _pipe(None)
+        for w in app.windows():
+            title = (w.window_text() or "").strip()
+            if any(t in title for t in IMPORT_ERROR_TITLES):
+                return w
+    except Exception:
+        pass
+    return None
+
+
+def _popup_message(win):
+    """First non-empty Text inside the popup (the 'Import Error. ...' line)."""
+    try:
+        for el in win.descendants():
+            try:
+                if el.element_info.control_type == "Text":
+                    t = (el.window_text() or "").strip()
+                    if t:
+                        return t
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+
+def _popup_accept(win):
+    """Click the popup's OK button: invoke when possible, else rect click."""
+    try:
+        for el in win.descendants():
+            try:
+                if el.element_info.control_type == "Button" and (el.window_text() or "").strip() == "OK":
+                    el.invoke()
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    try:
+        r = win.rectangle()
+        click(coords=((r.left + r.right) // 2, r.bottom - 30))
+        return True
+    except Exception:
+        return False
+
+
+def _wait_import_error():
+    """After the file dialog closes, poll up to ~2.4s for an Import Error popup.
+    Returns (popup, message) or (None, None)."""
+    for _ in range(8):
+        time.sleep(0.3)
+        pop = _import_error_popup()
+        if pop is not None:
+            return pop, _popup_message(pop)
+    return None, None
+
+
 def slot_preset_name(slot="A"):
     """Return the current slot's program/preset name read from the app's own
     header edit (control_type Edit, in that slot's horizontal band)."""
@@ -266,6 +329,12 @@ def import_preset(path, slot="A"):
     name = slot_preset_name(slot)
     algo = slot_algorithm(slot)
     if not dialog_open():
+        # a rejected file (e.g. .lst90) pops a native "Import Error" modal
+        # instead of importing: report it instead of faking 'imported'.
+        pop, msg = _wait_import_error()
+        if pop is not None:
+            _popup_accept(pop)
+            return ("import-error", "%s [%s] / %s" % (name or "?", msg or "Import Error", algo or "?"))
         return ("imported", "%s / %s" % (name or "?", algo or "?"))
 
     cancel = cancel_button()

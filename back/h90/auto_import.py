@@ -71,6 +71,22 @@ def _has_device(win):
     return has_device_btn and has_disconnect
 
 
+def _first_device_row(win):
+    """The cold-start 'Select Device' screen lists each device as a clickable
+    row carrying the serial ('H90: XC-05987') with no Connect button up yet.
+    Return the first such row's rect (prefer a real Button, fall back to any
+    labeled element), or None."""
+    best = None
+    for ctrl, t, r in _labeled_elements(win):
+        if not t.startswith("H90:"):
+            continue
+        if ctrl == "Button":
+            return r
+        if best is None:
+            best = r
+    return best
+
+
 def _dismiss_modified_modal(win):
     """If the 'program has been modified - save?' modal is up, click No."""
     for _ in range(5):
@@ -164,6 +180,19 @@ def connect_if_needed(timeout=WAIT_DEVICE_TIMEOUT):
                         _mouse_click(r)
                     except Exception:
                         pass
+                time.sleep(0.5)
+                continue
+            # Eventide Control's cold-start "Select Device" screen has no
+            # Connect button yet: the device appears as a clickable row that
+            # lists the serial (e.g. "H90: XC-05987"). Click the first such
+            # row so Connect shows up, instead of burning the whole deadline
+            # parked on the list.
+            r = _first_device_row(win)
+            if r is not None:
+                print("SELECT DEVICE: clicking row %s" % (r,))
+                _mouse_click(r)
+                time.sleep(0.8)
+                continue
         time.sleep(0.5)
     return False
 

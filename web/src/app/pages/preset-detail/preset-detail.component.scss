@@ -143,6 +143,48 @@
       .knob-value { font-size: 13px; font-weight: 600; color: #f0f0f4; }
     }
   }
+
+  .assign-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #2c2c35;
+
+    .assign-label {
+      font-size: 12px;
+      color: #8a8a95;
+    }
+
+    .assign-program {
+      width: 64px;
+      background: #26262e;
+      border: 1px solid #34343f;
+      border-radius: 6px;
+      color: #f0f0f4;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+
+    .assign-busy {
+      font-size: 12px;
+      color: #b7a5ff;
+    }
+  }
+
+  .assign-log {
+    margin-top: 8px;
+    background: #1a1a20;
+    border: 1px solid #2c2c35;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #b5b5c0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 }
 
 .description {

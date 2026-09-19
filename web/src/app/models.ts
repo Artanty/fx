@@ -48,11 +48,23 @@ export interface PatchesResponse {
 }
 
 export interface PatchSlot {
-  slot: 'A' | 'B';
+  slot: 'A' | 'B' | null;
+  blob_index: number | null;
   algorithm: string | null;
   preset_name: string | null;
   product_id: string | null;
   knobs: Record<string, number | boolean | string>;
+}
+
+export interface AssignResult {
+  ok: boolean;
+  code?: number;
+  log?: string;
+  error?: string;
+  sent?: { cc: number; control: string; value: number }[];
+  skipped?: { control: string; reason: string }[];
+  channel?: number;
+  bank?: string;
 }
 
 export interface PatchDetail {

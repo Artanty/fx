@@ -86,10 +86,16 @@
 
     <section *ngIf="patch.slots?.length" class="panel">
       <h2>Saved preset knobs</h2>
-      <p class="hint">Knob values read from the saved preset file, per slot.</p>
+      <p class="hint">
+        Knob values read from the saved preset file. For multi-preset files (e.g.
+        .lst90) each embedded preset is listed as a row. Use "Assign" to load a
+        preset into any program # and slot A/B by importing its effect starter and
+        sending the knob values over MIDI (channel 11). Calibrated knob maps are
+        required for CC sends; knobs without a map are skipped with a reason.
+      </p>
       <div class="slot" *ngFor="let sv of slotViews()">
         <div class="slot-head">
-          <span class="slot-badge">Slot {{ sv.slot }}</span>
+          <span class="slot-badge">{{ slotBadge(sv) }}</span>
           <span *ngIf="sv.algorithm" class="slot-algo">{{ sv.algorithm }}</span>
           <span *ngIf="sv.preset_name" class="slot-name">{{ sv.preset_name }}</span>
         </div>
@@ -99,6 +105,27 @@
             <span class="knob-value">{{ row.value }}</span>
           </div>
         </div>
+        <div class="assign-row" *ngIf="canAssign(sv)">
+          <span class="assign-label">Assign preset to</span>
+          <input
+            class="assign-program"
+            type="number"
+            min="1"
+            max="100"
+            step="1"
+            [value]="assignProgramOf(sv)"
+            (input)="setAssignProgram(sv, $any($event.target).value)"
+            title="Program number (1–100)"
+          />
+          <button class="btn small" (click)="assign(sv, 'A')" [disabled]="assignBusyOf(sv)">
+            Slot A
+          </button>
+          <button class="btn small" (click)="assign(sv, 'B')" [disabled]="assignBusyOf(sv)">
+            Slot B
+          </button>
+          <span *ngIf="assignBusyOf(sv)" class="assign-busy">working…</span>
+        </div>
+        <pre *ngIf="assignResultOf(sv)" class="assign-log">{{ assignResultOf(sv) }}</pre>
       </div>
     </section>
 

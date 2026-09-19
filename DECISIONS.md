@@ -4841,3 +4841,327 @@ Non-CC-addressable blob params (in1/out sens, *_start_exp/_end_exp,
 - research.txt lives on (explore) task ses_f499bde60ffeLFF72clAoUSX2D with the
   full architecture survey (import flow, CC scheme, starters, lst90 blobs,
   browse/starters pages).
+
+## Plan - 2026-09-19 toggle Eventide Control window visibility from the web UI
+
+User request: a button that toggles Eventide Control visibility. The window
+helpers already exist in h90_app.py (set_window_transparent / set_window_opaque
+via WS_EX_LAYERED + LWA_ALPHA, hide_app_windows()/show_app_windows());
+set_slot_a's headless mode reuses them. We expose the same as a manual toggle.
+
+1. back/h90/app_visibility.py (new): CLI `hide|show|status` -> running_app()
+   detection (app = "Eventide Control" or legacy "H90 Control"), then
+   hide_app_windows()/show_app_windows(). Exit 2 if the app isn't running
+   (server reports a clear 200 ok:false + message, no throw).
+2. server.js: POST /api/h90/app/visibility {action: hide|show} -> runPython
+   APP_VISIBILITY_SCRIPT [action]; answer {ok, app, action, log, stderr}.
+   Fully independent of the fetchBusy import lock (window paint is not an
+   import). node --check OK.
+3. web: api.service.ts setH90AppVisibility(action); starters page topbar gets a
+   small controller-visibility toggle button (Show/Hide Eventide Control), busy
+   spinner while the python runs, inline feedback (ok + app name / error e.g.
+   "not running"), no program/log coupling.
+
+Verify: node --check server.js; ng build (development); python -m py_compile
+app_visibility.py. Live spot-check of the CLI hide/status/show if the app is
+running on this machine at proof time.
+Files: back/h90/app_visibility.py, back/h90/server.js,
+web/src/app/services/api.service.ts, web/src/app/pages/starters/*.
+
+## Progress - 2026-09-19 toggle Eventide Control window visibility from web UI
+
+Implemented:
+- back/h90/app_visibility.py (new): CLI hide|show|status -> h90_app.running_app()
+  detection ("Eventide Control" now / "H90 Control" legacy), then
+  hide_app_windows()/show_app_windows(). Exit 2 + clear stderr when the app is
+  not running. py_compile OK.
+- server.js: APP_VISIBILITY_SCRIPT const + POST /api/h90/app/visibility
+  {action: hide|show|status} -> runPython, answers {ok, code, app, action, log,
+  stderr}. Independent of fetchBusy (window paint is not an import). The app
+  name is parsed out of the script's "app: <name> (pid N)" line. node --check OK.
+- api.service.ts: setH90AppVisibility(action).
+- starters topbar: Show/Hide Eventide toggle button (green/grey status dot,
+  busy "Working…" while the python runs, repeated clicks guarded), inline
+  vis-msg feedback ("Eventide Control: hidden/shown" or the stderr error, e.g.
+  app-not-running message).
+- Verified: python app_visibility.py status/hide/show live against the running
+  Eventide Control (pid 8668) - both directions ok; ng build passes (only
+  pre-existing c4/lalady scss budget warnings).
+
+Note: the running :3000 backend is the user's instance and does not yet have
+POST /api/h90/app/visibility (404 until restarted).
+
+## Plan - 2026-09-19 assign any .lst90 preset to any program/slot (Stage 1 + Stage-2 script)
+
+User choices: build Stage 1 + WRITE the Stage-2 calibration script now (user
+runs the script later on the desktop with the pedal); assign UI MERGED into the
+slots panel (one list view for every file type: dual-slot .pgm90 shows Slot A/B,
+multi-blob .lst90 lists every embedded preset).
+
+Stage 1 (web + backend, no hardware dep):
+1. server.js GET /api/patches/:slug slots[]: each entry gains blob_index and
+   slot becomes 'A'|'B'|null - file with <=2 blobs -> A/B labels, >2 blobs
+   (.lst90) -> slot:null list entries (removes "everything >1 blobs = B" bug).
+2. server.js POST /api/h90/assign {fileId, blobIndex, program, slot} (SSE,
+   shared fetchBusy single-flight):
+   - resolve local file (row.path, then INPUT_PATCH_DIR/<filename>), pick blob
+     by blobIndex -> algorithm_name + knob dict
+   - starter resolve: algorithm_name -> name token (spaces->underscores, e.g.
+     H910 H949 -> H910_H949, Quadravox+ intact), scan STARTERS_DIR for
+     "m1|<bank> ... <Name>.preset90" matching slot A->m1 / B->m2; missing bank
+     -> 422 "no m2 starter for <algorithm>" (no silent fallback)
+   - stream set_slot_a.py <program> <starter> --slot <slot> (imports algorithm
+     WITH its CC layout), then Stage-2 CC send
+   - done event {ok, log, sent:[{cc,control,value}], skipped:[{control,reason}]}
+   - CC transport: h90Outputs() + H90_NAME_RE auto port, channel 11, open->send
+     ->200ms->close like /api/h90/preset; opened AFTER set_slot_a disconnects
+3. models.ts: PatchSlot.slot?: 'A'|'B'|null + blob_index: number.
+4. api.service.ts: assignH90(fileId, blobIndex, program, slot) SSE.
+5. preset-detail: merged list (one row per blob) - badge Slot A/B or #N,
+   algorithm, preset name, knob grid (slotRows/formatKnobValue reuse), per-row
+   program# stepper 1-100 + Slot A/B assign buttons, per-row busy + result log
+   (green DONE / red FAIL incl. 422 no-starter reason).
+
+Stage 2 script (back/h90/build_knob_maps.py, written now - user runs later):
+- batch over input/lib m1 then m2 starters (load_effect/set_slot_a import like
+  run_m2_all.py, PYTHONPATH, per-step timeout/log) -> uia_driver --discover ->
+  back/h90/knob-maps/<effect>-m1.json / -m2.json = {label, cc, lo, hi, k,
+  vtype}, matched label <-> midi_cc_states/<slug>.json control->cc#; enum/
+  unsettable skipped.
+- emit per-effect blob-key vs discover-order report (dcay<->"Decay"...) so the
+  server's key<->label alignment is verified.
+- CC math in assign endpoint: invert lo/hi/k -> rv -> cc=round(rv*127); missing
+  knob-maps/<effect>-<bank>.json -> skipped "no calibration".
+
+Verify: node --check server.js; py_compile build_knob_maps.py; starter-resolver
+dry-run over all 45 local algorithms; ng build. Live assign run needs the
+user's restarted backend + desktop/pedal.
+Files: back/h90/server.js, back/h90/build_knob_maps.py (new), web/src/app/
+models.ts, web/src/app/services/api.service.ts, web/src/app/pages/
+preset-detail/*, DECISIONS.md.
+
+## Progress - 2026-09-19 assign Stage 1 (web+backend) + Stage-2 script built
+
+Implemented and verified:
+
+- `server.js`:
+  - `/api/h90/assign` endpoint (SSE). Flow: resolve local preset file ->
+    pick blob by blobIndex -> extract algorithm + blob_key knobs -> resolve
+    effect starter in input/lib (slot A/B, family) -> `set_slot_a.py --slot`
+    import (recall program N, disconnect, import starter, save, header
+    verify) -> compute+send knob values via MIDI CC channel 11.
+  - New helpers + consts: `ROOT_DIR`/`INPUT_PATCH_DIR`, `resolveStarter()`
+    (STARTER_NAME_RE already defined), `planCcSend(algorithm, bank, knobs)`
+    -> {sent:[{cc,control,value}], skipped:[{control,reason}]} (rv inversion
+    of blob value via knob-map lo/hi/k; non-CC-addressable and uncalibrated
+    knobs skipped), `sendCcBytes(bytes)` over the auto-detected H90 MIDI
+    output (H90_NAME_RE), `MIDI_DEFAULT_CHANNEL=11`, `SLOT_META_KEYS`.
+  - Node check + dry-run pass (0 missing starters across 23 ORGANS-LESLIES
+    blobs; two-way CC plan + byte math verified; no pedal = graceful 'not
+    available' skip).
+- `build_knob_maps.py` (Stage 2): CLI `--algo/--program/--out-dir/--show`;
+  lists starters from input/lib, runs set_slot_a.py + uia_driver.py discover
+  per algorithm+bank, aligns blob_key order <-> discover knob order, matches
+  CC ids from midi_cc_states/<slug>[+-m2].json by control label, calibrates
+  lo/hi/k via uia_driver calibrate_slider, writes
+  knob-maps/<Algorithm_Underscored>-m1/-m2.json. Py-compiles.
+- Frontend: models.ts `PatchSlot.blob_index`, `assignH90` SSE in api.service;
+  preset-detail slots panel merged assign list (Slot A/B import rows or #N
+  list rows), per-row program stepper 1-100 + Slot A/B assign buttons,
+  busy state + sent/skipped result log. ng build green (only pre-existing
+  c4/lalady scss budget warnings).
+
+Live CC send still needs the user-run Stage-2: `python build_knob_maps.py`
+on the desktop with the pedal, which produces the calibration JSON the assign
+endpoint consumes (until then, knobs report 'no calibration' and are skipped).
+
+## 2026-09-19 set_slot_a import crash-logging + cold-start Select-Device fix
+(DECISIONS ratified after user clicked 'Оба шага (рекомендую)' for the Slot A
+import failure on the Eventide Control cold-start 'Select Device' screen.)
+
+Implemented (back/h90):
+- `set_slot_a.py`: `import traceback`; new `IMPORT_ERR_LOG =
+  os.path.join(HERE, "import.err.log")`; main() import step wrapped in
+  try/except that appends the full traceback to import.err.log and emits
+  `STATUS: import-crashed` (+ short message naming the log) instead of failing
+  silently with a bare `import failed`.
+- `auto_import.py` `connect_if_needed`: when the cold-start screen shows the
+  'Select Device' list (no Connect button yet), click the first device row
+  (serial like "H90: XC-05987") so the Connect button appears and the loop can
+  proceed instead of burning the whole deadline parked on the list.
+
+Verified: `python -m py_compile` on set_slot_a.py/auto_import.py (py OK);
+`node --check server.js` (node OK). Needs a live cold-start pedal run to
+confirm end-to-end; remaining unknown is the 17-no-JSON-blob algorithms
+(skip-vs-abort) in build_knob_maps.py.
+
+## Plan - 2026-09-19 web: restore last visited route on session start
+
+Goal: in the Angular web app, remember the last visited route (localStorage)
+and, on a new session/load, navigate straight to it instead of the `/dist`
+default.
+
+How:
+1. `AppComponent`: subscribe to `router.events` NavigationEnd, save
+   `urlAfterRedirects` under key `fx.lastRoute`.
+2. On init, read `fx.lastRoute`; if set and different from the current URL,
+   `navigateByUrl` to it.
+
+Verify: `ng build` compiles; manual reload on `/h90/preset/<slug>` restores
+that route on the next load.
+
+## Progress - 2026-09-19 web: restore last visited route on session start
+
+Implemented in `web/src/app/app.component.ts`:
+- `AppComponent` now injects `Router`; `rememberLastRoute()` subscribes to
+  `NavigationEnd` and stores `urlAfterRedirects` in localStorage key
+  `fx.lastRoute` on every completed navigation.
+- `restoreLastRoute()` reads `fx.lastRoute` on startup; if set and different
+  from the current URL it `navigateByUrl`s to it (so a fresh session reopens
+  the last visited page instead of the `/dist` default; the `'' -> dist`
+  redirect still covers first-ever visits).
+
+Verified: `ng build` green (only pre-existing c4/lalady scss budget
+warnings). Needs a manual browser check: navigate to a deep route, reload the
+page, confirm it restores that route.
+
+## Plan - 2026-09-19 h90: wait longer + retry for the main window on cold start
+
+Set-slot-a cold start crashed: Eventide Control was just spawned (pid present
+in psutil) but its main window did not exist yet, so `h90_app.main_window()`
+raised `main window not found` immediately at `set_slot_a.py:238`
+(`pin_window`), before any retry.
+
+How:
+1. `h90_app.main_window()`: add a bounded retry loop (default wait ~30s,
+   poll 0.5s) that keeps scanning the desktop until a >=800x400 window
+   appears for the app PID, then raise as before.
+2. Keep `pin_window` retries; cold start then lands on the canonical rect.
+
+Verify: `python -m py_compile h90_app.py`; cold-start import run no longer
+fails at pin_window.
+
+## Progress - 2026-09-19 h90: main window retry on cold start
+
+`back/h90/h90_app.py main_window()` now retries for 45s (poll 0.5s) before
+raising 'main window not found' instead of failing on the first scan. This
+covers the set_slot_a cold start where `ensure_app_running` returns as soon
+as the PID exists but the UIA window is not created yet; `pin_window` at
+`set_slot_a.py:238` now gets a window to pin. All other main_window callers
+(login, import_preset, connect_if_needed) inherit the same wait.
+
+Verified: `python -m py_compile h90_app.py` (py OK). Needs a live cold-start
+run to confirm the import proceeds past pinning.
+
+## Plan - 2026-09-19 h90: define missing _first_device_row
+
+Second cold-start failure: after the main-window retry landed, the app sat on
+the 'Select Device' screen and `connect_if_needed` crashed with
+`NameError: name '_first_device_row' is not defined` (auto_import.py:174) —
+the row had been called from the 09-19 cold-start fix but the function was
+never added.
+
+How: define `_first_device_row(win)` in auto_import.py — return the first
+"H90: ..." labeled row rect (Button preferred, other labeled elements as
+fallback) so the Select-Device list click actually runs.
+
+Verify: `python -m py_compile auto_import.py`; cold-start run now progresses
+past the Select Device screen.
+
+## Progress - 2026-09-19 h90: _first_device_row added
+
+`back/h90/auto_import.py` now defines `_first_device_row(win)` next to
+`_has_device`: scans `_labeled_elements` for a row whose text starts with
+'H90:' (matching the device serial, e.g. 'H90: XC-05987'), prefers a real
+Button element, falls back to the first labeled element, and returns its rect
+(or None). `connect_if_needed`'s Select-Device branch now clicks the first
+row as intended.
+
+Verified: `python -m py_compile auto_import.py` (py OK). Needs a live
+cold-start run to confirm the device row click leads to Connect and the
+import proceeds.
+
+## Plan - 2026-09-19 live-test the cold-start import fixes
+
+Purpose: prove end-to-end that a TRULY cold Eventide Control start (no process,
+no window yet) completes an import via set_slot_a.py, exercising the 45s
+main_window retry (h90_app.py), the Select-Device row click (_first_device_row),
+and the import crash-logging. Eventide Control is currently CLOSED (no process
+found), so the run launches it fresh.
+
+Run: `python set_slot_a.py 50 "..\..\input\patchstorage\ORGANS-LESLIES-1-5-25-677adce27b5fd.lst90" --slot A --show`
+
+Pass criteria: no `STATUS: no-window`; device row clicked -> Connect -> device
+visible; `HEADER NUMBER NOW: 50`; `STATUS: imported`; `SLOT A SAVED`; exit 0;
+no `import.err.log` created.
+
+Observability: `_first_device_row` hit is printed ("SELECT DEVICE: clicking row
+...") so the device-list click is visible in the flow log.
+
+## Progress - 2026-09-19 live cold-start test (phase 1: cold-start fixes PASS)
+
+Ran: `python set_slot_a.py 50 "..\..\input\patchstorage\ORGANS-LESLIES-1-5-25-677adce27b5fd.lst90" --slot A --show`
+
+Cold start was real (Eventide Control closed; `app pid 8632 (launched=True)`):
+- app launched, no `STATUS: no-window` (main_window 45s retry OK)
+- connected, RECALL ok, `HEADER NUMBER NOW: 50`
+- `STATUS: imported` — but that was a LIE: a native **"Import Error.
+  Unsupported file format: .lst90"** modal was up (the app only accepts
+  `*.preset9/90, *.h9z, *.tide`). `import_preset` reported 'imported' merely
+  because the file dialog closed; the error modal was never checked. JUCE
+  virtualizes the UIA content behind the modal -> header/slot elements gone ->
+  `program_name` empty -> `STATUS: save-fail`.
+
+Redid the run the way `/api/h90/assign` actually works — import the STARTER
+(input/lib `m1 delay Ducked_Delay.preset90`) instead of the raw `.lst90`:
+- `STATUS: imported`, `SLOT A: m1 delay Ducked_Delay / Ducked Delay`
+- named program renamed ('INIT Program*' cannot be saved) -> `SLOT A SAVED to program 50`
+- header + slot verified after save, exit 0.
+
+Conclusions:
+- The 3 cold-start fixes WORK (cold launch -> window -> connect -> import -> save).
+- The save-fail was a wrong-file bug in the test, not a regression.
+- REAL BUG: `import_preset()` reports 'imported' when an Import Error modal
+  actually appeared; assign would then CC-send + save over a failed import.
+
+## Plan - 2026-09-19 import_preset: detect the 'Import Error' modal
+
+`import_preset()` treats a closed file dialog as success, but a rejected file
+(.lst90 etc.) pops a native "Import Error" modal instead and the import never
+happened: the caller (set_slot_a -> /api/h90/assign) would keep going and
+CC-send + save a program that still holds the OLD effect.
+
+How:
+1. import_preset.py: after Open is invoked and the file dialog closes, poll
+   (up to ~2.4s) for an app popup titled "Import Error"/"Ошибка импорт". If
+   found: read its message Text, click OK (invoke, rect fallback), and return
+   ("import-error", "<name> [<message>] / <algo>") so set_slot_a stops before
+   Save instead of faking 'imported'.
+2. Keep the existing 'imported' path unchanged for successful imports.
+
+Verify: `python -m py_compile import_preset.py`; re-run set_slot_a.py against
+a .lst90 and confirm `STATUS: import-error` (no save attempt, no left-over
+modal); warm .preset90 run still reaches `SLOT A SAVED`.
+
+## Progress - 2026-09-19 import_preset: 'Import Error' modal detected + dismissed
+
+import_preset.py now polls (up to ~2.4s) after the file dialog closes for a
+native "Import Error"/"Ошибка импорт" popup; when found it captures the
+message Text, clicks OK (invoke, rect fallback), and returns
+("import-error", "<name> [<message>] / <algo>"). 'imported' is only reported
+for a clean close with no error popup.
+
+Verified live:
+- `python set_slot_a.py 50 <...ORGANS-LESLIES...lst90> --slot A --show` ->
+  `STATUS: import-error`, `SLOT A: ? [Import Error. Unsupported file format:
+  .lst90] / ?`, exit 1, NO save attempt, and `_import_error_popup()` afterwards
+  is None (modal dismissed).
+- Warm `.preset90` run (m1 delay Ducked_Delay starter, the assign path) still
+  `STATUS: imported` -> `SLOT A SAVED to program 50` -> header/slot verified,
+  exit 0.
+- `python -m py_compile` on auto_import.py/h90_app.py/import_preset.py/
+  set_slot_a.py all OK.
+
+Session result: the 3 cold-start fixes (main_window 45s retry, Select-Device
+row click, import crash log) are confirmed end-to-end on a true cold start;
+assign's import is now truthful about rejected files.

@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Filters, PatchDetail, PatchParams, PatchesResponse } from '../models';
+import { AssignResult, Filters, PatchDetail, PatchParams, PatchesResponse } from '../models';
 
 export interface SendH90Response {
   ok: boolean;
@@ -176,6 +176,32 @@ export class ApiService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file, slot, program }),
+    });
+  }
+
+  setH90AppVisibility(action: 'hide' | 'show' | 'status'): Observable<{
+    ok: boolean;
+    code: number;
+    app: string | null;
+    action: string;
+    log: string;
+    stderr: string;
+  }> {
+    return this.http.post<{
+      ok: boolean;
+      code: number;
+      app: string | null;
+      action: string;
+      log: string;
+      stderr: string;
+    }>('/api/h90/app/visibility', { action });
+  }
+
+  assignH90(fileId: number, blobIndex: number, program: number, slot: 'A' | 'B'): Observable<AssignResult> {
+    return sseStream('/api/h90/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileId, blobIndex, program, slot }),
     });
   }
 

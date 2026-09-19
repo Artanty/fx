@@ -37,6 +37,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 
 sys.stdout.reconfigure(errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -56,6 +57,7 @@ from auto_import import (
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RECALL_JS = os.path.join(HERE, "recall.js")
+IMPORT_ERR_LOG = os.path.join(HERE, "import.err.log")
 MIDI_CHANNEL = 11
 SAVE_BUTTON = (911, 141, 975, 169)      # header Save button (right of name edit)
 SETTLE_AFTER_RECALL = 3.0
@@ -274,7 +276,19 @@ def main():
         return 1
 
     # 6. import into the target slot
-    status, info = import_preset.import_preset(path, slot)
+    try:
+        status, info = import_preset.import_preset(path, slot)
+    except Exception as ex:
+        tb = "".join(traceback.format_exception(type(ex), ex, ex.__traceback__))
+        try:
+            with open(IMPORT_ERR_LOG, "a", encoding="utf-8") as f:
+                f.write("\n=== import_preset(%s, %s) crashed ==="
+                        % (path, slot) + "\n" + tb)
+            print("import crashed, see %s" % IMPORT_ERR_LOG)
+        except OSError:
+            print("import crashed: %s" % tb)
+        print("STATUS: import-crashed")
+        return 1
     print("STATUS: %s" % status)
     print("SLOT %s: %s" % (slot, info))
     if status != "imported":

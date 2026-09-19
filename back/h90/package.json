@@ -4,11 +4,15 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js --ext js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
     "express": "^4.21.2",
     "midi": "^2.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }

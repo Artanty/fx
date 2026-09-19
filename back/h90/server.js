@@ -4,12 +4,42 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
+const POOLED = false;
+const POOL_SIZE = 1;
+
+// Track the last successful user toggle of the Eventide Control app so a
+// "shown" app is not re-hidden by the headless import flow on the next
+// /api/h90/assign. False = headless default (import hides the app).
+let appVisibleByToggle = false;
+
 let midi = null;
 try {
   midi = require("midi");
 } catch (e) {
   midi = null;
 }
+
+const ERR_LOG = path.join(__dirname, "server.err.log");
+
+process.on("uncaughtException", (err) => {
+  // Log the REAL error (the V8-at-exit assertion dump would otherwise
+  // swallow it and take the whole server down), then keep serving.
+  const msg = `${new Date().toISOString()} uncaughtException\n` +
+    (err && err.stack ? err.stack : String(err)) + "\n";
+  try {
+    require("fs").appendFileSync(ERR_LOG, msg, "utf8");
+  } catch (e) { /* best effort */ }
+  console.error(msg.trim());
+});
+
+process.on("unhandledRejection", (reason) => {
+  const msg = `${new Date().toISOString()} unhandledRejection\n` +
+    (reason && reason.stack ? reason.stack : String(reason)) + "\n";
+  try {
+    require("fs").appendFileSync(ERR_LOG, msg, "utf8");
+  } catch (e) { /* best effort */ }
+  console.error(msg.trim());
+});
 
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "presets.db");
@@ -77,8 +107,10 @@ function slotsForFile(filePath) {
     const data = fs.readFileSync(filePath);
     const blobs = extractJsonBlobs(data);
     if (!blobs.length) return null;
+    const dual = blobs.length <= 2;
     return blobs.map((b, idx) => ({
-      slot: idx === 0 ? "A" : "B",
+      blob_index: idx,
+      slot: dual ? (idx === 0 ? "A" : "B") : null,
       algorithm: b.algorithm_name ?? null,
       preset_name: b.preset_name ?? null,
       product_id: b.product_id ?? null,
@@ -239,8 +271,10 @@ app.get("/api/patches/:slug", (req, res) => {
 const PYTHON = process.env.PYTHON || "python";
 const FETCH_SCRIPT = path.join(__dirname, "fetch_presets.py");
 const SET_SLOT_SCRIPT = path.join(__dirname, "set_slot_a.py");
+const APP_VISIBILITY_SCRIPT = path.join(__dirname, "app_visibility.py");
 const STARTERS_DIR = path.join(__dirname, "..", "..", "input", "lib");
 const INPUT_PATCH_DIR = path.join(__dirname, "..", "..", "input", "patchstorage");
+const KNOB_MAPS_DIR = path.join(__dirname, "knob-maps");
 
 let fetchBusy = false;
 
@@ -275,6 +309,160 @@ function runFetch(args, onLine) {
 }
 
 const STARTER_NAME_RE = /^(m[12])\s+([\w-]+)\s+(.+)$/;
+
+const ALGORITHM_META_KEYS = new Set(["algorithm_name", "preset_name", "product_id", "version"]);
+
+const MIDI_DEFAULT_CHANNEL = 11; // H90 recall/set_slot channel (same as h90-send.js)
+
+// blob values that are NOT CC-addressable on the pedal: input/output sens,
+// expression-pedal assignments, taper internal keys and hot-switch links.
+const NON_CC_KEY_RE = /(_start_exp|_end_exp|_hot_switch|_denormalized_pretaper)$/;
+const NON_CC_KEYS = new Set([
+  "in1_sens", "in2_sens", "out1_sens", "out2_sens",
+  "expression_pedal", "pedal", "slow_mode",
+]);
+
+function resolveLocalPresetFile(row) {
+  const candidates = [];
+  if (row.path) candidates.push(path.join(ROOT_DIR, row.path));
+  if (row.filename) candidates.push(path.join(INPUT_PATCH_DIR, row.filename));
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+function resolveStarter(algorithm, slot) {
+  // starter files in input/lib are named "m1|m2 <family> <Name>.preset90" and
+  // <Name> is the algorithm display name with spaces -> underscores.
+  const bank = slot === "A" ? "m1" : "m2";
+  const token = String(algorithm || "").replace(/\s+/g, "_").trim();
+  if (!token) return null;
+  for (const f of fs.readdirSync(STARTERS_DIR)) {
+    if (!f.toLowerCase().endsWith(".preset90")) continue;
+    const m = STARTER_NAME_RE.exec(path.basename(f, path.extname(f)));
+    if (!m || m[1] !== bank || m[3] !== token) continue;
+    return path.join(STARTERS_DIR, f);
+  }
+  return null;
+}
+
+function knobMapFile(algorithm, bank) {
+  return path.join(KNOB_MAPS_DIR, String(algorithm || "").replace(/\s+/g, "_") + "-" + bank + ".json");
+}
+
+// cached: "<algorithm>|<bank>" -> [{control, cc, type}]
+const ccAssignCache = new Map();
+function ccAssignmentsFor(algorithm, bank) {
+  const key = algorithm + "|" + bank;
+  if (ccAssignCache.has(key)) return ccAssignCache.get(key);
+  let out = [];
+  try {
+    const dir = path.join(__dirname, "midi_cc_states");
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith(".json")) continue;
+      try {
+        const doc = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+        if (doc.effect !== algorithm || doc.slot !== bank) continue;
+        out = (doc.assignments || []).map((a) => ({ control: a.control, cc: Number(a.cc), type: a.type }));
+        break;
+      } catch (err) {}
+    }
+  } catch (err) {}
+  ccAssignCache.set(key, out);
+  return out;
+}
+
+function sendCcBytes(msgs) {
+  // msgs: array of {cc, value} (value 0..127). Opens the auto H90 port once.
+  if (!msgs.length) return { ok: true, sent: 0 };
+  if (!midi) return { ok: false, error: "midi library not available" };
+  const outputs = h90Outputs();
+  let index = outputs.findIndex((p) => H90_NAME_RE.test(p.name));
+  if (index < 0 || index >= outputs.length) {
+    return { ok: false, error: "no H90 MIDI output found", outputs };
+  }
+  const out = new midi.Output();
+  out.openPort(index);
+  const status = 0xb0 + (MIDI_DEFAULT_CHANNEL - 1);
+  let n = 0;
+  try {
+    for (const m of msgs) {
+      out.sendMessage([status, m.cc & 0x7f, m.value & 0x7f]);
+      n += 1;
+    }
+  } catch (err) {
+    try { out.closePort(); } catch (e) {}
+    return { ok: false, error: "CC send failed: " + err.message, sent: n };
+  }
+  setTimeout(() => {
+    try { out.closePort(); } catch (e) {}
+  }, 200);
+  return { ok: true, sent: n };
+}
+
+function planCcSend(algorithm, bank, knobs) {
+  // Returns {sent:[{cc, control, value}], skipped:[{control, reason}]}.
+  const sent = [];
+  const skipped = [];
+  const mapPath = knobMapFile(algorithm, bank);
+  if (!fs.existsSync(mapPath) || !fs.existsSync(path.join(__dirname, "knob-maps"))) {
+    for (const key of Object.keys(knobs)) skipped.push({ control: key, reason: "no calibration" });
+    return { sent, skipped };
+  }
+  let mapEntries = [];
+  try {
+    mapEntries = JSON.parse(fs.readFileSync(mapPath, "utf8")).knobs || [];
+  } catch (err) {
+    for (const key of Object.keys(knobs)) skipped.push({ control: key, reason: "bad calibration file: " + err.message });
+    return { sent, skipped };
+  }
+  const assignments = ccAssignmentsFor(algorithm, bank);
+
+  // calibration entries carry the blob key they were aligned to (Stage-2
+  // build script writes them in blob-key order, each tagged with .key/.label).
+  const entryByKey = new Map(mapEntries.map((e) => [e.key, e]));
+  const ccByEntryLabel = new Map(assignments.map((a) => [a.control, a.cc]));
+
+  for (const [key, val] of Object.entries(knobs)) {
+    if (NON_CC_KEYS.has(key) || NON_CC_KEY_RE.test(key)) {
+      skipped.push({ control: key, reason: "not CC-addressable" });
+      continue;
+    }
+    if (typeof val !== "number") {
+      skipped.push({ control: key, reason: "non-numeric value" });
+      continue;
+    }
+    const entry = entryByKey.get(key);
+    if (!entry) {
+      skipped.push({ control: key, reason: "no calibration entry" });
+      continue;
+    }
+    if (entry.vtype === "enum") {
+      skipped.push({ control: key, reason: "enum value not sent" });
+      continue;
+    }
+    const targetCc = entry.cc !== undefined && entry.cc !== null
+      ? Number(entry.cc)
+      : (ccByEntryLabel.get(entry.label || key) ?? Number.NaN);
+    if (!Number.isInteger(targetCc) || targetCc < 0 || targetCc > 127) {
+      skipped.push({ control: key, reason: "no CC id for " + (entry.label || key) });
+      continue;
+    }
+    // invert lo/hi/k -> rv, then cc value byte 0..127
+    const { lo, hi, k } = entry;
+    if (typeof lo === "number" && typeof hi === "number" && hi > lo && typeof k === "number" && k > 0) {
+      if (val < lo || val > hi) {
+        skipped.push({ control: key, reason: "value out of calibration range (" + val + " not in " + lo + ".." + hi + ")" });
+        continue;
+      }
+      const rat = (val - lo) / (hi - lo);
+      const rv = Math.pow(rat, 1 / k);
+      const ccVal = Math.round(Math.max(0, Math.min(1, rv)) * 127);
+      sent.push({ cc: targetCc, control: entry.label || key, value: ccVal });
+    } else {
+      skipped.push({ control: key, reason: "uncalibrated (no lo/hi/k)" });
+    }
+  }
+  return { sent, skipped };
+}
 
 // effect-starters are the exported factory programs in input/lib, named
 // "m1|m2 <family> <Name>.preset90"
@@ -350,6 +538,147 @@ app.post("/api/h90/import", async (req, res) => {
     }
   } finally {
     fetchBusy = false;
+  }
+});
+
+const FLOW_LOG = path.join(__dirname, "assign.flow.log");
+function flowLog(msg) {
+  const line = `${new Date().toISOString()} ${msg}\n`;
+  try {
+    require("fs").appendFileSync(FLOW_LOG, line, "utf8");
+  } catch (e) { /* best effort */ }
+  return line;
+}
+
+app.post("/api/h90/assign", async (req, res) => {
+  const body = req.body || {};
+  flowLog("assign: start slot=" + String(body.slot || "A"));
+  if (fetchBusy) return res.status(409).json({ error: "another import/fetch/assign is still running" });
+  const program = Number(body.program);
+  const slot = String(body.slot || "A").toUpperCase();
+  const blobIndex = Number(body.blobIndex);
+  if (!Number.isInteger(program) || program < 1 || program > 100) {
+    return res.status(400).json({ error: "program must be an integer 1-100" });
+  }
+  if (!["A", "B"].includes(slot)) {
+    return res.status(400).json({ error: "slot must be A or B" });
+  }
+  if (!Number.isInteger(blobIndex) || blobIndex < 0) {
+    return res.status(400).json({ error: "blobIndex must be a non-negative integer" });
+  }
+  const fileId = Number(body.fileId);
+  if (!Number.isInteger(fileId) || fileId < 1) {
+    return res.status(400).json({ error: "fileId must be an integer" });
+  }
+  const rowFile = db.prepare("SELECT id, filename, path FROM files WHERE id = ?").get(fileId);
+  if (!rowFile) return res.status(404).json({ error: "file not found: " + fileId });
+
+  // resolve the local file: row.path first, then input/patchstorage fallback.
+  const localFile = resolveLocalPresetFile(rowFile);
+  if (!localFile) {
+    return res.status(404).json({ error: "preset file is not saved locally yet: " + rowFile.filename });
+  }
+
+  fetchBusy = true;
+  try {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    const send = (msg) => {
+      if (res.writableEnded) return;
+      res.write("data: " + JSON.stringify({ line: msg.replace(/\r?\n$/, "") }) + "\n\n");
+    };
+
+    // 1. pick the preset blob, extract algorithm + knobs
+    let blobs = [];
+    try {
+      blobs = extractJsonBlobs(fs.readFileSync(localFile));
+    } catch (err) {
+      throw new Error("failed to read blob data: " + err.message);
+    }
+    if (blobIndex >= blobs.length) {
+      throw new Error("blobIndex " + blobIndex + " out of range (" + blobs.length + " blobs)");
+    }
+    const blob = blobs[blobIndex];
+    const algorithm = String(blob.algorithm_name || "").trim();
+    if (!algorithm) {
+      throw new Error("blob has no algorithm_name");
+    }
+    const knobs = {};
+    for (const [key, val] of Object.entries(blob)) {
+      if (ALGORITHM_META_KEYS.has(key)) continue;
+      knobs[key] = val;
+    }
+    send("Preset: " + (blob.preset_name || "(unnamed)") + " // " + algorithm + " [" + blobIndex + "]");
+
+    // 2. resolve the matching effect starter in input/lib for the target slot
+    const starter = resolveStarter(algorithm, slot);
+    if (!starter) {
+      const bank = slot === "A" ? "m1" : "m2";
+      throw new Error("no " + bank + " starter for " + algorithm + " (input/lib) — assign skipped");
+    }
+    send("Starter: " + path.basename(starter));
+
+    // 3. import the starter (loads the algorithm WITH its CC layout).
+    // Always pass --show: the Eventide Control window is deliberately kept
+    // visible at all times (hiding/toggling was removed on purpose).
+    const showArg = ["--show"];
+    const r = await runPython(SET_SLOT_SCRIPT, [String(program), starter, "--slot", slot, ...showArg], send);
+    if (r.code !== 0) {
+      if (res.writableEnded) return;
+      res.write(`event: done\ndata: ${JSON.stringify({ ok: false, code: r.code, error: "import failed", log: r.out, stderr: r.err, sent: [], skipped: [] })}\n\n`);
+      res.end();
+      return;
+    }
+    send("Import OK — sending knob values via MIDI CC...");
+
+    // 4. compute + transmit CC for every calibrated knob (Stage 2 maps)
+    const bank = slot === "A" ? "m1" : "m2";
+    const plan = planCcSend(algorithm, bank, knobs);
+    let sent = plan.sent;
+    let skipped = plan.skipped;
+    if (sent.length) {
+      const tx = sendCcBytes(sent);
+      if (!tx.ok) {
+        skipped = skipped.concat(sent.map((s) => ({ control: s.control, reason: tx.error })));
+        sent = [];
+      }
+    }
+    if (res.writableEnded) return;
+    res.write(`event: done\ndata: ${JSON.stringify({ ok: true, code: 0, log: r.out, sent, skipped, channel: MIDI_DEFAULT_CHANNEL, bank })}\n\n`);
+    res.end();
+  } catch (err) {
+    if (!res.writableEnded) {
+      res.write(`event: done\ndata: ${JSON.stringify({ ok: false, error: err.message, sent: [], skipped: [] })}\n\n`);
+      res.end();
+    }
+  } finally {
+    fetchBusy = false;
+  }
+});
+
+app.post("/api/h90/app/visibility", async (req, res) => {
+  const action = String((req.body || {}).action || "").toLowerCase();
+  if (!["hide", "show", "status"].includes(action)) {
+    return res.status(400).json({ error: 'action must be "hide", "show" or "status"' });
+  }
+  try {
+    const r = await runPython(APP_VISIBILITY_SCRIPT, [action]);
+    if (r.code === 0) {
+      appVisibleByToggle = action === "show";
+    }
+    const appMatch = /^app: (.+) \(pid \d+\)$/.exec(r.out);
+    res.json({
+      ok: r.code === 0,
+      code: r.code,
+      app: appMatch ? appMatch[1] : null,
+      action,
+      log: r.out.trim(),
+      stderr: r.err.trim(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -623,6 +952,18 @@ app.post("/api/h90/knob", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`H90 API listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`H90 API listening on http://localhost:${PORT}`);
+  });
+} else {
+  module.exports = {
+    resolveStarter,
+    planCcSend,
+    sendCcBytes,
+    extractJsonBlobs,
+    slotsForFile,
+    resolveLocalPresetFile,
+    STARTER_NAME_RE,
+  };
+}

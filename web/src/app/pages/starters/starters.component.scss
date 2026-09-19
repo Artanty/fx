@@ -74,6 +74,46 @@
       &:focus { outline: none; border-color: #ffb454; }
     }
   }
+
+  .vis-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+
+    .vis-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid #33333d;
+      background: #1c1c22;
+      color: #e8e8ec;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      &:hover:not(:disabled) { border-color: #ffb45455; }
+      &:disabled { opacity: 0.5; cursor: default; }
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #7fe0bb;
+      box-shadow: 0 0 0 2px #243a33;
+      &.hidden { background: #9a9aa5; box-shadow: 0 0 0 2px #33333d; }
+    }
+    .vis-msg {
+      font-size: 12px;
+      color: #9a9aa5;
+      max-width: 220px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
 }
 
 .tabs {
