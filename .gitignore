@@ -45,3 +45,10 @@ back/h90/midi-step
 # Local Eventide credentials (gitignored; keep out of the repo)
 back/h90/auth.json
 
+# Runtime / diagnostic logs (regenerated on every run; keep out of the repo)
+back/h90/server.log
+back/h90/server.err.log
+back/h90/assign.flow.log
+back/h90/import.err.log
+back/_node_keys.json
+
