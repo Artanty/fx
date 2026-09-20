@@ -5165,3 +5165,82 @@ Verified live:
 Session result: the 3 cold-start fixes (main_window 45s retry, Select-Device
 row click, import crash log) are confirmed end-to-end on a true cold start;
 assign's import is now truthful about rejected files.
+
+## Plan - 2026-09-19 fix the two failing tests (h90-only)
+
+After the full test run (see results table in chat), two failures are code-
+fixable:
+
+1. web `ng test` -> `app.component.spec.ts` fails `NullInjectorError: No
+   provider for ActivatedRoute` because AppComponent (h90 route-restore
+   change, commit a0467cb) injects Router/RouterLink/RouterOutlet but the spec
+   provides nothing. Fix: add `RouterTestingModule` to the TestBed imports.
+
+2. `back/h90/test_assign_cc.py` live test: verified 10/17 knobs, then a click
+   for 'In Gain' was attributed by the app to the bottom-bar 'Mix' knob, and
+   afterwards every synthetic click stopped registering (desktop/UIA context
+   drifted: VS Code stole foreground, later even re-focused+re-pinned clicks at
+   previously-working rows produced no popup). Fix the two real robustness
+   gaps in the harness:
+   - re-scan panel geometry FRESH per control (auto-scroll invalidates cached
+     coords, same lesson as the m2 batch),
+   - pin + focus the app window at the start of the live test and re-pin/
+     re-focus on a 'no rangeButton' result, then re-measure and retry once.
+   JUICY UIA elicitation for the General-section rows is layout-dependent and
+   NOT re-testable while the live app ignores clicks; documented, not chased
+   further in this pass.
+
+Verify: `python -m py_compile test_assign_cc.py`; `ng test` green; re-run
+`test_assign_cc.py` and report honestly (offline state test is the stable one).
+
+## Progress - 2026-09-19 fix the two failing tests (h90-only)
+
+- `web/src/app/app.component.spec.ts`: added `RouterTestingModule` to the
+  TestBed imports. `ng test --browsers=ChromeHeadless` -> TOTAL: 1 SUCCESS.
+- `back/h90/test_assign_cc.py`: pin+focus the app window before the live
+  sweep, re-measure `find_label_and_values` fresh for EVERY control, and on a
+  `no rangeButton` result re-pin/refocus/re-measure and retry once before
+  failing. `python -m py_compile test_assign_cc.py` OK.
+- `back/h90/assign_cc.py`: rewired `verify_mapping`/`assign_knob` through a
+  shared `_open_knob_popup()` that probes the value-box center first, then the
+  rotary-knob zone ~50px ABOVE the value text, accepting the first popup that
+  names the expected control. Rationale (measured): Eventide Control assigns
+  the 'In Gain' VALUE TEXT band (y871-893) to the Mix bottom bar, while the
+  real trigger sits at the knob (y800-820); the bottom-bar Mix similarly opens
+  from y840-900 not from its text. Verified by controlled click-map + point
+  probes ((363,821)->In Gain, (347,855)->Mix).
+- Live re-run results (band-delay slot-A, true clicks): the run progressed
+  past In Gain to reach Tails (10 Band Delay + In Gain + Out Gain + Bypass
+  = 13/17 verified), then 'Tails' opened the Mix popup: the Slot-A panel
+  AUTO-SCROLLS ~50px as popups open/close, so static bands go stale mid-test.
+- Decisive (non-code) blocker: repeated probing left the app OUT of the Slot-A
+  edit view entirely (whole parameter tree gone, only Parameters/Routing
+  footer tabs remain). Live verify depends on the user resetting the app to
+  Program 50 / Slot A / Band Delay edit view; with a fresh canonical layout
+  the same code verifies to 13/17 and the remaining Tails/Tempo Mode/HotKnob/
+  Kill Dry rows need either a healthy scroll or the app's own normalized
+  layout. NOT a deterministic repo bug -> left as documented live noise.
+
+
+## Status: h90 web e2e spec + backend stability (live run, 2026-09-20)
+
+- Added web/tests/h90-web.audit.spec.ts (Playwright): browse grid + live
+  totals/search/sort/pager, preset-detail file+knob+assign surface, starters
+  family/search + intercepted import round-trip (proves Slot A UI wiring with
+  a synthetic SSE 'done'; never touches the pedal). Skips cleanly when the
+  backend is unreachable.
+- Ran both servers on request: web dev :4211 (ng serve) + h90 backend :3000,
+  Chrome opened at http://localhost:4211; suite = 3/3 PASS in isolation and
+  inside the full run.
+- Found & worked around a real infra bug: the h90 backend CRASHES with a
+  native Node assert (RemoveEnvironmentCleanupHook / exit code 134) under
+  bursts of API traffic (repeatable; single-route loops fine). Not a test
+  bug. Mitigation chosen by user: session supervisor loop
+  (Temp\opencode\supervise_h90.cmd, auto-restarts node server.js) + spec
+  resilience (apiJson retry wrapper, single-known-slug probe instead of a
+  60-detail burst, gotoListPage bounded reload). The crash itself remains
+  unfixed (Node 24.19 + better-sqlite3); supervise_h90 is temp tooling, not
+  repo code.
+- Full suite: h90-web 3 PASS; lalady 3 SKIP + diag-bass-jump FAIL, all from
+  the lalady backend (:3111) not running + the known diag-bass-jump
+  skip-bug (.json().catch() only guards json()). Unchanged from before.

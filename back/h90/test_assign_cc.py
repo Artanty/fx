@@ -114,12 +114,30 @@ class TestCCSequential(unittest.TestCase):
             self.skipTest('Eventide/H90 Control app is not running')
         d = Desktop(backend='uia')
         assigns = {a['control']: a['cc'] for a in load_state()['assignments']}
-        labels, values = find_label_and_values(d, pid)
+        # Coordinate clicks need the canonical pinned rect and the app on top;
+        # JUCE may also drop the whole UIA tree while the window is occluded.
+        h90_app.pin_window()
+        h90_app.main_window().set_focus()
+        time.sleep(0.5)
         for name in EXPECTED_CONTROLS:
+            # Re-measure for every knob: interacting with a knob can auto-scroll
+            # the panel, so cached rects go stale (m2 batch lesson).
+            labels, values = find_label_and_values(d, pid)
             rect = knob_value_rect(labels, values, name)
             self.assertIsNotNone(rect, 'no value rect found for %s' % name)
             knob = (name, rect[0], rect[1], rect[2], rect[3])
             res = verify_mapping(d, pid, knob)
+            if res.startswith('FAIL: no rangeButton'):
+                # window may have lost focus / slipped behind another window;
+                # re-pin, refocus, re-measure and retry once before failing.
+                h90_app.pin_window()
+                h90_app.main_window().set_focus()
+                time.sleep(0.5)
+                labels, values = find_label_and_values(d, pid)
+                rect = knob_value_rect(labels, values, name)
+                if rect is not None:
+                    knob = (name, rect[0], rect[1], rect[2], rect[3])
+                    res = verify_mapping(d, pid, knob)
             self.assertIn("src='MIDI CC'", res, '%s: %s' % (name, res))
             self.assertIn('CC# %d' % assigns[name], res,
                           '%s: %s' % (name, res))

@@ -280,30 +280,46 @@ def find_range_button(d, pid, near):
     return best
 
 
-def verify_mapping(d, pid, knob):
-    near = label_center(knob)
-    click(coords=near)
-    time.sleep(0.7)
-    rb = find_range_button(d, pid, near)
-    if rb is None:
-        vx, vy = knob[1] + knob[3] // 2, knob[2] + knob[4] // 2
-        click(coords=(vx, vy))
+def _open_knob_popup(d, pid, knob):
+    """Open the Options popup for a control.
+
+    The UIA value-edit rect is authoritative for most rows, but for the
+    rotary-knob rows (e.g. 'In Gain') and the bottom-bar toggles the value
+    TEXT sits on the band the app actually assigns to the control BELOW it
+    (e.g. 'In Gain' value -> Mix), so clicking the value box opens the wrong
+    popup. Probe the value-box center first, then the knob zone above it
+    (value_top - (value_h + 28))."""
+    lx, ty, w, h = knob[1], knob[2], knob[3], knob[4]
+    cx = lx + w // 2
+    near = (cx, ty + h + h // 2)
+    last = 'no rangeButton'
+    for pnt in ((cx, ty + h // 2), (cx, ty - (h + 28))):
+        click(coords=pnt)
         time.sleep(0.7)
         rb = find_range_button(d, pid, near)
-    if rb is None:
-        return 'FAIL: no rangeButton'
-    click_center(rb)
-    time.sleep(1.2)
-    p = popup_window(d, pid)
-    if p is None:
-        return 'FAIL: popup did not open'
-    got = popup_knob_name(p)
-    if got != knob[0]:
+        if rb is None:
+            continue
+        click_center(rb)
+        time.sleep(1.1)
+        p = popup_window(d, pid)
+        if p is None:
+            last = 'popup did not open'
+            continue
+        got = popup_knob_name(p)
+        if got == knob[0]:
+            return rb, p, 'ok'
+        last = 'wrong knob (got popup for %r, expected %r)' % (got, knob[0])
         cb = close_btn(p)
         if cb is not None:
             click_center(cb)
         time.sleep(0.4)
-        return 'FAIL: wrong knob (got popup for %r, expected %r)' % (got, knob[0])
+    return None, None, last
+
+
+def verify_mapping(d, pid, knob):
+    rb, p, last = _open_knob_popup(d, pid, knob)
+    if p is None:
+        return 'FAIL: %s' % last
     src = src_text(p)
     it, _, _ = inst_row(p)
     state = 'src=%r instance=%r' % (src, it)
@@ -316,38 +332,9 @@ def verify_mapping(d, pid, knob):
 
 def assign_knob(d, pid, knob, target):
     label = knob[0]
-    near = label_center(knob)
-    click(coords=near)
-    time.sleep(0.8)
-    rb = find_range_button(d, pid, near)
-    if rb is None:
-        vx, vy = knob[1] + knob[3] // 2, knob[2] + knob[4] // 2
-        click(coords=(vx, vy))
-        time.sleep(0.8)
-        rb = find_range_button(d, pid, near)
-    if rb is None:
-        click(coords=near)
-        time.sleep(0.8)
-        rb = find_range_button(d, pid, near)
-    if rb is None:
-        return 'FAIL: no rangeButton'
-    click_center(rb)
-    p = None
-    for _ in range(10):
-        p = popup_window(d, pid)
-        if p is not None:
-            break
-        time.sleep(0.35)
+    rb, p, last = _open_knob_popup(d, pid, knob)
     if p is None:
-        return 'FAIL: popup did not open'
-    got = popup_knob_name(p)
-    if got != label:
-        # clicking a stale / auto-scrolled rect opened the wrong knob's popup
-        cb = close_btn(p)
-        if cb is not None:
-            click_center(cb)
-        time.sleep(0.4)
-        return 'FAIL: wrong knob (got popup for %r, expected %r)' % (got, label)
+        return 'FAIL: %s' % last
     if not set_source_midi_cc(p):
         close_popup(d, pid)
         return 'FAIL: source not MIDI CC'
