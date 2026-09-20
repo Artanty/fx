@@ -5244,3 +5244,38 @@ Verify: `python -m py_compile test_assign_cc.py`; `ng test` green; re-run
 - Full suite: h90-web 3 PASS; lalady 3 SKIP + diag-bass-jump FAIL, all from
   the lalady backend (:3111) not running + the known diag-bass-jump
   skip-bug (.json().catch() only guards json()). Unchanged from before.
+
+
+## Plan - 2026-09-20 permanent fix for backend native crash
+
+The h90 backend dies with a native Node assert (RemoveEnvironmentCleanupHook,
+exit 134) under bursts of API traffic (worked around but not fixed in commit
+503f107). Root-cause direction: better-sqlite3 11.x on Node 24 tears down its
+inner worker threads during isolate dispose; v12 adds Node-24 ABI support and
+the teardown fixes.
+
+Steps:
+1. back/h90/package.json: better-sqlite3 ^11.8.1 -> ^12.11.1; npm install
+   (updates h90 package-lock, prebuilt for Node 24).
+2. Restart backend under the supervisor with new deps.
+3. Verify: repeat the burst that used to crash (re-run h90-web spec several
+   times + mixed-endpoint stress) until no crash for a full session; supervisor
+   restart log must stay empty. If it still crashes, escalate to midi 2.0.0
+   or a Node LTS pin.
+
+
+## Status - 2026-09-20 permanent fix for backend native crash
+
+- back/h90/package.json: better-sqlite3 ^11.8.1 -> ^12.11.1 (npm install in
+  back/h90, lockfile updated; midi@2.0.0 and its node-gyp install script are
+  unchanged and still load, ports probe returns the H90).
+- Restarted backend; verification = the old crash triggers now stay green:
+  - 12 parallel mixed-burst jobs (patches + starters?type=delay + filters)
+    all OK, supervisor restart log 0.
+  - h90-web Playwright suite green repeatedly (8+ consecutive runs, plus a
+    cold ng-serve restart run), 0 backend restarts throughout.
+  - One nd serve cold-start batch showed an unreproduced single-test flake
+    (not a backend crash; no restart logged); not reproduced in 9 later runs.
+- Root cause closed for the observed failure mode; fallback (Node 22 LTS pin)
+  kept in reserve. AGENTS.md gained a long-running-session check-in rule per
+  user request.
