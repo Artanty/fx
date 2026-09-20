@@ -45,3 +45,9 @@ This keeps a living log of intent and outcome for every change.
 
 ## Do exactly what is asked
 - Do exactly what the user asks, nothing redundant. Before doing anything else (extra checks, extra exports, file moves, side tasks) — ask the user first.
+
+## Long-running sessions
+- If a single continuous task chain exceeds ~30 minutes, STOP, post a short
+  status (what's done, what remains, next step), and wait for the user to say
+  continue. Never spin on background verification loops (repeat runs, server
+  polls, waits) past that point without a check-in.
