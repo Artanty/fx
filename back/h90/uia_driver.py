@@ -81,9 +81,11 @@ def is_readable(av):
     return bool(av) and av != "Not set" and "IS NOT" not in av
 
 
-def collect_params(win):
+def collect_params(win, xmin=536, xmax=10000):
     """Return rows of (label_text, value_text, slider_elem) — group each Edit
-    readout with the nearest Text label by (column,row) as before."""
+    readout with the nearest Text label by (column,row) as before. Parameters
+    bound the scan region (default x>=536 = the right/bank columns; Slot A
+    knobs live in x 289..656, pass xmin=280, xmax=655 to capture them)."""
     rows = []
     try:
         all_ctrls = walk(win, max_depth=14)
@@ -102,7 +104,7 @@ def collect_params(win):
             x, y = int(r.left), int(r.top)
         except Exception:
             continue
-        if x < 536 or y < 200:
+        if x < xmin or x > xmax or y < 200:
             continue
         if ctype == "Text":
             t = name.strip()
