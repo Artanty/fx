@@ -5458,3 +5458,213 @@ auto-retried OK.
 Stripped 40 already-captured general-block knobs (HotKnob etc.) from
 knob_values/*.json and midi_cc_map.db (knob_info + knob_values) - capture audit
 now empty, 72/72 OK after cleanup, 0 range issues.
+## Plan - 2026-09-21 C4 randomizer on monome norns (USB), Milestone 1: preset-name browser
+
+User goal: port the C4 randomizer feature to a monome norns, C4 Synth driven
+from the norns USB host port. Chosen architecture (user decided): full-parity
+= norns Lua script + a tiny zero-dependency C HID bridge on the norns OS
+(/dev/hidraw, mirroring back/c4/src/c4Protocol.js), no MIDI CC mapping needed.
+Milestone 1 (user-selected first step): read all 128 C4 preset names over HID
+and display them on the norns screen; cursor + activate a preset (K2) and hear
+the pedal switch. Later milestones (M2 randomizer core incl. save-to-slot via
+`commit`; M3 scenes/auto-play/saved list; M4 full web-workbench parity) only
+after M1 is verified.
+
+Method: (1) write back/c4/norns/c4hid.c (identify | names | activate | body |
+commit stubs; hidraw discovery via sysfs HID_ID/HID_NAME VID 0x29a4 PID
+0x0302; verify via CONFIG_GET 0x45->0x32 reply); (2) cross-compile static
+ARMv7 (zig cc armv7-linux-gnueabihf -static; fallback on-norns build);
+(3) write norns script back/c4/norns/synths/c4synth/ (ps/init/redraw/enc/key,
+io.popen bridge, 128x64 scroll list, E2 scroll/E3 page/K2 activate/K3 rescan);
+(4) deploy via norns dongle USB (scp over SSH-over-USB to /home/we/dust/),
+test with the C4 plugged into the norns host port: `c4hid names` must dump all
+128 names. Docs: back/c4/docs/norns-port.md.
+
+Verification: `c4hid identify` prints the C4 model/fw; `c4hid names` returns
+128 non-error rows matching the backend GET /api/presets names; norns screen
+renders the list and K2 activation switches the active preset on the pedal.
+
+## Progress - 2026-09-21 C4 randomizer on monome norns (USB), Milestone 1
+
+Done:
+- `back/c4/norns/c4hid.c` - full bridge implemented (identify | names | name |
+  body | activate). Verified line-by-line against `back/c4/src/c4Protocol.js`:
+  parseReply header-skip, FLASH_READ (0x36 + addr + 0) framing, CONFIG_GET
+  payload decode (fw u16 LE, model/numPresets/active/channel offsets),
+  readRegion 16-byte rows, preset name offset 0xa0/32 bytes, setActivePreset
+  [0x77 idx&0x7f 0] + 500ms + acknowledged-read. Fixed a leftover
+  uninitialized-`cfg` read in cmd_identify; activate now warns (exit 0) instead
+  of failing when the device sends no ack, matching the JS behavior.
+- norns script `back/c4/norns/synths/c4synth/` (ps, init, redraw, enc, key,
+  lib/c4hid.lua bridge wrapper, lib/state.lua) - M1 UI: io.popen bridge calls to
+  dust/c4hid/c4hid, 128x64 scroll list (6 rows), E2 move, E3 page, K2 activate,
+  K3 rescan, header shows active preset + bridge errors.
+- Build helpers: `build.ps1` (zig cc arm-linux-musleabihf static + x64 musl
+  test build), `build-norns.sh` (on-device `cc -O2 -Wall`). Deploy/Build notes
+  updated in `back/c4/docs/norns-port.md`.
+
+Blocked on cross-compile: the Lenovo has NO C toolchain (zig/gcc/clang/cl/
+docker missing; WSL.exe is legacy inbox with no distro), and ziglang.org CDN
+was throttled at ~160 B/s when trying to fetch the portable 0.16.0 build, so
+no ARM binary was produced. Recommended path: on-device gcc build on the norns
+(`sudo pacman -S --needed base-devel`), or install a WSL Ubuntu distro (admin/
+reboot) for `apt install gcc-arm-linux-gnueabihf`.
+
+Next: user decides build route; then compile, deploy over SSH-over-USB, plug
+the C4 into the norns host port, and run the M1 acceptance check.
+
+## Progress - 2026-09-21 C4 randomizer on monome norns (USB), M1 on-device build + layout fix
+
+Done:
+- norns reached over wifi at we@192.168.1.70 (pw sleep). Bridge built ON-DEVICE:
+  `cc -O2 -Wall c4hid.c -o c4hid` -> ELF 32-bit ARM, runs; `./c4hid identify`
+  correctly reports no matching hidraw node (the C4 is still on the Lenovo).
+  This image already ships cc/gcc/make and has no pacman, so no install needed.
+- Found the modern norns script convention on this image (231114): the core
+  `dofile`s a single selected `.lua`; it does NOT auto-load the old
+  init/redraw/enc/key split files, and `ps.lua` is dead. The script menu is a
+  recursive `find ~/dust/code -mindepth 2 -name "*.lua"` minus `/(lib|data|crow)/`.
+- Restructured the script to that convention: `synths/c4synth/c4synth.lua`
+  (single entry: init/redraw/enc/key + a Rescan trigger param) plus
+  `lib/c4hid.lua`, `lib/state.lua` (entry prepends `<script>/lib/?.lua` to
+  package.path, requires by bare name). Removed init/redraw/enc/key/ps.lua.
+- Deployed via scp to /home/we/dust/code/c4synth/ and /home/we/dust/c4hid/; all
+  Lua passes `luac -p` (5.1.5), no BOM/CRLF (scp is byte-exact; PowerShell UTF8
+  pipes inject a BOM that Lua rejects).
+- `back/c4/docs/norns-port.md` updated: single-file layout, dust/code paths,
+  wifi SSH, on-device build, and the confirmed arch/script-convention risks.
+
+Blocked on hardware: the C4 is plugged into the Lenovo, not the norns, so the
+norns exposes no /dev/hidraw node. Need the user to move the C4 cable to a norns
+USB-A host port.
+
+Next: move the C4 to the norns host port; run `./c4hid identify` and
+`./c4hid names`, diff against back/c4/norns/m1-reference/names.txt; launch
+c4synth and verify the list + K2 activate (M1 acceptance).
+
+## Progress - 2026-09-21 C4 randomizer on monome norns (USB), M1 backend acceptance
+
+Done:
+- C4 moved to a norns USB-A host port: enumerated as hidraw0
+  (HID_ID 0003:29A4:0302, `usb-.../input2` = the correct interface). Report
+  descriptor has no report IDs (38-byte input + 38-byte output, vendor page
+  0xFFA0), so 38 raw bytes with no leading report-ID byte is correct.
+- Root cause of "node matched but none answered CONFIG_GET": the hidraw node is
+  created `root:root 0600`, so user `we` could not open() it, and the bridge
+  masked that open failure as "no reply". Fixed with a udev rule
+  `/etc/udev/rules.d/50-c4synth.rules`:
+  `SUBSYSTEM=="hidraw", ATTRS{idVendor}=="29a4", ATTRS{idProduct}=="0302",
+  MODE="0660", GROUP="plugdev"` + `udevadm control --reload-rules` /
+  `udevadm trigger --action=add --subsystem-match=hidraw`. Node is now
+  `root:plugdev 0660`; `./c4hid identify` works as `we` with no sudo.
+- M1 backend acceptance PASS: `./c4hid names` -> 128 rows, all 123 real names
+  identical to `back/c4/norns/m1-reference/names.txt` (0 mismatches). The 5
+  uninitialized slots are raw 0xFF fill; the reference shows 0x7F only because
+  node-hid ASCII-folds 0xFF (confirmed with `./c4hid name 9 | xxd` = ff*31).
+  identify: model 249, fw 5633, presets 128, active 1, channel 5; ~0.5 s.
+- Wrapper smoke test as `we`: c4hid.names() ok=true, 128 slots, [1]=Taurus,
+  [2]=EDM Swell, [127] 32 bytes; identify ok=true.
+- Docs updated: `back/c4/docs/norns-port.md` gained a hidraw-permissions
+  section and confirmed the framing/node-selection risks.
+
+Next: launch c4synth on the norns (SELECT -> C4SYNTH), verify the on-screen
+list + K2 activate (M1 UI acceptance), then move to M2.
+
+## Progress - 2026-09-21 C4 randomizer on monome norns (USB), M1 script dry-run + fixes
+
+Done:
+- Wrote a headless harness (`/tmp/dryrun.lua`, stubs norns/screen/params/clock)
+  that loads the real `c4synth.lua` and exercises init -> scan -> redraw ->
+  enc -> K2 activate -> K3 rescan. It caught two runtime bugs before launch:
+  1. `state.scan` called `c4hid.probe()`, which the wrapper never defined
+     (would have crashed on load) - removed the redundant probe and use
+     `c4hid.identify()` (which already CONFIG_GET-verifies the device).
+  2. encoder acceleration used `2.5`, making `state.cursor` fractional
+     (e.g. 13.5) so the cursor row never matched and the highlight vanished -
+     changed to integer `2` and `math.floor` the cursor in state.move/page.
+- Re-ran the dry-run: init registers the Rescan param, scan reads 128 names +
+  active preset, redraw emits rows, E2/E3 move the (integer) cursor, K2 activates,
+  K3 rescans - all clean.
+- Side effect of the dry-run: K2 called the real bridge, so the pedal's active
+  preset actually changed; `./c4hid identify` now reports `active 12` and
+  `./c4hid name 12` = `go5`, confirming `activate` switches the real C4.
+
+Next: launch c4synth on the norns (SELECT -> C4SYNTH) for the visual M1
+acceptance (list renders, cursor scrolls, K2 changes the pedal), then M2.
+
+## Progress - 2026-09-21 C4 randomizer on monome norns (USB), M1 crash fix + recovery
+
+Done:
+- On-screen test revealed a crash: `c4synth.lua:81: attempt to call a nil value
+  (field 'display')`. This core's Screen class has `screen.update` but NO
+  `screen.display`; every redraw threw, so the screen never updated ("stuck").
+  Removed the `screen.display()` call (kept `screen.update()`). Verified the
+  full used API against `core/screen.lua` (aa/clear/level/move/text/font_face/
+  font_size/update all exist).
+- Made the headless dry-run strict: the screen stub now exposes only methods
+  that really exist, so a missing method fails loudly (the permissive stub had
+  masked this bug). Re-ran: init/scan/redraw/enc/K2/K3 all clean.
+- INCIDENT (my error): `sudo systemctl restart norns-matron` left matron
+  `inactive` - on this image matron segfaults on restart
+  (`ssd1322_update: surface_buffer ((nil))` -> `child killed (signal 11)`).
+  Recovered with `sudo reboot`; matron came back active and the udev rule
+  persisted (hidraw0 still `root:plugdev 0660`; `./c4hid identify` ok as we).
+  Note for future: do NOT `systemctl restart norns-matron` on this image; use a
+  reboot to reload matron, and reload scripts via the SELECT menu instead.
+- After reboot no script was loaded (`### SCRIPT ERROR: NO SCRIPT`), so the
+  norns is healthy and waiting for the user to select C4SYNTH.
+
+Next: user loads c4synth via SELECT for the visual acceptance (list renders,
+cursor scrolls, K2 changes the pedal). If the ~0.5 s synchronous-bridge pause
+on scan/activate feels bad, switch lib/c4hid.lua to `norns.system_cmd` (async).
+## Progress - 2026-09-21 C4 randomizer on monome norns (USB), M1 async + freeze diagnosis
+
+Issue: user loaded c4synth, K2 changed the pedal sound, but the norns screen
+was frozen. No errors in the journal and matron idle (~2.5% CPU), so the script
+was not crashing.
+
+Done:
+- Root cause: bridge calls used blocking `os.execute` on matron's single Lua
+  thread (scan ~0.5 s, activate ~0.6+ s), freezing the whole UI - including the
+  screen - for the duration of each call.
+- Refactored lib/c4hid.lua to the async `norns.system_cmd(cmd, cb)` (stdout to
+  callback; stderr redirected to /tmp/c4hid.err and read back on failure). All
+  API methods are callback-based now. lib/state.lua dropped clock.run and chains
+  identify->names / activate via callbacks; state.finish() -> redraw().
+- Added explicit redraw() calls at the end of enc/key (safe even if the core
+  calls redraw every frame) plus temporary `c4dbg` prints in redraw (throttled
+  to ~0.5 Hz), enc, and key to observe input/refresh from the journal.
+- Headless dry-run updated for the async API (system_cmd stubbed via io.popen):
+  init -> scan -> redraw -> enc -> K2 -> K3 all pass; luac -p clean.
+
+Next: user reloads c4synth (SELECT -> C4SYNTH), turns E2/presses K2; read the
+journal for c4dbg lines to confirm enc/redraw fire and that the screen updates;
+then remove the c4dbg prints.## Progress - 2026-09-21 C4 randomizer on norns, M1: freeze root cause + hardening
+
+Issue: with the async refactor, screen still froze ~1 min after load; the
+journal showed enc/key events arriving the whole time but the screen dead.
+
+Analysis:
+- On this core, play-mode redraw is event-driven (the C loop redraws on ping;
+  it does NOT call the script's redraw every frame). The single redraw observed
+  right after load was _menu.set_mode(false)'s explicit redraw().
+- encoders.lua applies its own accel (up to x6) on top of the script's, making
+  early builds scroll "strangely". Fixed by norns.enc.accel(n,false)+sens(n,1)
+  and dropping the script-side accel multiplier.
+- The load-time redraw showed busy=true n=0 -> strong suspicion the async
+  norns.system_cmd callback never fired (the API is unused elsewhere in core,
+  i.e. untested on this build), leaving state.busy stuck true, after which all
+  enc/key handlers returned early and the screen froze while input kept flowing.
+- The screen saver (metro 36, 900 s) was ruled out; brightness/update path fine.
+
+Changes deployed:
+- c4synth.lua: metro-driven redraw ~30 Hz (redraw + screen.ping(), guarded to
+  play mode via _menu.mode), watchdog in the metro that force-unlocks busy past
+  state.deadline, encoder sens/accel set 1:1, bounded debug prints (first 40
+  redraws; scan/activate callback markers).
+- state.lua: scan/activate set state.deadline; print markers on every callback.
+- Dry-run now stubs metro/_menu/norns.enc; passes; K2 live-activates preset.
+
+If the markers prove system_cmd dead, fallback = synchronous os.execute for
+scan (only at load, ~0.5 s) and keep activate synchronous with the metro
+keeping the panel alive between the transient blocks.

@@ -1,0 +1,128 @@
+0	1
+1	Taurus
+2	EDM Swell
+3	Poly Pitch Swell
+4	rand-1
+5	volume off
+6	EDM Swell test seq
+7	BAD Shimmer Cello
+8	Syncello
+9	
+10	Foolin
+11	go42
+12	go5
+13	go4
+14	go3
+15	go2
+16	go
+17	Royal Blood lyc
+18	Pianic
+19	Funk Dragon+
+20	Synthian try 2
+21	Synthian+
+22	Organic Rock+
+23	Funk Dragon+CL
+24	Funk Dragon+CL2
+25	space-frog
+26	Funk Dragon+harm
+27	Moog Taurus winter 1up
+28	Funk Dragon 1up 3peak
+29	Moog Bass Synth - Jim 1up
+30	cello
+31	strings 4 h90
+32	str base
+33	JW Saw Sine Lead 01
+34	Carni - aimed
+35	carni-tof
+36	Tower of Fuzz
+37	clean dist4s
+38	Organic Rock4s
+39	------synth--BODY---next---
+40	Microsynth-carni
+41	Simple Bit Crusher
+42	Reese Bass
+43	Reese Bass4ss
+44	EDM Swell 24s
+45	
+46	stt-m-Moog Bass NOWSCT 2
+47	stt-bass-HC Moog 1
+48	gated fuzz-mid
+49	JW Oct Fuzz with Friends
+50	Two Fazed Meat-Fuzz
+51	gated fuzz
+52	Up Fuzz
+53	JW Velcro Octave Fuzz
+54	Tower of Fuzz
+55	fuzz - Bad Behaviour -me4tu
+56	Machine Octaves
+57	trem - Fuzz DFilter
+58	try fuzz support
+59	circle2
+60	napu-vs2_synth
+61	wilis - Mono Dirty Filter
+62	-----clean-----LEADS-----next---
+63	Tower of Fuzz
+64	
+65	EDM Swell 2
+66	gta try - dual saw lead - vol ad
+67	Future Nostalgia
+68	Synthian
+69	Organic Rock
+70	nety try - NoAI Synth Bass "Neon
+71	EDM Swell
+72	Technicolour -hop
+73	Synth Feedback intel try
+74	Pretty Lady 2-harm
+75	JW 5th Saw Sub Pad (G)-harm
+76	Reese Bass
+77	Phat lead light
+78	Synth Feedback intel
+79	Whoow
+80	PHAT LEAD 2
+81	lycantrope wibe
+82	Blarinet
+83	Boogie On
+84	24K MOOG
+85	Moog Bass Synth - Jim 1
+86	HC Moog 1
+87	Moog Taurus (Winter NAMM 2019)
+88	Synth Bass
+89	PHAT LEAD
+90	Analog Lead-bass supp
+91	PHAT LEAD hi
+92	C# Pad
+93	try sawSine support
+94	try-beg-JW 5th Saw Sub Pad (G)
+95	Microsynth
+96	tebe-1/2v  - Da Funk
+97	napu-vs2_synth_vs1
+98	organic
+99	Organic min
+100	trem - Welcome To Paradise
+101	Crystalization
+102	Whoow2
+103	Whoow2tryChord
+104	Whoow2chor
+105	
+106	wet dist
+107	-----clean----ARPS-----next-----
+108	Rhythmic Bass Octave Arpeggiator
+109	FarMysth -hop
+110	Carnival - aimed
+111	nety try - TOX MinorFlutes
+112	Mr Happy -back-harm
+113	SEQ - Saga
+114	arp-Knights
+115	arp-Queen+2
+116	trem - Welcome To Paradise
+117	trem - tw.POLYDRIVE
+118	space sequencer 2 enter
+119	space seq enter
+120	9na-chorus On ACid
+121	naputi-intro
+122	Technicolour LYC
+123	Whoow+metr
+124	ch2+freeze-src
+125	ch2+smooth drone
+126	ch2+seq-chord
+127	
