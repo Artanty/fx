@@ -48,9 +48,9 @@ function init()
         action = function() state.scan() end
     }
     norns.enc.accel(2, false)
-    norns.enc.sens(2, 1)
+    norns.enc.sens(2, 4)
     norns.enc.accel(3, false)
-    norns.enc.sens(3, 1)
+    norns.enc.sens(3, 2)
     c4metro:start()
     state.scan()
 end

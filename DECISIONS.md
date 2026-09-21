@@ -5668,3 +5668,66 @@ Changes deployed:
 If the markers prove system_cmd dead, fallback = synchronous os.execute for
 scan (only at load, ~0.5 s) and keep activate synchronous with the metro
 keeping the panel alive between the transient blocks.
+
+## Plan - 2026-09-21 C4 norns M1: E2 scroll jumps 2 items per detent
+
+User report: with the freeze fixed, turning E2 scrolls the preset list 2 items
+per detent click instead of 1.
+
+Root cause (from norns v2.8.1 sources, lua/core/encoders.lua + menu.lua +
+script.lua + matron input/gpio.c): matron passes the raw evdev tick count to
+`encoders.process(n,d)`, which only calls the script's `enc(n,val)` when
+`|tick| >= sens`, with `val = floor(tick/sens)`. This C4 norns encoder
+delivers 2 ticks per detent. The M1 "hardening" round forced
+`sens(2,1)+accel(2,false)`, so every sub-tick immediately fires a callback and
+one detent produces two +1 calls -> cursor jumps 2. (The platform default
+`sens=2` exists precisely to coalesce the double-count into one step/detent;
+the earlier "strangely scrolling" was the OLD script-side 2.5 multiplier, not
+the core sens.)
+
+Plan: in c4synth.lua init, keep accel disabled (predictable 1:1) but raise
+`sens` to 2 for E2 and E3, so 2 ticks/detent = exactly 1 item (E3 likewise
+pages by 1 page, not 2). No other changes; dry-run and luac unaffected
+(norns.enc is stubbed in the harness).
+
+## Status - 2026-09-21 C4 norns M1: E2 scroll sens fix applied
+
+Done:
+- `c4synth.lua` init now sets `norns.enc.sens(2,2)` / `sens(3,2)` instead of
+  `sens(2,1)` / `sens(3,1)`; accel stays disabled for both. On this unit's
+  2-tick-per-detent encoder, the core's `encoders.process` now fires exactly
+  one `enc()` callback per detent -> E2 moves 1 item, E3 pages 1 page.
+- Root cause documented from norns v2.8.1 sources (encoders.lua/menu.lua/
+  script.lua/gpio.c): `val = floor(tick/sens)`, callback only when
+  `|tick| >= sens`; `sens=1` let both sub-ticks through.
+- Repo edited only (`c4synth.lua` + this log). No lua runtime on the dev box
+  to `luac -p`, but the change is a constant swap.
+
+Next: user relaunches c4synth on the norns (SELECT -> C4SYNTH) and confirms
+E2 steps 1:1 and E3 pages 1 page. If fast-turn acceleration is wanted later,
+re-enable `norns.enc.accel(n,true)` on top of `sens(n,2)`.
+
+## Plan - 2026-09-21 C4 norns M1: E2 2 detents per effect
+
+User feedback on the 1:1 E2 step: the encoder is stiff, and landing exactly on
+the next effect takes careful turning - scrolling feels too sensitive and easy
+to overshoot. User wants **2 scroll points = 1 effect**, i.e. one preset step
+per two detent clicks.
+
+The unit delivers 2 raw ticks per detent, and the core `encoders.process`
+fires `val = floor(tick/sens)` per `sens` ticks (accel off). To get 2 detents
+(4 ticks) per 1 item, raise E2 `sens` from 2 to 4. E3 stays at `sens(2,2)`
+(1 page per detent) - paging is intentionally coarse.
+
+## Status - 2026-09-21 C4 norns M1: E2 sens 2 -> 4 (2 detents per effect)
+
+Done:
+- `c4synth.lua` init: `norns.enc.sens(2,4)` (was 2). With 2 ticks/detent on
+  this unit, `encoders.process` now calls `enc(2,1)` once every 2 detent
+  clicks -> E2 steps 1 item per 2 clicks, reducing overshoot on the stiff
+  knob. E3/E1 untouched.
+- Repo edited only (`c4synth.lua` + this log).
+
+Next: user redeploys c4synth.lua to the norns (scp) and relaunches via the
+SELECT menu (K1 menu -> SELECT -> C4SYNTH -> K3 preview -> K3 run), confirms 2
+detents = 1 effect feels right. If still too twitchy, raise to sens(6).
