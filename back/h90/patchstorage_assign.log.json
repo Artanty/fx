@@ -1,0 +1,344 @@
+{
+  "file": "input\\patchstorage\\Haunting-Lead-676dc6669b1cf.pgm90",
+  "slot": "A",
+  "algorithm": "ModEchoVerb",
+  "preset": "JUNGLEAPPETITE",
+  "reports": [
+    {
+      "label": "Mix",
+      "key": "mmix",
+      "target": 60.81917572021484,
+      "rv": 0.7342,
+      "applied": "61",
+      "err": 0.18082427978516336,
+      "cc": 93,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Decay",
+      "key": "dcay",
+      "target": 2.05848217010498,
+      "rv": 0.14,
+      "applied": "2.08 s",
+      "err": 0.021517829895020046,
+      "cc": 18,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Size",
+      "key": "size",
+      "target": 50.00716018676758,
+      "rv": 0.5,
+      "applied": "50",
+      "err": 0.007160186767578125,
+      "cc": 64,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Echo",
+      "key": "pdly",
+      "target": 492.4166564941406,
+      "rv": 0.6203,
+      "applied": "495 ms",
+      "err": 2.583343505859375,
+      "cc": 79,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Echo Fdbk",
+      "key": "efbk",
+      "target": 34.24869918823242,
+      "rv": 0.34,
+      "applied": "34",
+      "err": 0.24869918823242188,
+      "cc": 43,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Echo Tone",
+      "key": "eton",
+      "target": -11.6119441986084,
+      "rv": 0.44,
+      "applied": "-12",
+      "err": 0.3880558013915998,
+      "cc": 56,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Flanger Mix",
+      "key": "fxmx",
+      "target": 111.7804718017578,
+      "rv": 1.0,
+      "applied": "100",
+      "err": 11.780471801757798,
+      "cc": 127,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Mod Rate",
+      "key": "mrat",
+      "target": 70.01171875,
+      "rv": 0.7,
+      "applied": "70",
+      "err": 0.01171875,
+      "cc": 89,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Low Level",
+      "key": "lolv",
+      "target": 33.86977767944336,
+      "rv": 0.67,
+      "applied": "34",
+      "err": 0.13022232055664062,
+      "cc": 85,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "High Level",
+      "key": "hilv",
+      "target": 6.846380233764648,
+      "rv": 0.535,
+      "applied": "7",
+      "err": 0.15361976623535156,
+      "cc": 68,
+      "status": "no-row",
+      "readback": ""
+    }
+  ]
+}
+{
+  "file": "input\\patchstorage\\Haunting-Lead-676dc6669b1cf.pgm90",
+  "slot": "A",
+  "algorithm": "ModEchoVerb",
+  "preset": "JUNGLEAPPETITE",
+  "reports": [
+    {
+      "label": "Mix",
+      "key": "mmix",
+      "target": 60.81917572021484,
+      "rv": 0.7342,
+      "applied": "61",
+      "err": 0.18082427978516336,
+      "cc": 93,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Decay",
+      "key": "dcay",
+      "target": 2.05848217010498,
+      "rv": 0.14,
+      "applied": "2.08 s",
+      "err": 0.021517829895020046,
+      "cc": 18,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Size",
+      "key": "size",
+      "target": 50.00716018676758,
+      "rv": 0.5,
+      "applied": "50",
+      "err": 0.007160186767578125,
+      "cc": 64,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Echo",
+      "key": "pdly",
+      "target": 492.4166564941406,
+      "rv": 0.6203,
+      "applied": "495 ms",
+      "err": 2.583343505859375,
+      "cc": 79,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Echo Fdbk",
+      "key": "efbk",
+      "target": 34.24869918823242,
+      "rv": 0.34,
+      "applied": "34",
+      "err": 0.24869918823242188,
+      "cc": 43,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Echo Tone",
+      "key": "eton",
+      "target": -11.6119441986084,
+      "rv": 0.44,
+      "applied": "-12",
+      "err": 0.3880558013915998,
+      "cc": 56,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Flanger Mix",
+      "key": "fxmx",
+      "target": 111.7804718017578,
+      "rv": 1.0,
+      "applied": "100",
+      "err": 11.780471801757798,
+      "cc": 127,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Mod Rate",
+      "key": "mrat",
+      "target": 70.01171875,
+      "rv": 0.7,
+      "applied": "70",
+      "err": 0.01171875,
+      "cc": 89,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "Low Level",
+      "key": "lolv",
+      "target": 33.86977767944336,
+      "rv": 0.67,
+      "applied": "34",
+      "err": 0.13022232055664062,
+      "cc": 85,
+      "status": "no-row",
+      "readback": ""
+    },
+    {
+      "label": "High Level",
+      "key": "hilv",
+      "target": 6.846380233764648,
+      "rv": 0.535,
+      "applied": "7",
+      "err": 0.15361976623535156,
+      "cc": 68,
+      "status": "no-row",
+      "readback": ""
+    }
+  ]
+}
+{
+  "file": "input\\patchstorage\\Haunting-Lead-676dc6669b1cf.pgm90",
+  "slot": "A",
+  "algorithm": "ModEchoVerb",
+  "preset": "JUNGLEAPPETITE",
+  "reports": [
+    {
+      "label": "Mix",
+      "key": "mmix",
+      "target": 60.81917572021484,
+      "rv": 0.7342,
+      "applied": "61",
+      "err": 0.18082427978516336,
+      "cc": 93,
+      "readback": "59"
+    },
+    {
+      "label": "Decay",
+      "key": "dcay",
+      "target": 2.05848217010498,
+      "rv": 0.14,
+      "applied": "2.08 s",
+      "err": 0.021517829895020046,
+      "cc": 18,
+      "readback": "2.08 s"
+    },
+    {
+      "label": "Size",
+      "key": "size",
+      "target": 50.00716018676758,
+      "rv": 0.5,
+      "applied": "50",
+      "err": 0.007160186767578125,
+      "cc": 64,
+      "readback": "50"
+    },
+    {
+      "label": "Echo",
+      "key": "pdly",
+      "target": 492.4166564941406,
+      "rv": 0.6203,
+      "applied": "495 ms",
+      "err": 2.583343505859375,
+      "cc": 79,
+      "readback": "492 ms"
+    },
+    {
+      "label": "Echo Fdbk",
+      "key": "efbk",
+      "target": 34.24869918823242,
+      "rv": 0.34,
+      "applied": "34",
+      "err": 0.24869918823242188,
+      "cc": 43,
+      "readback": "34"
+    },
+    {
+      "label": "Echo Tone",
+      "key": "eton",
+      "target": -11.6119441986084,
+      "rv": 0.44,
+      "applied": "-12",
+      "err": 0.3880558013915998,
+      "cc": 56,
+      "readback": "-12"
+    },
+    {
+      "label": "Flanger Mix",
+      "key": "fxmx",
+      "target": 111.7804718017578,
+      "rv": 1.0,
+      "applied": "100",
+      "err": 11.780471801757798,
+      "cc": 127,
+      "readback": "100"
+    },
+    {
+      "label": "Mod Rate",
+      "key": "mrat",
+      "target": 70.01171875,
+      "rv": 0.7,
+      "applied": "70",
+      "err": 0.01171875,
+      "cc": 89,
+      "readback": "70"
+    },
+    {
+      "label": "Low Level",
+      "key": "lolv",
+      "target": 33.86977767944336,
+      "rv": 0.67,
+      "applied": "34",
+      "err": 0.13022232055664062,
+      "cc": 85,
+      "readback": "34"
+    },
+    {
+      "label": "High Level",
+      "key": "hilv",
+      "target": 6.846380233764648,
+      "rv": 0.535,
+      "applied": "7",
+      "err": 0.15361976623535156,
+      "cc": 68,
+      "readback": "7"
+    }
+  ]
+}
