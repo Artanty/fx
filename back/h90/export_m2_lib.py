@@ -723,6 +723,141 @@ def export():
         print("  " + m)
 
 
+def clear_all_filter():
+    """Restore the library TABLE view after any filtering.  The card grid view
+    exposes cards as Buttons (visible_rows() returns nothing); clicking Clear
+    All brings the 40px table rows back."""
+    mouse.click(coords=pt(943, 287))
+    time.sleep(1.2)
+
+
+def find_save_filename_edit_any():
+    """Like find_save_filename_edit() but y-agnostic.  The JUCE save dialog has
+    rendered at several heights (old finders assumed top >= 700); find the
+    filename edit wherever it is."""
+    app_ui = h90_connect()
+    for w in app_ui.windows():
+        for el in w.descendants():
+            try:
+                if el.element_info.control_type != "Edit":
+                    continue
+                r = el.rectangle()
+                nm = (el.window_text() or "").strip().lower()
+                if "имя файла" in nm or "filename" in nm or nm == "file name":
+                    return el, Rect(r.left, r.top, r.right, r.bottom)
+            except Exception:
+                pass
+    return None, None
+
+
+def find_save_button_any():
+    """Like find_save_button() but y-agnostic."""
+    app_ui = h90_connect()
+    for w in app_ui.windows():
+        for el in w.descendants():
+            try:
+                if el.element_info.control_type != "Button":
+                    continue
+                nm = _txt(el).strip().lower()
+                if "сохран" in nm or nm == "save":
+                    return el
+            except Exception:
+                pass
+    return None
+
+
+def export_one_final(lib_name, expected_path, before_mtime=None):
+    """Export a single library entry with the current (post-2026-09) UI.
+
+    1. Library tab -> Clear All (restores the 40px table list)
+    2. search lib_name, click row dots, verify the row-menu title exactly
+    3. click Export... (row menu), drive the y-agnostic JUCE save dialog,
+       invoke Save, answer the overwrite popover
+    4. return 'saved' when the file exists and mtime advanced past
+       before_mtime."""
+    ensure_library_view()
+    clear_all_filter()
+    set_search(lib_name)
+    time.sleep(0.8)
+    rows = visible_rows()
+    if not rows:
+        return "no-rows"
+    picked = None
+    for row in rows:
+        mouse.click(coords=pt(314, (row.top + row.bottom) // 2))
+        time.sleep(0.8)
+        p = wait_popup()
+        if p is None:
+            keyboard.send_keys("{ESC}")
+            time.sleep(0.4)
+            continue
+        t = popup_title(p)
+        if t is not None and t.strip() == lib_name:
+            picked = (p, t)
+            break
+        keyboard.send_keys("{ESC}")
+        time.sleep(0.4)
+    if picked is None:
+        return "no-title-match"
+    p, t = picked
+    mouse.click(coords=(p.left + 60, p.top + 114))
+    time.sleep(1.5)
+    base = os.path.basename(expected_path)[:-len(".preset90")]
+    edit = None
+    er = None
+    for _ in range(12):
+        edit, er = find_save_filename_edit_any()
+        if edit is not None:
+            break
+        time.sleep(0.4)
+    if edit is None:
+        close_save_dialog()
+        return "no-dialog"
+    try:
+        edit.set_focus()
+        time.sleep(0.2)
+    except Exception:
+        mouse.click(coords=er.center())
+        time.sleep(0.2)
+    keyboard.send_keys("^a")
+    time.sleep(0.15)
+    keyboard.send_keys(literal_keys(base), with_spaces=True)
+    time.sleep(0.3)
+    btn = None
+    for _ in range(10):
+        btn = find_save_button_any()
+        if btn is not None:
+            break
+        time.sleep(0.3)
+    if btn is None:
+        close_save_dialog()
+        return "no-save-btn"
+    try:
+        btn.invoke()
+    except Exception:
+        r = btn.rectangle()
+        mouse.click(coords=r.center())
+    for _ in range(24):
+        time.sleep(0.4)
+        if dismiss_save_overwrite_modal():
+            time.sleep(0.8)
+            continue
+        edit2, _ = find_save_filename_edit_any()
+        if edit2 is None:
+            time.sleep(0.6)
+            break
+    if not glob.glob(expected_path):
+        close_save_dialog()
+        return "no-file"
+    if before_mtime is not None:
+        try:
+            if os.path.getmtime(expected_path) <= before_mtime + 0.5:
+                return "mtime-stale"
+        except OSError:
+            return "no-file"
+    return "saved"
+
+
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
     if mode in ("all", "dedupe"):

@@ -5,6 +5,11 @@ import json
 import os
 import sqlite3
 
+GENERAL_BLOCK = {
+    "In Gain", "Out Gain", "Bypass", "Tails", "Tempo Mode",
+    "HotKnob", "Kill Dry",
+}
+
 ROOT = os.path.dirname(__file__)
 LEGACY = os.path.join(ROOT, "midi_cc_state.json")
 STATES_DIR = os.path.join(ROOT, "midi_cc_states")
@@ -61,7 +66,8 @@ def upsert_effect(cur, name, slot, slug, cc_layout, lib_name, lib_saved=0):
 
 def insert_assignments(cur, effect_id, assignments):
     for a in assignments:
-        section = "general" if a.get("effect", "").lower() == "general" else "effect"
+        sec = a.get("effect", "").lower() == "general" or a.get("control") in GENERAL_BLOCK
+        section = "general" if sec else "effect"
         cur.execute(
             "INSERT INTO assignments(effect_id, cc, control, type, \"values\", verified, section) "
             "VALUES(?,?,?,?,?,?,?) "

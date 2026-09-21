@@ -50,9 +50,29 @@ def _pipe(w):
 
 def _find_filename_edit():
     """Return the filename Edit element of the native import dialog, or None.
-    Real geometry measured: (213,501,716,516) - left field of the dialog row."""
+    Real geometry measured: (213,501,716,516) - left field of the dialog row.
+
+    The main window's own param value readouts can sit in the same band (a
+    numeric Edit like '65'), which used to make callers think a dialog was up;
+    those short numeric main-window edits are excluded so only a real dialog
+    (or a genuinely text-bearing field) matches."""
     app = _pipe(None)
+    main_titles = []
     for w in app.windows():
+        try:
+            t = (w.window_text() or "").lower()
+            if t:
+                main_titles.append(t)
+        except Exception:
+            pass
+    # prefer non-main-window (dialog) edits
+    for w in app.windows():
+        try:
+            wt = (w.window_text() or "").lower()
+        except Exception:
+            wt = ""
+        if wt and ("eventide" in wt or "control" in wt):
+            continue
         for el in w.descendants():
             try:
                 if el.element_info.control_type != "Edit":
@@ -63,6 +83,22 @@ def _find_filename_edit():
             if (r.top >= 485 and r.top < 530
                     and r.left >= 200 and r.left < 740
                     and r.height() <= 40):
+                return el
+    # fall back to main-window edits that are clearly not a short numeric
+    # value readout (i.e. plausibly a file dialog rendered in-window)
+    for w in app.windows():
+        for el in w.descendants():
+            try:
+                if el.element_info.control_type != "Edit":
+                    continue
+                r = el.rectangle()
+                t = (el.window_text() or "").strip()
+            except Exception:
+                continue
+            if (r.top >= 485 and r.top < 530
+                    and r.left >= 200 and r.left < 740
+                    and r.height() <= 40
+                    and not (len(t) <= 4 and t.isdigit())):
                 return el
     return None
 

@@ -22,20 +22,14 @@ Flow:
   9. Disconnect and leave the app running (so the next run needs no login).
 
 Usage:
-  python set_slot_a.py <program-N> <path-to-preset-file> [--show]
+  python set_slot_a.py <program-N> <path-to-preset-file>
 
-Headless by default: after the app is logged in and the device is connected,
-every app window (main UI + the native import dialog) is made fully transparent
-(WS_EX_LAYERED + LWA_ALPHA=0) so nothing shows on screen, while remaining
-hit-testable so the fixed-coordinate clicks keep working. Pass --show to keep
-the window visible (e.g. to watch a cold-start manual login). Note: a cold
-start that requires login will briefly show the login screen regardless.
+The app stays visible on screen (no headless/hide mode).
 """
 
 import os
 import subprocess
 import sys
-import threading
 import time
 import traceback
 
@@ -195,29 +189,12 @@ def click_save(win):
     return False
 
 
-def _keep_hidden():
-    """Daemon loop that keeps every app window transparent until signalled."""
-    run = threading.Event()
-
-    def loop():
-        while not run.wait(0.25):
-            try:
-                h90_app.hide_app_windows()
-            except Exception:
-                pass
-
-    t = threading.Thread(target=loop, daemon=True)
-    t.start()
-    return t, run
-
-
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Recall program N and import a specified preset file into Slot A or B, then Save.")
     parser.add_argument("program", type=int, help="program slot number 1-100")
     parser.add_argument("path", help="path to preset file")
     parser.add_argument("--slot", choices=["A", "B"], default="A", help="target slot (default: A)")
-    parser.add_argument("--show", action="store_true", help="keep app windows visible")
     args = parser.parse_args()
     n = args.program
     slot = args.slot
@@ -236,13 +213,6 @@ def main():
         return 1
     print("app pid %d (launched=%s)" % (pid, launched))
     h90_app.pin_window()   # canonical rect: all fixed coords were measured on it
-
-    # keep every app window hidden from launch (cold start login included)
-    if not args.show:
-        keeper_thread, keeper_stop = _keep_hidden()
-        print("HEADLESS: app windows hidden (pass --show to keep visible)")
-    else:
-        keeper_thread, keeper_stop = None, None
 
     try:
         win = h90_app.main_window()
@@ -274,6 +244,16 @@ def main():
     if num is not None and num != str(n):
         print("STATUS: wrong-program (want %d got %s)" % (n, num))
         return 1
+
+    # 5b. force the Parameters editor view (a reconnect can land on the
+    # Programs/bank list where the slot-B menu button is a dead click)
+    try:
+        from pywinauto.mouse import click
+        click(coords=(386, 97))       # 'Edit' radio (rel y 82..112)
+        time.sleep(1.4)
+        win = h90_app.main_window()
+    except Exception:
+        pass
 
     # 6. import into the target slot
     try:
@@ -309,9 +289,6 @@ def main():
 
     # 9. disconnect and leave the app open for the next run
     disconnect(win)
-    if keeper_stop is not None:
-        keeper_stop.set()
-    h90_app.lower_window()   # put the app behind other windows when done
     return 0 if (num is None or num == str(n)) else 1
 
 

@@ -5279,3 +5279,182 @@ Steps:
 - Root cause closed for the observed failure mode; fallback (Node 22 LTS pin)
   kept in reserve. AGENTS.md gained a long-running-session check-in rule per
   user request.
+
+
+## Plan - 2026-09-20 knob value calibration + CC trigger table (start: one effect)
+
+Goal (user): for EVERY knob of every effect in input/lib, save to the DB all
+its values (human-readable titles) plus the MIDI CC value that triggers each
+value. Long running: START from ONE effect, pause, show a result table, then
+continue on approval.
+
+Approach (reuses existing infra):
+- CC numbers per knob already live in midi_cc_states/<slug>.json (e.g. Ducked
+  Delay m2 = CC 50..59); knob geometry/readouts come from uia_driver --discover.
+- For one effect (m2 Ducked Delay, already loaded at Program 5 / Slot B):
+  1. Ensure CCs are assigned to the loaded program (reuse assign_cc.assign_knob
+     per knob so the pedal is CC-controllable; factory imports reset -> Off).
+  2. Discover knob rows (labels + value rects).
+  3. Sweep each knob's CC 0..127 over the pedal MIDI (midi package, ch 11),
+     reading the live app readout each step; record the FIRST CC value that
+     produces each distinct title. Enums -> full option table; numerics ->
+     lo/hi/k calibration + min/max titles + sampled titles.
+  4. Persist: additive tables in midi_cc_map.db (no drops): knob_info (per
+     effect knob: key,label,cc,vtype,unit,lo,hi,k,settable)
+     knob_values (knob_id, value_cc, title).
+  5. Print/show the result table for the effect; pause for user.
+Step 2 will extend to all 141 effects with the same script.
+
+
+## Status - value calibration (Ducked Delay m2, first effect)
+
+Built ack/h90/build_knob_values.py: for each mapped knob it re-assigns the
+CC number (assign_cc.assign_knob), classifies numeric vs enum from LIVE app
+readouts at slider rv=0/1, then:
+  - numeric -> calibrate lo/hi/k (added inverted-flag handling for knobs where
+    rv=1 yields the LOW value, e.g. Threshold -36..-66 dB, Release 500..10 ms);
+    emits one knob_values row per natural unit step with its trigger CC.
+  - enum -> fine slider sweep recording each distinct title + rv -> trigger
+    CC = round(127*rv). Works entirely from the connected app (UIA SetValue
+    updates readouts live). No external MIDI needed (app exclusively owns the
+    pedal's MIDI while connected -> WinMM midiOutOpen returns MMSYSERR_NOMEM,
+    confirmed; CC injection while connected is impossible).
+DB: midi_cc_map.db gained additive tables knob_info + knob_values (no drops).
+
+Result after first full run: 8/10 Ducked Delay knobs captured
+(Wet Mix 101 values CC0..127, Delay Mix 21, Delay A 28, Delay B 28,
+Feedback A 111, Feedback B 111, Ratio 9, Filter 201 ladder rows).
+Missing: Threshold (CC57), Release (CC58) - inverted knobs; fix written but
+the re-run was aborted by the user mid-start.
+
+## Status - remove hide feature from set_slot_a.py
+
+User: Eventide window stayed transparent (alpha=1) after the headless import.
+Set_slot_a's _keep_hidden daemon + h90_app.hide_app_windows + lower_window
+were removed; the app now stays fully visible during/after runs. Window was
+restored to opaque on the live app (pid 7060) via h90_app.set_window_opaque.
+
+
+## Plan - 2026-09-20 force full-range Start/End on every mapped knob
+
+User found: some knobs' External Mapping Start/End sliders cover a PARTIAL
+range (so CC cannot reach the full knob travel, and trigger-CC data is wrong).
+User directive: during calibration, EVERY midi control must have Start=0%
+(min value) and End=100% (max value); an effect with any not-full-range knob
+gets fixed AND persisted via Save to Library + export_m2_lib export overwrite.
+
+Steps:
+1. Reset app state (clear any stuck mapping modal; confirmed Wet Mix CC#=75 vs
+   expected 50 from a FAILed earlier assign -> re-import program 5 / Slot B).
+2. build_knob_values.py: in the opened External Mapping modal, after setting
+   source=MIDI CC + CC# (with retry), locate the Start/End Sliders and force
+   rv 0.0 / 1.0 via UIA RangeValue SetValue; re-read + record fixed/start_before.
+3. Numeric/enum calibration unchanged; trigger CC = round(127*rv) valid because
+   Start/End are now always full-range.
+4. Persistence: save program -> Save to Library (dedupe if duplicate) ->
+   export_m2_lib export; VERIFY Start/End survive a reload (modal re-open).
+5. Re-run Ducked Delay m2; show 10-knob table + DECISIONS status; pause.
+
+
+## Status - 2026-09-20 force full-range Start/End (Ducked Delay m2)
+
+build_knob_values.py now enforces full range. Discovery: inside one popup
+session, after any RangeValue SetValue (CC# slider or the range sliders) the
+unused-range-value of the START slider becomes unreadable (reads None) while
+the END slider stays readable - a JUCE UIA quirk. Fix: read Start/End on a
+FRESH _open_knob_popup visit (reliable), SetValue only what is off-range, then
+confirm via a second fresh re-open. Also re-keyed the sliders to their
+'Start'/'End' Static label anchors instead of ordering.
+
+Result (5th run, ducked-delay-m2.json): all 10 knobs CC#50-59, Start=0.0
+End=1.0, fixed=False (Feedback A/B End was 0.506 / 0.522 in an earlier run and
+was already corrected to 1.0 then; all ranges now full). Threshold CC57
+(lo=-66 hi=-36 dB, inverted, 31 values) and Release CC58 (10..500 ms, inverted,
+99 values) now captured; Wet Mix CC#=50 restored (was 75). DB: knob_info=10 ->
+knob_values. capture: knob_values/ducked-delay-m2.json.
+
+Persistence: save_to_library.py --slot m2 --slug delay --effect "Ducked Delay"
+overwrote library entry 'm2 delay Ducked_Delay' (OK). Targeted export attempt
+(export_preset) returned 'no-dialog'; library list came up with 0 visible rows
+during diagnostics - export still pending.
+
+
+## Status - 2026-09-20 persistence chain for Ducked Delay m2 (done)
+
+save_to_library overwrote library entry 'm2 delay Ducked_Delay'. The export UI
+changed since the 16.09 m1 campaign (card grid w/ Buttons instead of table
+ListItems): the old row-menu flow needed the table, which returns after
+clicking 'Clear All'. Filename edit / Save button sit at rel y~460/490 (NOT
+y>=700), so find_save_filename_edit/find_save_button missed them - drove the
+dialog with y-agnostic element search + invoke (overwrite popover answered
+with Да). Export OK: input/lib/m2 delay Ducked_Delay.preset90 rewritten
+(2732 B, byte-identical to the 16.09 file -> confirms .preset90 carries NO
+CC/range data, mapping lives in the pedal/app+library only).
+
+Verified on reload from the overwritten library entry: Feedback A CC# 54, Wet
+Mix CC# 50, Start=0.0/End=1.0 (popup re-read). Program saved on-device too
+(header Save; '*' cleared). CC#50-59 + full-range Start/End therefore survive
+in-app (library + pedal). Per knob: 10 knob_info rows + knob_values tables in
+midi_cc_map.db (+ 101..111..201 value rows). Threshold/Release are inverted
+knobs (their values sweep high->low; trigger CC=127..0) - flagged 'inverted',
+k=1, titles cc-mapped correctly.
+
+## Plan - 2026-09-20 batch pipeline for remaining m2 effects (in progress)
+
+User approved continuing past Ducked Delay. For each remaining m2 starter
+effect (families_m2.csv order): (1) import the pristine starter from
+input/lib via set_slot_a.py 5 <file> --slot B, (2) run build_knob_values.py
+<slug>-m2.json (CC assign + ensure_full_range + value calibration -> DB +
+capture), (3) finalize: pedal Save (header Save button), Save to Library
+overwrite, and the library export (Clear All -> table view -> row menu
+Export -> y-agnostic filename edit/Save + overwrite Да). Verify each quickly
+(DB rows > 0, exported file fresh), log per-effect status, check in every few
+effects.
+
+## Plan - 2026-09-21 general blocks: never calibrate
+
+User decision: do NOT calibrate the H90 program General block (fixed set of 7
+knobs: In Gain, Out Gain, Bypass, Tails, Tempo Mode, HotKnob, Kill Dry) - for
+slot A, slot B and the program general block alike; only the effect knobs get
+value tables. Audit confirmed these 7 are already flagged `effect:"general"`
+in midi_cc_states (DB section='general', 497 rows/71 effects) and that 0
+general knobs were captured so far (editor param list does not expose them).
+Plan: add an explicit GENERAL_BLOCK skip guard in build_knob_values.py main
+loop (log-only, no value capture/range/CC churn), keep the general CC-layout
+rows in DB as reference. Then resume batch for the 30 remaining effects.
+Verification: no knob_values/DB value rows ever named for the 7 general
+controls; 72/72 done-set after run.
+
+## Progress - 2026-09-21 general-block skip guard + import fix
+
+- import_preset.py and set_slot_a.py fixed (Edit-radio force before import +
+  `_find_filename_edit` excludes short numeric readouts); Chorus import now
+  'STATUS: imported', saved to program 5.
+- GENERAL_BLOCK guard added to build_knob_values.main (skips the 7 general
+  controls explicitly, prints `! general block:`).
+- Batch ran through modulation backlog + Harmonizer+/Looper retries; 42/72
+  effects OK with full ranges + exports, 0 range issues (verify_all).
+
+## Plan - 2026-09-21 remove already-captured general knobs
+
+Audit (correcting earlier audit key) shows some general-block knobs were
+captured pre-guard (HotKnob in many; In Gain/Out Gain/Bypass/Kill Dry/Tails
+in a handful). Plan: strip those entries from knob_values/*.json captures and
+their rows from midi_cc_map.db (knob_values + knob_info) per effect; verify
+72/72 OK after.
+
+## Progress - 2026-09-21 72/72 calibration complete
+
+All 72 families processed: 12 delay + 5 dist + 1 eq + 13 harm + 4 harmp +
+looper + 10 mod + spacetime + 14 reverb + 3 synth + 2 utility. verify_all:
+70 with effect knobs (all full-range 0/100, export=Y), Mute/Thru expected
+0 effect knobs (general-only). verify_all now marks general-only programs OK
+and treats no-effect-knobs as valid. DB rebuilt via build_cc_db (2600
+assignments; general section by control-name). Modechoverb import failed once,
+auto-retried OK.
+
+## Progress - 2026-09-21 general-knob cleanup done
+
+Stripped 40 already-captured general-block knobs (HotKnob etc.) from
+knob_values/*.json and midi_cc_map.db (knob_info + knob_values) - capture audit
+now empty, 72/72 OK after cleanup, 0 range issues.

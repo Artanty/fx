@@ -1,0 +1,1162 @@
+{
+  "kind": "h90-knob-values",
+  "effect": "Sticky Tape",
+  "display": "Sticky Tape m2",
+  "slot": "m2",
+  "source": "Eventide Control app (UIA live readouts)",
+  "created": "2026-09-21T10:54:37",
+  "knobs": [
+    {
+      "label": "Mix",
+      "cc": 50,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Compression",
+      "cc": 51,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Rec Drive",
+      "cc": 52,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Width",
+      "cc": 53,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": -10.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "-10",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "-10",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "-9",
+          "rv": 0.05,
+          "cc": 6
+        },
+        {
+          "title": "-8",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "-7",
+          "rv": 0.15,
+          "cc": 19
+        },
+        {
+          "title": "-6",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "-5",
+          "rv": 0.25,
+          "cc": 32
+        },
+        {
+          "title": "-4",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "-3",
+          "rv": 0.35,
+          "cc": 44
+        },
+        {
+          "title": "-2",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "-1",
+          "rv": 0.45,
+          "cc": 57
+        },
+        {
+          "title": "0",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "1",
+          "rv": 0.55,
+          "cc": 70
+        },
+        {
+          "title": "2",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "3",
+          "rv": 0.65,
+          "cc": 83
+        },
+        {
+          "title": "4",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "5",
+          "rv": 0.75,
+          "cc": 95
+        },
+        {
+          "title": "6",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "7",
+          "rv": 0.85,
+          "cc": 108
+        },
+        {
+          "title": "8",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.95,
+          "cc": 121
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Gate Thresh",
+      "cc": 54,
+      "vtype": "numeric",
+      "unit": "dB",
+      "lo": -90.0,
+      "hi": -10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "-90 dB",
+      "hi_title": "-10 dB",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "-90 dB",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "-89 dB",
+          "rv": 0.0125,
+          "cc": 2
+        },
+        {
+          "title": "-88 dB",
+          "rv": 0.025,
+          "cc": 3
+        },
+        {
+          "title": "-87 dB",
+          "rv": 0.0375,
+          "cc": 5
+        },
+        {
+          "title": "-86 dB",
+          "rv": 0.05,
+          "cc": 6
+        },
+        {
+          "title": "-85 dB",
+          "rv": 0.0625,
+          "cc": 8
+        },
+        {
+          "title": "-84 dB",
+          "rv": 0.075,
+          "cc": 10
+        },
+        {
+          "title": "-83 dB",
+          "rv": 0.0875,
+          "cc": 11
+        },
+        {
+          "title": "-82 dB",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "-81 dB",
+          "rv": 0.1125,
+          "cc": 14
+        },
+        {
+          "title": "-80 dB",
+          "rv": 0.125,
+          "cc": 16
+        },
+        {
+          "title": "-79 dB",
+          "rv": 0.1375,
+          "cc": 17
+        },
+        {
+          "title": "-78 dB",
+          "rv": 0.15,
+          "cc": 19
+        },
+        {
+          "title": "-77 dB",
+          "rv": 0.1625,
+          "cc": 21
+        },
+        {
+          "title": "-76 dB",
+          "rv": 0.175,
+          "cc": 22
+        },
+        {
+          "title": "-75 dB",
+          "rv": 0.1875,
+          "cc": 24
+        },
+        {
+          "title": "-74 dB",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "-73 dB",
+          "rv": 0.2125,
+          "cc": 27
+        },
+        {
+          "title": "-72 dB",
+          "rv": 0.225,
+          "cc": 29
+        },
+        {
+          "title": "-71 dB",
+          "rv": 0.2375,
+          "cc": 30
+        },
+        {
+          "title": "-70 dB",
+          "rv": 0.25,
+          "cc": 32
+        },
+        {
+          "title": "-69 dB",
+          "rv": 0.2625,
+          "cc": 33
+        },
+        {
+          "title": "-68 dB",
+          "rv": 0.275,
+          "cc": 35
+        },
+        {
+          "title": "-67 dB",
+          "rv": 0.2875,
+          "cc": 37
+        },
+        {
+          "title": "-66 dB",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "-65 dB",
+          "rv": 0.3125,
+          "cc": 40
+        },
+        {
+          "title": "-64 dB",
+          "rv": 0.325,
+          "cc": 41
+        },
+        {
+          "title": "-63 dB",
+          "rv": 0.3375,
+          "cc": 43
+        },
+        {
+          "title": "-62 dB",
+          "rv": 0.35,
+          "cc": 44
+        },
+        {
+          "title": "-61 dB",
+          "rv": 0.3625,
+          "cc": 46
+        },
+        {
+          "title": "-60 dB",
+          "rv": 0.375,
+          "cc": 48
+        },
+        {
+          "title": "-59 dB",
+          "rv": 0.3875,
+          "cc": 49
+        },
+        {
+          "title": "-58 dB",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "-57 dB",
+          "rv": 0.4125,
+          "cc": 52
+        },
+        {
+          "title": "-56 dB",
+          "rv": 0.425,
+          "cc": 54
+        },
+        {
+          "title": "-55 dB",
+          "rv": 0.4375,
+          "cc": 56
+        },
+        {
+          "title": "-54 dB",
+          "rv": 0.45,
+          "cc": 57
+        },
+        {
+          "title": "-53 dB",
+          "rv": 0.4625,
+          "cc": 59
+        },
+        {
+          "title": "-52 dB",
+          "rv": 0.475,
+          "cc": 60
+        },
+        {
+          "title": "-51 dB",
+          "rv": 0.4875,
+          "cc": 62
+        },
+        {
+          "title": "-50 dB",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "-49 dB",
+          "rv": 0.5125,
+          "cc": 65
+        },
+        {
+          "title": "-48 dB",
+          "rv": 0.525,
+          "cc": 67
+        },
+        {
+          "title": "-47 dB",
+          "rv": 0.5375,
+          "cc": 68
+        },
+        {
+          "title": "-46 dB",
+          "rv": 0.55,
+          "cc": 70
+        },
+        {
+          "title": "-45 dB",
+          "rv": 0.5625,
+          "cc": 71
+        },
+        {
+          "title": "-44 dB",
+          "rv": 0.575,
+          "cc": 73
+        },
+        {
+          "title": "-43 dB",
+          "rv": 0.5875,
+          "cc": 75
+        },
+        {
+          "title": "-42 dB",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "-41 dB",
+          "rv": 0.6125,
+          "cc": 78
+        },
+        {
+          "title": "-40 dB",
+          "rv": 0.625,
+          "cc": 79
+        },
+        {
+          "title": "-39 dB",
+          "rv": 0.6375,
+          "cc": 81
+        },
+        {
+          "title": "-38 dB",
+          "rv": 0.65,
+          "cc": 83
+        },
+        {
+          "title": "-37 dB",
+          "rv": 0.6625,
+          "cc": 84
+        },
+        {
+          "title": "-36 dB",
+          "rv": 0.675,
+          "cc": 86
+        },
+        {
+          "title": "-35 dB",
+          "rv": 0.6875,
+          "cc": 87
+        },
+        {
+          "title": "-34 dB",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "-33 dB",
+          "rv": 0.7125,
+          "cc": 90
+        },
+        {
+          "title": "-32 dB",
+          "rv": 0.725,
+          "cc": 92
+        },
+        {
+          "title": "-31 dB",
+          "rv": 0.7375,
+          "cc": 94
+        },
+        {
+          "title": "-30 dB",
+          "rv": 0.75,
+          "cc": 95
+        },
+        {
+          "title": "-29 dB",
+          "rv": 0.7625,
+          "cc": 97
+        },
+        {
+          "title": "-28 dB",
+          "rv": 0.775,
+          "cc": 98
+        },
+        {
+          "title": "-27 dB",
+          "rv": 0.7875,
+          "cc": 100
+        },
+        {
+          "title": "-26 dB",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "-25 dB",
+          "rv": 0.8125,
+          "cc": 103
+        },
+        {
+          "title": "-24 dB",
+          "rv": 0.825,
+          "cc": 105
+        },
+        {
+          "title": "-23 dB",
+          "rv": 0.8375,
+          "cc": 106
+        },
+        {
+          "title": "-22 dB",
+          "rv": 0.85,
+          "cc": 108
+        },
+        {
+          "title": "-21 dB",
+          "rv": 0.8625,
+          "cc": 110
+        },
+        {
+          "title": "-20 dB",
+          "rv": 0.875,
+          "cc": 111
+        },
+        {
+          "title": "-19 dB",
+          "rv": 0.8875,
+          "cc": 113
+        },
+        {
+          "title": "-18 dB",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "-17 dB",
+          "rv": 0.9125,
+          "cc": 116
+        },
+        {
+          "title": "-16 dB",
+          "rv": 0.925,
+          "cc": 117
+        },
+        {
+          "title": "-15 dB",
+          "rv": 0.9375,
+          "cc": 119
+        },
+        {
+          "title": "-14 dB",
+          "rv": 0.95,
+          "cc": 121
+        },
+        {
+          "title": "-13 dB",
+          "rv": 0.9625,
+          "cc": 122
+        },
+        {
+          "title": "-12 dB",
+          "rv": 0.975,
+          "cc": 124
+        },
+        {
+          "title": "-11 dB",
+          "rv": 0.9875,
+          "cc": 125
+        },
+        {
+          "title": "-10 dB",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Offset",
+      "cc": 55,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 2.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.3162,
+          "cc": 40
+        },
+        {
+          "title": "2",
+          "rv": 0.4472,
+          "cc": 57
+        },
+        {
+          "title": "3",
+          "rv": 0.5477,
+          "cc": 70
+        },
+        {
+          "title": "4",
+          "rv": 0.6325,
+          "cc": 80
+        },
+        {
+          "title": "5",
+          "rv": 0.7071,
+          "cc": 90
+        },
+        {
+          "title": "6",
+          "rv": 0.7746,
+          "cc": 98
+        },
+        {
+          "title": "7",
+          "rv": 0.8367,
+          "cc": 106
+        },
+        {
+          "title": "8",
+          "rv": 0.8944,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.9487,
+          "cc": 120
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "W&F Amount",
+      "cc": 56,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 2.9434164716336326,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.4574,
+          "cc": 58
+        },
+        {
+          "title": "2",
+          "rv": 0.5788,
+          "cc": 74
+        },
+        {
+          "title": "3",
+          "rv": 0.6643,
+          "cc": 84
+        },
+        {
+          "title": "4",
+          "rv": 0.7325,
+          "cc": 93
+        },
+        {
+          "title": "5",
+          "rv": 0.7902,
+          "cc": 100
+        },
+        {
+          "title": "6",
+          "rv": 0.8407,
+          "cc": 107
+        },
+        {
+          "title": "7",
+          "rv": 0.8859,
+          "cc": 113
+        },
+        {
+          "title": "8",
+          "rv": 0.927,
+          "cc": 118
+        },
+        {
+          "title": "9",
+          "rv": 0.9648,
+          "cc": 123
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "W&F Rate",
+      "cc": 57,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Filter",
+      "cc": 59,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": -10.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "-10",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "-10",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "-9",
+          "rv": 0.05,
+          "cc": 6
+        },
+        {
+          "title": "-8",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "-7",
+          "rv": 0.15,
+          "cc": 19
+        },
+        {
+          "title": "-6",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "-5",
+          "rv": 0.25,
+          "cc": 32
+        },
+        {
+          "title": "-4",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "-3",
+          "rv": 0.35,
+          "cc": 44
+        },
+        {
+          "title": "-2",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "-1",
+          "rv": 0.45,
+          "cc": 57
+        },
+        {
+          "title": "0",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "1",
+          "rv": 0.55,
+          "cc": 70
+        },
+        {
+          "title": "2",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "3",
+          "rv": 0.65,
+          "cc": 83
+        },
+        {
+          "title": "4",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "5",
+          "rv": 0.75,
+          "cc": 95
+        },
+        {
+          "title": "6",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "7",
+          "rv": 0.85,
+          "cc": 108
+        },
+        {
+          "title": "8",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.95,
+          "cc": 121
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    }
+  ]
+}

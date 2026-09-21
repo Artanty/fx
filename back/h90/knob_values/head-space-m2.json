@@ -1,0 +1,1004 @@
+{
+  "kind": "h90-knob-values",
+  "effect": "Head Space",
+  "display": "Head Space m2",
+  "slot": "m2",
+  "source": "Eventide Control app (UIA live readouts)",
+  "created": "2026-09-20T20:55:12",
+  "knobs": [
+    {
+      "label": "Rec Drive",
+      "cc": 52,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Feedback",
+      "cc": 53,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 2.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.3162,
+          "cc": 40
+        },
+        {
+          "title": "2",
+          "rv": 0.4472,
+          "cc": 57
+        },
+        {
+          "title": "3",
+          "rv": 0.5477,
+          "cc": 70
+        },
+        {
+          "title": "4",
+          "rv": 0.6325,
+          "cc": 80
+        },
+        {
+          "title": "5",
+          "rv": 0.7071,
+          "cc": 90
+        },
+        {
+          "title": "6",
+          "rv": 0.7746,
+          "cc": 98
+        },
+        {
+          "title": "7",
+          "rv": 0.8367,
+          "cc": 106
+        },
+        {
+          "title": "8",
+          "rv": 0.8944,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.9487,
+          "cc": 120
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Tape Hiss",
+      "cc": 55,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 2.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.3162,
+          "cc": 40
+        },
+        {
+          "title": "2",
+          "rv": 0.4472,
+          "cc": 57
+        },
+        {
+          "title": "3",
+          "rv": 0.5477,
+          "cc": 70
+        },
+        {
+          "title": "4",
+          "rv": 0.6325,
+          "cc": 80
+        },
+        {
+          "title": "5",
+          "rv": 0.7071,
+          "cc": 90
+        },
+        {
+          "title": "6",
+          "rv": 0.7746,
+          "cc": 98
+        },
+        {
+          "title": "7",
+          "rv": 0.8367,
+          "cc": 106
+        },
+        {
+          "title": "8",
+          "rv": 0.8944,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.9487,
+          "cc": 120
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Wow & Flutter",
+      "cc": 56,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Filter",
+      "cc": 57,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": -10.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "-10",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "-10",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "-9",
+          "rv": 0.05,
+          "cc": 6
+        },
+        {
+          "title": "-8",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "-7",
+          "rv": 0.15,
+          "cc": 19
+        },
+        {
+          "title": "-6",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "-5",
+          "rv": 0.25,
+          "cc": 32
+        },
+        {
+          "title": "-4",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "-3",
+          "rv": 0.35,
+          "cc": 44
+        },
+        {
+          "title": "-2",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "-1",
+          "rv": 0.45,
+          "cc": 57
+        },
+        {
+          "title": "0",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "1",
+          "rv": 0.55,
+          "cc": 70
+        },
+        {
+          "title": "2",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "3",
+          "rv": 0.65,
+          "cc": 83
+        },
+        {
+          "title": "4",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "5",
+          "rv": 0.75,
+          "cc": 95
+        },
+        {
+          "title": "6",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "7",
+          "rv": 0.85,
+          "cc": 108
+        },
+        {
+          "title": "8",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.95,
+          "cc": 121
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Head 1 Lvl",
+      "cc": 58,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Head 1 Div",
+      "cc": 59,
+      "vtype": "enum",
+      "unit": null,
+      "lo": null,
+      "hi": null,
+      "k": null,
+      "values": [
+        {
+          "title": "Min",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "Min +20%",
+          "rv": 0.02,
+          "cc": 3
+        },
+        {
+          "title": "Min +40%",
+          "rv": 0.04,
+          "cc": 5
+        },
+        {
+          "title": "1/8 -40%",
+          "rv": 0.06,
+          "cc": 8
+        },
+        {
+          "title": "1/8 -20%",
+          "rv": 0.08,
+          "cc": 10
+        },
+        {
+          "title": "1/8",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "1/8 +20%",
+          "rv": 0.12,
+          "cc": 15
+        },
+        {
+          "title": "1/8 +40%",
+          "rv": 0.14,
+          "cc": 18
+        },
+        {
+          "title": "1/6 -40%",
+          "rv": 0.16,
+          "cc": 20
+        },
+        {
+          "title": "1/6 -20%",
+          "rv": 0.18,
+          "cc": 23
+        },
+        {
+          "title": "1/6",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "1/6 +20%",
+          "rv": 0.22,
+          "cc": 28
+        },
+        {
+          "title": "1/6 +40%",
+          "rv": 0.24,
+          "cc": 30
+        },
+        {
+          "title": "1/4 -40%",
+          "rv": 0.26,
+          "cc": 33
+        },
+        {
+          "title": "1/4 -20%",
+          "rv": 0.28,
+          "cc": 36
+        },
+        {
+          "title": "1/4",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "1/4 +20%",
+          "rv": 0.32,
+          "cc": 41
+        },
+        {
+          "title": "1/4 +40%",
+          "rv": 0.34,
+          "cc": 43
+        },
+        {
+          "title": "1/3 -40%",
+          "rv": 0.36,
+          "cc": 46
+        },
+        {
+          "title": "1/3 -20%",
+          "rv": 0.38,
+          "cc": 48
+        },
+        {
+          "title": "1/3",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "1/3 +20%",
+          "rv": 0.42,
+          "cc": 53
+        },
+        {
+          "title": "1/3 +40%",
+          "rv": 0.44,
+          "cc": 56
+        },
+        {
+          "title": "1/2 -40%",
+          "rv": 0.46,
+          "cc": 58
+        },
+        {
+          "title": "1/2 -20%",
+          "rv": 0.48,
+          "cc": 61
+        },
+        {
+          "title": "1/2",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "1/2 +20%",
+          "rv": 0.52,
+          "cc": 66
+        },
+        {
+          "title": "1/2 +40%",
+          "rv": 0.54,
+          "cc": 69
+        },
+        {
+          "title": "2/3 -40%",
+          "rv": 0.56,
+          "cc": 71
+        },
+        {
+          "title": "2/3 -20%",
+          "rv": 0.58,
+          "cc": 74
+        },
+        {
+          "title": "2/3",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "2/3 +20%",
+          "rv": 0.62,
+          "cc": 79
+        },
+        {
+          "title": "2/3 +40%",
+          "rv": 0.64,
+          "cc": 81
+        },
+        {
+          "title": "3/4 -40%",
+          "rv": 0.66,
+          "cc": 84
+        },
+        {
+          "title": "3/4 -20%",
+          "rv": 0.68,
+          "cc": 86
+        },
+        {
+          "title": "3/4",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "3/4 +20%",
+          "rv": 0.72,
+          "cc": 91
+        },
+        {
+          "title": "3/4 +40%",
+          "rv": 0.74,
+          "cc": 94
+        },
+        {
+          "title": "5/6 -40%",
+          "rv": 0.76,
+          "cc": 97
+        },
+        {
+          "title": "5/6 -20%",
+          "rv": 0.78,
+          "cc": 99
+        },
+        {
+          "title": "5/6",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "5/6 +20%",
+          "rv": 0.82,
+          "cc": 104
+        },
+        {
+          "title": "5/6 +40%",
+          "rv": 0.84,
+          "cc": 107
+        },
+        {
+          "title": "7/8 -40%",
+          "rv": 0.86,
+          "cc": 109
+        },
+        {
+          "title": "7/8 -20%",
+          "rv": 0.88,
+          "cc": 112
+        },
+        {
+          "title": "7/8",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "7/8 +20%",
+          "rv": 0.92,
+          "cc": 117
+        },
+        {
+          "title": "7/8 +40%",
+          "rv": 0.94,
+          "cc": 119
+        },
+        {
+          "title": "1 -40%",
+          "rv": 0.96,
+          "cc": 122
+        },
+        {
+          "title": "1 -20%",
+          "rv": 0.98,
+          "cc": 124
+        },
+        {
+          "title": "1",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ],
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null
+    },
+    {
+      "label": "Pan 1",
+      "cc": 60,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": -10.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "-10",
+      "hi_title": "10",
+      "range": {
+        "start_before": 0.0,
+        "end_before": 1.0,
+        "start_after": 0.0,
+        "end_after": 1.0,
+        "fixed": false,
+        "msg": "ok"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "-10",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "-9",
+          "rv": 0.05,
+          "cc": 6
+        },
+        {
+          "title": "-8",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "-7",
+          "rv": 0.15,
+          "cc": 19
+        },
+        {
+          "title": "-6",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "-5",
+          "rv": 0.25,
+          "cc": 32
+        },
+        {
+          "title": "-4",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "-3",
+          "rv": 0.35,
+          "cc": 44
+        },
+        {
+          "title": "-2",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "-1",
+          "rv": 0.45,
+          "cc": 57
+        },
+        {
+          "title": "0",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "1",
+          "rv": 0.55,
+          "cc": 70
+        },
+        {
+          "title": "2",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "3",
+          "rv": 0.65,
+          "cc": 83
+        },
+        {
+          "title": "4",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "5",
+          "rv": 0.75,
+          "cc": 95
+        },
+        {
+          "title": "6",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "7",
+          "rv": 0.85,
+          "cc": 108
+        },
+        {
+          "title": "8",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "9",
+          "rv": 0.95,
+          "cc": 121
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    },
+    {
+      "label": "Head 2 Lvl",
+      "cc": 61,
+      "vtype": "numeric",
+      "unit": null,
+      "lo": 0.0,
+      "hi": 10.0,
+      "k": 1.0,
+      "inverted": 0,
+      "lo_title": "0",
+      "hi_title": "10",
+      "range": {
+        "msg": "open: wrong knob (got popup for 'HotKnob', expected 'Head 2 Lvl')"
+      },
+      "cc_final": null,
+      "values": [
+        {
+          "title": "0",
+          "rv": 0.0,
+          "cc": 0
+        },
+        {
+          "title": "1",
+          "rv": 0.1,
+          "cc": 13
+        },
+        {
+          "title": "2",
+          "rv": 0.2,
+          "cc": 25
+        },
+        {
+          "title": "3",
+          "rv": 0.3,
+          "cc": 38
+        },
+        {
+          "title": "4",
+          "rv": 0.4,
+          "cc": 51
+        },
+        {
+          "title": "5",
+          "rv": 0.5,
+          "cc": 64
+        },
+        {
+          "title": "6",
+          "rv": 0.6,
+          "cc": 76
+        },
+        {
+          "title": "7",
+          "rv": 0.7,
+          "cc": 89
+        },
+        {
+          "title": "8",
+          "rv": 0.8,
+          "cc": 102
+        },
+        {
+          "title": "9",
+          "rv": 0.9,
+          "cc": 114
+        },
+        {
+          "title": "10",
+          "rv": 1.0,
+          "cc": 127
+        }
+      ]
+    }
+  ]
+}
