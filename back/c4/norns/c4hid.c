@@ -15,6 +15,9 @@
  *   c4hid names                    one row per preset: "<idx>\t<name>"
  *   c4hid name <idx>               single preset name
  *   c4hid body <idx>               256 lowercase hex chars (128-byte body)
+ *   c4hid commit <idx> <hex> [name] write a 128-byte body to slot <idx> and
+ *                                 recall it (ACTIVE_STORE/ACTIVE_WRITE/verify/
+ *                                 ACTIVE_SET) - the only path the C4 honors
  *   c4hid activate <idx>           switch the active/live preset
  *
  * Device discovery: scan /dev/hidraw*, match VID 0x29a4 / PID 0x0302 via the
@@ -332,11 +335,78 @@ static void cmd_activate(const char *idx_s) {
     close(g_fd);
 }
 
+/* Commit a full 128-byte body to flash slot <idx> and recall it so the change
+ * is heard. Mirrors c4Protocol.commitRawPreset (the C4 ignores CTRL_SET):
+ *   4x ACTIVE_STORE (0x76) blocks of 32 bytes, 500ms apart;
+ *   ACTIVE_WRITE (0x6e) with idx + flag 1 + 32-byte name;
+ *   verify read-back; ACTIVE_SET (0x77) to recall. */
+static void cmd_commit(const char *idx_s, const char *hex, const char *name) {
+    int idx = parse_idx(idx_s);
+    unsigned char body[C4_DATA_SIZE];
+    unsigned char namebuf[C4_NAME_SIZE];
+    unsigned char r[REPORT_LEN];
+    unsigned char back[C4_DATA_SIZE];
+    int i, diff = 0;
+
+    if (strlen(hex) != C4_DATA_SIZE * 2) die("commit needs 256 hex chars (128 bytes)");
+    memset(body, 0, sizeof(body));
+    for (i = 0; i < C4_DATA_SIZE; i++) {
+        int b = hex_byte(hex + i * 2);
+        if (b < 0) die("commit: bad hex");
+        body[i] = (unsigned char)b;
+    }
+    memset(namebuf, 0, sizeof(namebuf));
+    if (name) strncpy((char *)namebuf, name, sizeof(namebuf) - 1);
+
+    device_open();
+
+    for (i = 0; i < C4_DATA_SIZE; i += PAYLOAD_LEN) {
+        int last = (i + PAYLOAD_LEN >= C4_DATA_SIZE) ? 1 : 0;
+        memset(r, 0, sizeof(r));
+        r[0] = C_ACTIVE_STORE;
+        r[1] = (unsigned char)last;
+        r[2] = (unsigned char)i;
+        r[3] = (unsigned char)PAYLOAD_LEN;
+        memcpy(r + 4, body + i, PAYLOAD_LEN);
+        report_send(r);
+        sleep_ms(500);
+    }
+
+    memset(r, 0, sizeof(r));
+    r[0] = C_ACTIVE_WRITE;
+    r[1] = (unsigned char)(idx & 0x7f);
+    r[2] = 1;
+    memcpy(r + 3, namebuf, C4_NAME_SIZE);
+    report_send(r);
+    sleep_ms(500);
+
+    read_region(back, idx, C4_DATA_OFF, C4_DATA_SIZE);
+    for (i = 0; i < C4_DATA_SIZE; i++) {
+        if (back[i] != body[i]) {
+            if (diff < 8) fprintf(stderr, "c4hid: byte %2d: got %02x want %02x\n", i, back[i], body[i]);
+            diff++;
+        }
+    }
+    if (diff) die("commit verify failed");
+
+    memset(r, 0, sizeof(r));
+    r[0] = C_ACTIVE_SET;
+    r[1] = (unsigned char)(idx & 0x7f);
+    r[2] = 0;
+    report_send(r);
+    sleep_ms(500);
+    if (report_read(r, 1500) <= 0)
+        fprintf(stderr, "c4hid: warning: no reply (preset may still have switched)\n");
+
+    printf("ok %d\n", idx);
+    close(g_fd);
+}
+
 int main(int argc, char **argv) {
     const char *cmd;
 
     if (argc < 2) {
-        fprintf(stderr, "usage: c4hid <identify|names|name IDX|body IDX|activate IDX>\n");
+        fprintf(stderr, "usage: c4hid <identify|names|name IDX|body IDX|commit IDX HEX [NAME]|activate IDX>\n");
         return 2;
     }
     cmd = argv[1];
@@ -352,6 +422,9 @@ int main(int argc, char **argv) {
     } else if (strcmp(cmd, "body") == 0) {
         if (argc != 3) return 2;
         cmd_body(argv[2]);
+    } else if (strcmp(cmd, "commit") == 0) {
+        if (argc < 4) return 2;
+        cmd_commit(argv[2], argv[3], argc > 4 ? argv[4] : "");
     } else if (strcmp(cmd, "activate") == 0) {
         if (argc != 3) return 2;
         cmd_activate(argv[2]);

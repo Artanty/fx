@@ -8,6 +8,7 @@
 --   identify -> "key<space>value" lines: model/fw/presets/active/channel/node/name
 --   names    -> 128 lines "idx<TAB>name"
 --   activate -> "ok <idx>" on success, nothing on failure
+--   commit   -> "ok <idx>" on success
 --   errors   -> stderr, redirected to /tmp/c4hid.err
 
 local c4hid = {}
@@ -107,6 +108,37 @@ end
 function c4hid.activate(idx, cb)
     return c4hid.run('activate ' .. tostring(idx), function(out, err)
         return { ok = out ~= '', err = (err ~= '' and err) or 'activate: no reply' }
+    end, cb)
+end
+
+-- Read a preset's 128-byte body (bridge prints 256 lowercase hex chars).
+function c4hid.body(idx, cb)
+    return c4hid.run('body ' .. tostring(idx), function(out, err)
+        if out and #out >= 256 then
+            local data = {}
+            for i = 1, 128 do
+                local b = tonumber(out:sub(i * 2 - 1, i * 2), 16)
+                data[i - 1] = b or 0
+            end
+            return { ok = true, data = data, err = err or '' }
+        end
+        return { ok = false, data = {}, err = (err ~= '' and err) or 'body: no reply' }
+    end, cb)
+end
+
+-- Commit a (possibly edited) 128-byte body to slot idx and recall it so the
+-- change is heard. body is data[0..127] int 0..255; the bridge writes hex.
+function c4hid.commit(idx, body, name, cb)
+    local hex = {}
+    for i = 0, 127 do
+        hex[#hex + 1] = string.format('%02x', body[i] or 0)
+    end
+    local args = 'commit ' .. tostring(idx) .. ' ' .. table.concat(hex)
+    if name and name ~= '' then
+        args = args .. ' "' .. tostring(name):gsub('"', '') .. '"'
+    end
+    return c4hid.run(args, function(out, err)
+        return { ok = (out ~= '' and out:match('^ok')) ~= nil, err = (err ~= '' and err) or 'commit: no reply' }
     end, cb)
 end
 

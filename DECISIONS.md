@@ -5669,6 +5669,643 @@ If the markers prove system_cmd dead, fallback = synchronous os.execute for
 scan (only at load, ~0.5 s) and keep activate synchronous with the metro
 keeping the panel alive between the transient blocks.
 
+## Plan - 2026-09-21 C4 norns M1: E2 scroll jumps 2 items per detent
+
+User report: with the freeze fixed, turning E2 scrolls the preset list 2 items
+per detent click instead of 1.
+
+Root cause (from norns v2.8.1 sources, lua/core/encoders.lua + menu.lua +
+script.lua + matron input/gpio.c): matron passes the raw evdev tick count to
+`encoders.process(n,d)`, which only calls the script's `enc(n,val)` when
+`|tick| >= sens`, with `val = floor(tick/sens)`. This C4 norns encoder
+delivers 2 ticks per detent. The M1 "hardening" round forced
+`sens(2,1)+accel(2,false)`, so every sub-tick immediately fires a callback and
+one detent produces two +1 calls -> cursor jumps 2. (The platform default
+`sens=2` exists precisely to coalesce the double-count into one step/detent;
+the earlier "strangely scrolling" was the OLD script-side 2.5 multiplier, not
+the core sens.)
+
+Plan: in c4synth.lua init, keep accel disabled (predictable 1:1) but raise
+`sens` to 2 for E2 and E3, so 2 ticks/detent = exactly 1 item (E3 likewise
+pages by 1 page, not 2). No other changes; dry-run and luac unaffected
+(norns.enc is stubbed in the harness).
+
+## Status - 2026-09-21 C4 norns M1: E2 scroll sens fix applied
+
+Done:
+- `c4synth.lua` init now sets `norns.enc.sens(2,2)` / `sens(3,2)` instead of
+  `sens(2,1)` / `sens(3,1)`; accel stays disabled for both. On this unit's
+  2-tick-per-detent encoder, the core's `encoders.process` now fires exactly
+  one `enc()` callback per detent -> E2 moves 1 item, E3 pages 1 page.
+- Root cause documented from norns v2.8.1 sources (encoders.lua/menu.lua/
+  script.lua/gpio.c): `val = floor(tick/sens)`, callback only when
+  `|tick| >= sens`; `sens=1` let both sub-ticks through.
+- Repo edited only (`c4synth.lua` + this log). No lua runtime on the dev box
+  to `luac -p`, but the change is a constant swap.
+
+Next: user relaunches c4synth on the norns (SELECT -> C4SYNTH) and confirms
+E2 steps 1:1 and E3 pages 1 page. If fast-turn acceleration is wanted later,
+re-enable `norns.enc.accel(n,true)` on top of `sens(n,2)`.
+
+## Plan - 2026-09-21 C4 norns M1: E2 2 detents per effect
+
+User feedback on the 1:1 E2 step: the encoder is stiff, and landing exactly on
+the next effect takes careful turning - scrolling feels too sensitive and easy
+to overshoot. User wants **2 scroll points = 1 effect**, i.e. one preset step
+per two detent clicks.
+
+The unit delivers 2 raw ticks per detent, and the core `encoders.process`
+fires `val = floor(tick/sens)` per `sens` ticks (accel off). To get 2 detents
+(4 ticks) per 1 item, raise E2 `sens` from 2 to 4. E3 stays at `sens(2,2)`
+(1 page per detent) - paging is intentionally coarse.
+
+## Status - 2026-09-21 C4 norns M1: E2 sens 2 -> 4 (2 detents per effect)
+
+Done:
+- `c4synth.lua` init: `norns.enc.sens(2,4)` (was 2). With 2 ticks/detent on
+  this unit, `encoders.process` now calls `enc(2,1)` once every 2 detent
+  clicks -> E2 steps 1 item per 2 clicks, reducing overshoot on the stiff
+  knob. E3/E1 untouched.
+- Repo edited only (`c4synth.lua` + this log).
+
+Next: user redeploys c4synth.lua to the norns (scp) and relaunches via the
+SELECT menu (K1 menu -> SELECT -> C4SYNTH -> K3 preview -> K3 run), confirms 2
+detents = 1 effect feels right. If still too twitchy, raise to sens(6).
+
+## Status - 2026-09-21 C4 norns: reconnect + fixed-code deploy completed
+
+Context: user's Mac couldn't reach the norns; resumed from the dev box.
+
+Done:
+- Root cause of the connection failure: the norns moved subnets. Old address
+  `192.168.1.70` (192.168.1.x) unreachable from the dev box (192.168.0.x);
+  mDNS resolves real address `192.168.0.42`. SSH auth via `SSH_ASKPASS`
+  (password `sleep`) since no sshpass/sudo on the dev box.
+- Verified on-device state: `/dev/hidraw0` present `crw-rw---- root plugdev`
+  (udev rule intact); bridge built at `/home/we/dust/c4hid/c4hid`;
+  `c4hid identify` ok (model 249, fw 5633, presets 128, active 16, channel 5);
+  script dir + lib present.
+- Deployment was STALE for `c4synth.lua` only: deployed copy still had
+  `sens(2,1)/sens(3,1)` (pre-fix). `lib/c4hid.lua`, `lib/state.lua`,
+  `c4hid.c` all matched the repo. Scp'd the fixed repo `c4synth.lua`
+  (`sens(2,4)/sens(3,2)`); `luac -p` clean on all three scripts on-device.
+
+Next: relaunch C4SYNTH on the norns (SELECT menu) and confirm E2 = 2 detents
+per effect. If good, the M1 backend (browse + activate over HID) is fully
+deployed and M2 (randomizer + `commit`) can start.
+
+## Plan - 2026-09-21 C4 norns M1: "device is busy" on every reload - poller metro
+dies from require caching
+
+User report after the sens-fix deploy + relaunch: screen shows "device busy -
+K3 retry" and K3 (rescan) never helps.
+
+Diagnosis from the on-device journal (`/home/we/dust/data/system.log`) + norns
+core Lua (`lua/core/script.lua`):
+
+- Pattern: load #1 of c4synth per matron session fires scan/activate callbacks;
+  EVERY subsequent `SCript.load` (script clear) leaves the journal silent - no
+  `c4dbg scan ... cb` lines, only watchdog "forced unlock" + K3 presses.
+  Deployed `c4hid identify` on the shell works instantly (80 ms), so USB/HID is
+  healthy - the hang is inside the Lua async layer.
+- Root cause: `Script.clear()` does NOT reset `package.loaded` except for `asl`
+  (the source even carries a `// todo(pq)` noting the anomaly). Our entry
+  `require`s `state`/`c4hid`, so on reload the OLD modules (with the OLD poller
+  metro) are reused, but `Script.clear` already stopped every metro - so the
+  cached poller never starts again, `c4hid.run` jobs never complete, `busy`
+  sticks true, and the watchdog unlocks with "device busy - K3 retry". The
+  stale `state.names` persisted across reloads too (redraw showed n=127 moments
+  after a fresh load - impossible for a real scan), confirming module caching.
+
+Plan: in `c4synth.lua` entry, before `require`ing, drop the module cache
+(`package.loaded['c4hid'] = nil` and `package.loaded['state'] = nil`, order
+matters - state re-requires c4hid) so each load rebuilds the modules and their
+poller metro. Keep the watchdog as a safety valve. Verify: `luac -p` on-device,
+then relaunch c4synth twice in a row - scan/activate callbacks must fire on
+BOTH loads (journal `c4dbg scan ... cb ok=true`).
+
+## Status - 2026-09-21 C4 norns M1: reload-safe module loading fix applied
+
+Done:
+- `c4synth.lua` now clears `package.loaded['c4hid']`/`['state']` before
+  `require 'state'`, so each reload rebuilds state + the c4hid poller metro.
+- Deployed via scp to `/home/we/dust/code/c4synth/c4synth.lua`; `luac -p`
+  clean on-device.
+
+Next: user relaunches c4synth TWICE (SELECT -> C4SYNTH, then relaunch again)
+and confirms the list loads + K2 activates on both; journal should show
+`c4dbg scan ... cb ok=true` after each load and no "device busy".
+
+## Status - 2026-09-21 C4 norns M1: E2 sens 4 -> 2 (1 detent = 1 item)
+
+User confirmed the reload fix works ("good") but with sens(2,4) the stiff knob
+now feels too slow - one item per 2 detents. User wants **1 detent = 1 item**,
+the middle ground between the jumpy default and the slow 2-detent step.
+
+Done:
+- `c4synth.lua` init: E2 `sens(2,2)` (was 4). On this 2-tick-per-detent unit,
+  `encoders.process` fires one `enc(2,1)` per detent. E3 unchanged (2), accel
+  off both.
+- Deployed via scp; `luac -p` clean on-device.
+
+Next: relaunch C4SYNTH, confirm E2 steps 1 item per detent and still no
+overshoot; reload once more to confirm reload-safety holds.
+
+## Status - 2026-09-21 C4 norns M1: footer hints baseline off-screen
+
+User report: the bottom help row ("E2 move E3 page K2 load K3 scan") is drawn
+one pixel past the bottom edge of the 128x64 display.
+
+Done:
+- `c4synth.lua` redraw: footer `screen.move(0, 64)` -> `(0, 62)` (screen rows
+  are 0..63; baseline 64 sits one pixel off). 62 matches the core's own footer
+  baseline convention (menu/params.lua, menu/tape.lua).
+- Deployed via scp; `luac -p` clean.
+
+Next: relaunch C4SYNTH, confirm the help row sits on-screen. If still cramped,
+drop preset row pitch (NAME_ROW_H) or move footer to 63.
+
+## Status - 2026-09-21 C4 norns M1: 5 visible rows; restart-blew-out recovery
+
+User report: footer help line still overflows at the bottom; asked for a 5-row
+list instead of 6.
+
+Also today: user hit the restock menu "restart" on the norns; per the known
+breakage the matron service segfaulted immediately (`ssd1322_update:
+surface_buffer ((nil))`, signal 11 - `journalctl -u norns-matron.service`),
+leaving the screen black. Recovered per docs by `echo sleep | sudo -S reboot`;
+norns came back up 1 min later with matron active.
+- Conclusion stands: never let the user use the restart menu on this image;
+  the menu's "restart" (menu/restart.lua) restarts matron -> segfault. Reboot
+  only.
+
+Done:
+- `lib/state.lua`: `ROWS_VISIBLE = 5` (was 6). List now ends at
+  y = 20 + 4*8 = 52, footer help line at 63 sits clear of content. E3 paging
+  and keep_visible both derive from ROWS_VISIBLE, so they auto-adjust.
+- Deployed via scp; `luac -p` clean.
+
+Next: relaunch C4SYNTH, confirm 5 rows + footer on-screen, no overflow.
+
+## Plan - 2026-09-21 C4 norns M2: preset settings page (view knob values)
+
+User wants a page in the norns script to SEE the values of a preset's knobs
+(params), not edit. The raw 128-byte body is already readable via the bridge
+(`c4hid body <idx>`); the web workbench has the authoritative control map.
+
+Design (read-only viewer):
+- `lib/c4model.lua` - generated by `back/c4/norns/tools/gen-c4model.js` from
+  `WORKBENCH_CONTROL_SPECS` (single source of truth, 173 rows): decodes the 128
+  body bytes into `{ label, value }` display rows (knob ints, toggles off/on,
+  named enums). Lua 5.1-safe (no bit ops; `math.floor(x/2^shift) % (max+1)`).
+- `lib/c4hid.lua`: add `body(idx, cb)` parsing the bridge's 256-hex reply into
+  `data[0..127]`.
+- `lib/state.lua`: `state.view` 'list'/'detail'; `open_detail()` (fetch+decode
+  for cursor preset), `close_detail()`, `detail_move/page` (reuse the list
+  scroll via ROWS_VISIBLE; 173 rows, paging is fine).
+- `c4synth.lua`: split redraw into list/detail drawers. Detail header `#NN
+  name`, 5 rows of `> label <value>` (label trim 64px, value `text_right` at
+  x=124), footer hints. Keys: K1 open/back toggle, K2 also back (list: load),
+  K3 = rescan (list) / refresh body (detail). E2 scroll, E3 page (per view).
+  `busy`/watchdog/deadline reused so a hung bridge call can't freeze the UI.
+
+Verify: `luac -p` all scripts on-device; relaunch twice (reload-safety);
+detail for a preset shows sane values (cross-check a couple against the web
+workbench / `dump-names` reference); K1 exits cleanly.
+
+## Status - 2026-09-21 C4 norns M2 data: c4model.lua generated
+
+Done:
+- `back/c4/norns/tools/gen-c4model.js` emits `lib/c4model.lua` (173 rows) from
+  `WORKBENCH_CONTROL_SPECS`; decode() uses `(max+1)` for field width (mask+1 is
+  wrong when shift>0), toggles off/on, unknown enum values fall back to the raw
+  number. `luac`-clean on the dev box import path; on-device check next.
+
+Next: wire c4hid.body + state view + c4synth drawers, deploy all, verify.
+
+## Status - 2026-09-21 C4 norns M2.1: preset settings page (view) deployed
+
+Done:
+- `lib/c4model.lua` (generated, 173 rows) + `back/c4/norns/tools/gen-c4model.js`.
+- `lib/c4hid.lua`: `body(idx, cb)` parses the bridge's 256-hex reply to
+  `data[0..127]`.
+- `lib/state.lua`: `view` flag, `open_detail`/`refresh_detail`/`close_detail`,
+  `detail_move`/`detail_page` (reuse ROWS_VISIBLE; all async via the poller,
+  `busy`+watchdog-guarded).
+- `c4synth.lua`: redraw split into `draw_list`/`draw_detail`; detail rows are
+  `>label <value>` with value `text_right` at x=124; list footer now includes
+  K1. Keys: K1 open (list) / close (detail), K2 load (list) / close (detail),
+  K3 rescan (list) / refresh (detail). E2/E3 per view.
+- All four scripts `luac -p` clean on-device. Decoder cross-checked on-device
+  against live preset 16: 173 rows, sane values (input1 gain 127, master depth
+  254, filter1 type "6 Pole All-Pass", lfo shape "Pluck", harmony key "D",
+  enums/toggles all resolving).
+
+Next: user relaunches c4synth (twice), moves cursor to a preset, presses K1 —
+settings page shows the values; K1/K2 exits; K3 refreshes; E2/E3 scroll/page.
+Confirm on the next reload that the page still opens (reload-safety intact).
+
+## Plan - 2026-09-21 C4 norns M2.2: controls re-map — K2 action menu, K3 engage
+
+User feedback: K1 is the OS/menu button on this norns -> free it up. New map:
+K1 = unused. K2 = in-script action menu (holds the settings page now; more items
+later). K3 = engage/activate the preset under the cursor. E2/E3 unchanged.
+
+State machine: `state.view` becomes 'list' | 'menu' | 'detail'.
+- list: K2 -> show_menu, K3 -> activate_cursor; E2/E3 move/page.
+- menu: `state.menu_items` (starts with `{name='Settings page'}`), E2/E3
+  scroll/page items, K2 -> execute selected -> open_detail, K3 -> back to list.
+- detail: E2/E3 scroll/page params, K2 -> re-fetch (refresh_detail), K3 -> back
+  to list. Rescan stays reachable via the norns Params menu (trigger param).
+
+## Status - 2026-09-21 C4 norns M2.2: controls re-mapped
+
+Done:
+- key(): K1 ignored entirely; K2 = menu layer (list: open, menu: exec,
+  detail: refresh); K3 = engage (list: activate, menu/detail: back).
+- state.lua: `state.menu_items`/`menu_cursor`/`menu_top`, `show_menu`,
+  `close_menu`, `menu_move`/`menu_select`; `open_detail` now gates on view=='menu'.
+- c4synth.lua: `draw_menu()` (header 'Menu', item rows, footer 'K2 open K3 back');
+  list footer now 'E2 move E3 page K2 menu K3 load'; detail footer K3 back.
+- docs/norns-port.md controls updated; all luac -p clean on-device; deployed.
+
+Next: user relaunches c4synth (twice) and exercises the new map: list K3 loads,
+K2 opens the menu, menu K2 opens Settings page for cursor preset, detail K3
+backs out, menu K3 cancels. Then commit.
+
+## Plan - 2026-09-21 C4 norns M2.3: menu keys swapped - K3 opens, K2 backs out
+
+User feedback on the M2.2 menu: reverse K2/K3 inside the action menu. From the
+list both stay the same (K2 opens menu, K3 loads). Inside the menu K3 now
+executes the selected item (opens the settings page), K2 backs out to the list.
+
+## Status - 2026-09-21 C4 norns M2.3: menu keys swapped
+
+Done:
+- c4synth.lua key(): menu view K2 -> close_menu, K3 -> menu_select.
+- Menu footer now 'E2 move K2 back K3 open'; docs/norns-port.md updated.
+- Deployed + luac -p clean on-device.
+
+Next: user relaunches c4synth (twice) and exercises: list K3 loads, K2 opens the
+menu, menu K3 opens Settings page, menu K2 backs out, detail K3 backs out,
+detail K2 re-fetches. Then commit.
+
+## Plan - 2026-09-21 C4 norns M2.4: editable parameter values (write path)
+
+User: "can I change em?" -> YES, via the web's flash-commit path (the C4
+ignores CTRL_SET 0x70, so the only way to hear a change is the
+ACTIVE_STORE + ACTIVE_WRITE + verify + ACTIVE_SET-recall dance of
+c4Protocol.commitRawPreset). All 173 model rows are single-byte
+(mask == max << shift, mask <= 255), so encode is a per-byte recompose.
+
+1. c4hid.c: `commit IDX HEX [NAME]` - 256-hex to 128 bytes; 4x ACTIVE_STORE
+   0x76 [last,off,32,data..] with 500ms gaps; ACTIVE_WRITE 0x6e [idx,1,name32];
+   verify read-back (>= 0 bytes differs -> die listing diffs); ACTIVE_SET 0x77
+   recall; print "ok IDX". On-device rebuild (cc O2 -Wall).
+2. tools/gen-c4model.js: add `m.raw`, `m.set` (Lua 5.1, no bit ops: recompose
+   byte from base/high/low), `m.display`, `m.row`; decode rows get `.num`.
+3. c4hid.lua: `commit(idx, body, name, cb)` - hex-encode 0..127, parse "ok".
+4. state.lua edit mode in detail view: `d.body` working bytes + `d.orig`
+   fetched copy, `editing/edit_row/edit_value`; enter_edit (K2 on a row),
+   edit_step (E2=E3 +-1/+-8, wrap by max), cancel_edit (K3) restores orig body,
+   commit_edit (K2) -> c4hid.commit(idx, body, name) -> on ok set active=idx
+   and refresh_detail.
+5. c4synth.lua: editing footer/header hints, enc/key routing for edit mode.
+6. Verify: shell no-op commit (slot 16: same body+name -> write path works,
+   nothing changes), luac all, deploy; then user tweaks a knob and hears it.
+
+Risk: commit overwrites a flash slot - the no-op test first; user edits are
+deliberate.
+
+## Status - 2026-09-21 C4 norns M2.4: editable parameters (write path)
+
+Done:
+- c4hid.c `commit IDX HEX [NAME]`: 4x ACTIVE_STORE 0x76 (32B, 500ms apart),
+  ACTIVE_WRITE 0x6e (idx+flag+name32), verified read-back, ACTIVE_SET recall,
+  "ok IDX". Built on-device (cc -O2 -Wall), usage lists commit.
+- gen-c4model.js: +m.raw/m.set/m.display/m.row; decode rows get .num. set()
+  recomposes the byte preserving neighbour fields via lo = b % 2^shift
+  (math verified node: 8650 random checks 0 failures; on-device Lua:
+  ALL EDIT TESTS OK - noop round trips, mutate, wrap).
+- c4hid.lua c4hid.commit(idx, body, name, cb).
+- state.lua: edit mode in detail (body/orig working bytes, enter_edit /
+  edit_step(/+1 and x8 wrap) / cancel_edit(K3 restores orig) / commit_edit(K2)).
+- c4synth.lua: header shows "edit:<label>", edited value gets '*', footers
+  'E2/E3 value K2 save K3 cancel' vs '...K2 edit K3 back'.
+- On-device kill test: `commit 16 <same body> <same name>` -> "ok 16",
+  NOOP_COMMIT_VERIFY_OK (body untouched). Command path verified writing through
+  the real pedal; the harmless warning ("no reply") matches activate's behavior.
+- All four Lua luac -p clean on-device; deployed.
+
+Next: user relaunches c4synth (twice), K2 -> menu -> Settings page, scroll to a
+param, K2 to edit, E2/E3 to change it (E3 steps x8), K2 saves & recalls (should
+HEAR the change), K3 cancels. Then commit.
+
+## Plan - 2026-09-21 C4 norns M2.5: edit-mode controls swapped
+
+User: "k3 - edit mode, k2 cancel". Detail view: K3 now enters edit mode and
+(pressed again while editing) saves; K2 = back to the list when not editing,
+cancel (restore) while editing.
+
+## Status - 2026-09-21 C4 norns M2.5: edit-mode controls swapped
+
+Done:
+- c4synth.lua key(): detail not editing -> K2 close_detail, K3 enter_edit;
+  editing -> K2 cancel_edit, K3 commit_edit. Footers updated.
+- Deployed + luac -p clean on-device.
+
+Next: user tests on hardware, then commit.
+
+## Plan - 2026-09-21 C4 norns: parameter reference sheet (txt)
+
+User wants a txt listing all 173 C4 preset parameter controls as shown on the
+norns settings page, with range info. Location back/c4/docs/c4-params.txt,
+generated from WORKBENCH_CONTROL_SPECS (same source/tool pattern as
+gen-c4model.js) so labels/order/row numbers match the page exactly.
+
+## Status - 2026-09-21 C4 norns: parameter reference sheet (txt)
+
+Done:
+- back/c4/norns/tools/gen-c4params.js -> back/c4/docs/c4-params.txt (202 lines,
+  173 rows). Row N matches the settings-page scroll position; knob => [0-255],
+  toggle => off/on, select => [0-max] + full option list (wrapped when >12).
+- Labels use the same name:gsub('_',' ') formatting as the norns drawer.
+
+## Plan - 2026-09-21 C4 norns: option-name renames, step 1 (display overlay)
+
+User picked the safe tier (1): rename VARIANT/option texts only, on the norns
+settings page + c4-params.txt, leaving web/control names + protocol untouched.
+Source: back/c4/docs/c4-params-to-rename-step1.txt. Encode as an overlay keyed
+by spec `name` -> replacement option texts (value order), shared by both
+generators, with a count-vs-source guard. Affected: voice mode/source/envelope/
+destination (x4), filter type + pitch track (x2), mix destination (x2),
+envelope type/input (x2), distortion type, lfo 2 multiply, lfo shape,
+harmony mode, pitch detect input/mode/low/high note, routing option,
+ext source (x3).
+
+## Status - 2026-09-21 C4 norns: option-name renames, step 1 (display overlay)
+
+Done:
+- back/c4/norns/tools/c4-overlay.js: OPT_OVERLAY[name] -> replacement option
+  texts in value order; optsFor() throws if the count differs from the source
+  spec (dropped options can't silently shift the value<->text map).
+- gen-c4model.js + gen-c4params.js now route select options through optsFor().
+- Regenerated: lib/c4model.lua (deployed, luac clean) + back/c4/docs/c4-params.txt.
+- On-device decode spot-check: voice1 mode="Fixed Int", lfo shape="Pluck",
+  harmony mode="IonianMajor", distortion type="SingleClip",
+  filter1 type="6 PoleAllPass", routing option="Single In 1".
+- Control names + web model untouched (safe tier 1). Source doc kept:
+  back/c4/docs/c4-params-to-rename-step1.txt.
+
+Next: user reviews the norns settings page (relaunch twice) and iterates with
+step2 renames if wanted.
+
+## Plan - 2026-09-21 C4 norns: show renames + footer width fix
+
+User didn't see the renamed option texts: c4model is reload-cached (only c4hid
+and state were cleared) so a relaunch kept the OLD opts table -> clear
+package.loaded['c4model'] too. Also the list (welcome) screen's one-line controls
+info footer mentions K1 (old build) and overflows 124px - remove K1 info and
+split the footer into two short lines that fit the 128px width.
+
+## Status - 2026-09-21 C4 norns: show renames + footer width fix
+
+Done:
+- c4synth.lua clears package.loaded['c4model'] on every load (state+hid+model),
+  so option renames on disk now appear after a relaunch.
+- K1 note dropped from the header comment; footers redrawn as two short lines:
+  list  "E2 move E3 page" / "K2 menu K3 load"
+  menu  "E2 move" / "K2 back K3 open"
+  detail normal "E2 scroll E3 page" / "K2 back K3 edit"
+  detail editing "E2/E3 value" / "K3 save K2 cancel"
+- Deployed, luac clean on-device.
+
+Next: user FULLY leaves the script (K1 -> stop/quit) and relaunches c4synth
+twice; confirm renamed variants appear on the settings page and the footer
+lines fit/read correctly.
+
+## Plan - 2026-09-22 C4 norns: shorten ext/knob destination options
+
+User wants the destination option lists (ext1/2/3 dest, and knob1/2 assign share
+the same list) labelled with the shortened view names + tweaks: Input->In,
+output->out, External Modulation->Ext Mod. Display-only overlay again.
+
+## Status - 2026-09-22 C4 norns: shorten ext/knob destination options
+
+Done:
+- c4-overlay.js: DEST_SHORT (49 items in EXT_DESTINATIONS order) registered as
+  OPT_OVERLAY for ext1/2/3_destination; slice(0,48) for knob1/2_assign
+  (no Ext Mod in the knob list). User tweaks applied: in1/in2 gain, out,
+  out balance, dist out, Ext Mod. optsFor count guard validates 49/48.
+- Regenerated lib/c4model.lua (deployed, luac clean) + c4-params.txt.
+- On-device decode (preset 16): knob1 assign=dist drive (25), ext1 dest=env1
+  sens (34), ext3 dest=env1 gate (36) show short labels.
+
+Next: user relaunches c4synth twice and reviews the destination lists on the
+settings page.
+
+User renamed parameter LABELS (not options) in back/c4/docs/c4-params-to-rename-step2.txt.
+IDK display-only tier-1: add LABEL_OVERLAY (identifier -> new label) to
+c4-overlay.js + labelFor(); wire into gen-c4model.js (rows get a 'label' field,
+decode uses it) and gen-c4params.js (row column). Identifiers/protocol/web UX
+untouched. 80 changed names, all rows 64..173.
+
+## Plan - 2026-09-22 C4 norns: parameter-name renames, step 2 (recover header)
+
+(plan text above; header was replaced by the destination-options section)
+
+## Status - 2026-09-22 C4 norns: parameter-name renames, step 2 (display overlay)
+
+Done:
+- c4-overlay.js: LABEL_OVERLAY (80 entries: filter*/mix* dest/env/drive/seq/
+  lfo/harm/pitch/ext short labels per user sheet) + labelFor() export.
+- gen-c4model.js: rows now carry label='...' (overlay or name with '_'->' ');
+  decode uses r.label. gen-c4params.js uses labelFor for the name column.
+- Regenerated lib/c4model.lua (deployed, luac clean) + back/c4/docs/c4-params.txt.
+- On-device decode spot-check (preset 16): filter1 freq, filter1 env, filter2
+  pitch, env1 sens, dist type, lfo2 mult, lfoBeatDiv, seq1 steps, harm tuning,
+  harm mode, midi clock, ext3 max all show the new labels.
+- Note: user sheet rows 80/83/88 use single-space before type keyword
+  ("filter2 pitch select", "env1 sens knob") - read as label + type.
+
+Next: user relaunches c4synth twice and reviews the settings page labels; then
+step3 renames if wanted.
+
+## Plan - 2026-09-21 C4 norns: footer rework rejected
+
+User rejected the two-line footer split - keep the original single-line
+text_trim(..., 124) footers unchanged (only K1 comment removal + c4model cache
+fix stay).
+
+## Status - 2026-09-21 C4 norns: footer rework rejected
+
+Done: footers reverted to single-line text_trim at y=63 in all three views
+(list/menu/detail x2). Deployed + luac clean. c4model cache fix and K1 comment
+drop remain in place.
+## Plan - 2026-09-22 C4 norns: randomizer (build / groups / run)
+
+Add an on-device randomizer to c4synth (guided by back/c4/docs/randomizer-port.md,
+on-norns only for now):
+
+- Page 1 `rbuild` - param group builder: all params EXCEPT external-control
+  (ext_control_enable, ext1/2/3_source/dest/min/max), knob assignment
+  (knob1/2_assign), routing (routing_option), pitch detect (pitch_detect_input
+  = pitch in, pitch_detect_mode = pitch mode, pitch_detect_low/high_note),
+  midi clock (lfo_midi_clock_sync). E2/E3 move/page, K3 checks a param in the
+  working selection, K2 opens a menu (Save group / Clear / Back).
+- Page 2 `rgroups` - created groups as a list; K3 toggles each group on/off.
+  Groups persisted to rndgroups.json in the script dir (hand-rolled JSON
+  encode/decode for {name,enabled,rows}[]).
+- Page 3 `rrun` - union of enabled groups' params, laid out like the settings
+  page (live values). K2 menu: Run randomizer / Stop randomizer / Back.
+- Run loop: every 5 s re-randomize every enabled-group param (uniform in
+  0..row.max) with c4model.set over the live body and c4hid.commit to the
+  active slot so the change is HEARD. C4 ignores CTRL_SET, so the only audible
+  path is the flash-commit path; to honor "preset not saved", capture the
+  original body at start and commit it back on stop/close.
+- Menu gets a menu_ctx flag so the K2 menu differs per view (list / rbuild /
+  rrun); existing Settings page item stays.
+- c4model.lua gains m.count() (#ROWS) via gen-c4model.js regenerate.
+
+## Status - 2026-09-22 C4 norns: randomizer (build / groups / run)
+
+Done:
+- lib/rnd.lua (new): eligible param list (full c4model minus external-control/
+  knob-assign/routing/pitch-in/pitch-mode/pitch-detect/midi-clock = 152 rows),
+  group CRUD, JSON persistence (rndgroups.json in script dir, hand-rolled
+  encode + decode), union_rows(), 5 s run loop (metro) randomizing enabled
+  groups' params uniformly over each row's range via c4model.set + flash
+  commit. Original body snapshotted at start; restored on stop (C4 ignores
+  CTRL_SET so the only audible path is the flash-commit path; "preset not
+  saved at this time" honored by restore-on-stop). busy/stopping flags,
+  commit-busy fallback (c4hid.commit returns false -> clear busy), singleton
+  metro stashed on _G so reload cancels a leaked loop.
+- state.lua: menu_ctx plumbing (list/rbuild/rrun), 4 main-menu items (Settings
+  page, Randomizer build/groups/run), run-page menu (Run/Stop + Back) with
+  stop-on-back, build menu (Save group/Clear/Back), rb_move/rb_toggle/rb_save
+  (auto name "grp N"), rg_move/rg_toggle, open_rrun (snapshot active preset),
+  rr_move, rnd_toggle. Cursor/top kept for each new view.
+- c4synth.lua: draw_rbuild (count + x marks), draw_rgroups (on/off), draw_rrun
+  (live values + RUN n header), redraw dispatch, enc/key routing, rnd load-safe
+  require, on_change redraw hook.
+- gen-c4model.js: added m.count() (#ROWS); regenerated lib/c4model.lua.
+- Deployed all changed files to norns; luac -p clean on device (all 5 libs).
+- Logic spot-checks on device (luajit): eligible=152 with correct exclusions;
+  JSON round-trip of {name,enabled,rows} preserved; union_rows correct;
+  auto-naming next unnamed grp.
+
+Next: user relaunches c4synth twice (reload-safe), builds a group in
+Randomizer build, toggles it on, opens Run and triggers Run randomizer; listen
+~5 s apart; Stop restores the preset. A live on-device run (web-riding the
+real matron metro) wasn't possible from a bare harness, so hearing the changes
+is the final verification step. Not committed yet (per workflow, commit on
+request).
+
+## Status (addendum) - 2026-09-22 randomizer: hardening + live device run
+
+- rnd.start() refuses to start while a restore is still in flight (prevents a
+  rapid Stop->Run from letting the pending restore-clobber overwrite the new
+  randomize); rnd_toggle now reports the real failure reason when start is
+  skipped ("restore in progress - wait" / "no enabled groups" / "already
+  running").
+- Live device run (bridge binary driven synchronously on the actual C4, matron
+  poller bypassed): original body head 6936f8 -> randomized in memory (109 of
+  128 bytes changed) -> commit idx 0 -> pedal confirmed 109 bytes changed
+  (audible) -> restored original body -> pedal back to 0 diffs, preset
+  untouched. The "no reply (preset may still have switched) ok 0" line seen in
+  an early attempt is a benign commit recall warning, not a failure (fixed the
+  test parser).
+- All 5 deployed files luac -p clean on device after the hardening edits.
+
+## Plan - 2026-09-22 norns OS: make SYSTEM>RESTART reboot the device
+
+User report: the norns settings menu item "RESTART" (SYSTEM page -> RESTART)
+does not restart the device. Root cause: menu/restart.lua K3 calls
+_norns.restart() (core/norns.lua), which restarts the three systemd services
+(sclang/crone/matron) but not the OS; on this image the matron service
+segfaults on restart (ssd1322_update: surface_buffer ((nil)), signal 11),
+leaving a black screen. Known breakage (2026-09-21 entry): "never let the user
+use the restart menu; reboot only."
+
+Plan: patch /home/we/norns/lua/core/norns.lua so _norns.restart() performs a
+real device reboot: same clean-shutdown sequence as norns.shutdown()
+(hook.system_pre_shutdown, free engine, script.clear, save clean_shutdown
+state, pcall(cleanup), mute DAC/headphone) then `sudo reboot` after a short
+delay, instead of _norns.reset(). Only menu/restart.lua references
+_norns.restart, so scope is limited to the menu. Also update docs note that the
+restart menu is now safe. Deploy on device; luac -p; reboot to confirm.
+
+## Status - 2026-09-22 norns OS: SYSTEM>RESTART now reboots the device
+
+Done:
+- Patched /home/we/norns/lua/core/norns.lua on the device: _norms.restart()
+  previously called _norns.reset() (systemctl restart of sclang/crone/matron),
+  and matron segfaults on that path on this image -> black screen, no reboot.
+  The last step is now `os.execute("sleep 0.5; sudo reboot")`, keeping the
+  whole clean-shutdown sequence (hook.system_pre_shutdown, script.clear,
+  free_engine, clean_shutdown state save, pcall(cleanup), mute DAC/headphone)
+  that mirrors norns.shutdown(). _norns.restart() is only referenced by
+  menu/restart.lua, so scope is limited to the SYSTEM>RESTART menu.
+- Backup of the original saved on device as norns.lua.bak-restart; luac -p
+  clean on-device; installed in place. Updated norns-port.md known-breakage
+  note to say the menu item is now safe.
+- A matron restart is still required to test (menu files load at startup):
+  use SYSTEM>RESTART, or `sudo reboot` over ssh. Confirm the screen goes dark,
+  device reboots, and the running script resumes (clean_shutdown was saved).
+- Per-image caveat stands: never `sudo systemctl restart norns-matron` directly.
+
+Next: user confirms the reboot happens via the menu.
+
+## Plan - 2026-09-22 C4 norns: footer E2 hints, rrun K3 start/pause + countdown, #N, K2 back-stack
+
+User requests on c4synth (norns UI):
+1. Bottom helper footers: drop every "E2 move/scroll" hint (E2 is always the
+   scroll knob - no need to state it). Keep E2/E3 VALUE hint on the detail
+   edit footer (E2 edits values there, not scroll).
+2. rrun page: add a K3 function that starts / pauses the randomize loop
+   directly from the run page (currently only reachable via the run menu).
+   Pause = stop the metro but HOLD the last randomized values (resume from
+   them); original preset still restored on exit (K2 back).
+3. rrun top row: show a live countdown of seconds remaining until the next
+   re-randomize while running.
+4. Header: replace "RUN N" with "#N" (#1, #2, #3...).
+5. K2 navigation in every view must pop to the PARENT view, never return to a
+   child page it was opened from (fixes the rbuild <-> build-menu 2-page
+   cycle that traps the user off the main screen). Menus (main + build)
+   always back out to 'list'; rrun K2 exits to list (restore first if the
+   loop ran); detail/rbuild/rgroups K2 exit to list. Remove the now-redundant
+   run-page menu (K3 start/pause + K2 back cover it).
+
+Files: lib/rnd.lua (pause, paused flag, due timestamp), lib/state.lua
+(back-to-parent navigation, rnd_toggle_rrun, rrun_back), c4synth.lua
+(footers, rrun key map, #N + countdown header row).
+
+## Status - 2026-09-22 C4 norns: footer E2 hints, rrun K3 start/pause + countdown, #N, K2 back-stack
+
+Done:
+- c4synth.lua footers: removed "E2 move/scroll" from all six scroll footers
+  (list, menu, rbuild, rgroups, rrun running/idle, detail non-edit); the
+  detail edit footer keeps "E2/E3 value" (both knobs adjust the value there).
+- c4synth.lua rrun key map: K2 = rrun_back (exit to list, restoring the loop's
+  original preset if it ran), K3 = rnd_toggle_rrun (start/pause).
+- draw_rrun header: "RUN N" -> "#N"; while running appends a live countdown
+  "#N  M s" where M = max(0, rnd.due - os.time()).
+- lib/rnd.lua: rnd.pause() (metro.stop + paused=true, values held), paused
+  flag on start/stop/restore, rnd.due=os.time()+5 seeded at start() and each
+  tick_once, rnd.stop() also stops when paused (so K2 after a pause restores
+  the original preset). tick count resets on each start().
+- lib/state.lua: close_menu() always pops to 'list' (main screen) regardless
+  of menu_ctx - kills the rbuild<->build-menu loop; open_* pages all parent
+  to 'list'; removed show_run_menu(); added rnd_toggle_rrun(); rrun_back()
+  stops+runs restore when the loop ran or is paused.
+- luac syntax check passed on-device after deploy (all 4 edited files).
+  Not committed.
+
+Next: user relaunches c4synth (SELECT -> C4SYNTH), checks the rrun page
+(K3 start/pause, countdown, #N, K2 returns to the main screen from every
+view).
+
+
 ## Plan - 2026-09-22 pedal-app: norns connect profiles (helper spec, doc only)
 
 Goal: the norns moves between networks, so the hardcoded we@192.168.1.70 from
