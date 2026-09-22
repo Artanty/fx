@@ -183,12 +183,36 @@ when a toolchain is available.
 2. `scp` the bridge to `/home/we/dust/c4hid/`, build on-device, `chmod +x`.
 3. Plug the C4 into the norns HOST port; run `./c4hid identify` then
    `./c4hid names` — acceptance for M1 backend.
-4. `scp` the script dir to `/home/we/dust/code/c4synth/`, then re-scan
-   (SELECT → RESCAN) and launch; verify the list + K2 activate.
+4. Push the script dir keeping the **flat package layout** (see below), then
+   re-scan (SELECT → RESCAN) and launch; verify exactly one `c4synth` entry in
+   the list + K2 activate.
 
 Sanity after any push: `luac -p` every `.lua` (Lua 5.1.5 on-device) and confirm
 no BOM/CRLF (PowerShell `-Encoding UTF8` pipes add a BOM that Lua rejects; use
 `scp`).
+
+### script layout (do not re-nest)
+
+The package must sit **flat** under `/home/we/dust/code/c4synth/`:
+
+```
+/home/we/dust/code/c4synth/
+├── c4synth.lua
+├── lib/{c4hid,c4model,rnd,state}.lua
+└── rndgroups.json        # user groups; norns-only, not in the repo
+```
+
+A nested `code/c4synth/c4synth/` shows up in the script menu as a spurious
+`c4synth/c4synth/c4synth` entry and shadows the real script — never create it.
+`scp -r dir host:/home/we/dust/code/c4synth` **re-nests on later pushes**: once
+the target dir already exists, scp copies the source dir *into* it. Push the
+contents instead (`scp -r dir/. host:.../c4synth`), or push to a temp name and
+`rm -rf`+`mv` into place while preserving `rndgroups.json` (it is written by
+the running script and must not be clobbered).
+
+Post-push checks:
+`test -f /home/we/dust/code/c4synth/c4synth.lua` and
+`test ! -e /home/we/dust/code/c4synth/c4synth` (no nested dir).
 
 ### hidraw permissions (required)
 

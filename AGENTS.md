@@ -43,6 +43,19 @@ This keeps a living log of intent and outcome for every change.
 ## Backend server
 - Do not spawn nodemon/npm/node processes for the backend. Only edit code; the user handles running it.
 
+## norns deployment
+- The c4synth script on the norns lives **flat** at
+  `/home/we/dust/code/c4synth/` (`c4synth.lua` + `lib/` directly under it).
+  Never push/create a nested `code/c4synth/c4synth/` — it appears in the norns
+  script menu as a spurious `c4synth/c4synth/c4synth` entry (seen 2026-09-22)
+  and shadows the real script. Verify after every push: exactly one
+  `code/c4synth/c4synth.lua` and `test ! -e code/c4synth/c4synth`.
+- `scp -r dir host:/home/we/dust/code/c4synth` re-nests on later pushes (existing
+  target dir → scp copies the dir *into* it). Push contents (`dir/.`) or use a
+  temp name + `rm -rf`/`mv`. Preserve `rndgroups.json` (norns-only user groups).
+- Reach the norns with `node back/c4/norns/connect.js` (profiles helper).
+  Details: `back/c4/docs/norns-port.md` -> "Deploy".
+
 ## Do exactly what is asked
 - Do exactly what the user asks, nothing redundant. Before doing anything else (extra checks, extra exports, file moves, side tasks) — ask the user first.
 

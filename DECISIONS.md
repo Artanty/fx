@@ -6343,3 +6343,24 @@ Implemented back/c4/norns/connect.js + profiles.json per the plan doc.
 - Verified offline: list/use/resolve. mDNS live on this network: resolve for
   studio -> norns.local tcp/22 OK; discover -> "mDNS OK, nothing to store".
   ssh/scp/key need the target device (plan doc verification steps).
+
+## Status - 2026-09-22 pedal-app: norns c4synth un-nested + deploy guard notes
+
+Found the norns showing two scripts: `c4synth` and nested
+`c4synth/c4synth/c4synth` (the nested one had the latest code). Root cause:
+`scp -r dir host:.../c4synth` re-nests on later pushes (target dir already
+exists -> scp copies the dir into it), so a 2nd deploy created
+`code/c4synth/c4synth/` shadowing the real script.
+- Fixed on the norns: moved nested (latest) files flat into
+  /home/we/dust/code/c4synth/ (c4synth.lua + lib/{c4hid,c4model,rnd,state}.lua
+  verified by md5 against the nested copies; c4hid/c4model were identical, rnd
+  & state were the newer versions), removed the nested dir, kept rndgroups.json,
+  luac -p passed on all five files. Menu now should show a single c4synth after
+  RESCAN.
+- Repo guard notes added: back/c4/docs/norns-port.md "Deploy" gained a "script
+  layout (do not re-nest)" block (flat layout, why scp -r re-nests, push
+  contents / temp-name + rm -rf & mv, preserve rndgroups.json, post-push
+  tests). AGENTS.md gained a "norns deployment" section with the same rules and
+  a pointer to the connect.js helper.
+- Not committed. deploy.ps1 still uses `scp -r $local host:...` which re-nests on
+  every 2nd+ push - a real fix (contents push / stage-then-mv) offered to user.
