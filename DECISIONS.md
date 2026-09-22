@@ -5668,3 +5668,26 @@ Changes deployed:
 If the markers prove system_cmd dead, fallback = synchronous os.execute for
 scan (only at load, ~0.5 s) and keep activate synchronous with the metro
 keeping the panel alive between the transient blocks.
+
+## Plan - 2026-09-22 pedal-app: norns connect profiles (helper spec, doc only)
+
+Goal: the norns moves between networks, so the hardcoded we@192.168.1.70 from
+norns-port.md only works at one site. Provide switchable named SSH profiles.
+
+Decision (with user): norns moves; helper lives in the repo (back/c4/norns);
+runs on client machines; no package.json script hook.
+
+Deliverable this session: plan doc back/c4/docs/norns-connect-profiles.md
+(design, profiles.json shape, command surface, resolution order, verification)
++ this DECISIONS plan entry. No code written.
+
+Spec summary (for the implementing device):
+- back/c4/norns/connect.js - zero-dep Node CLI: list / use <name> / resolve /
+  ssh [args] / scp <..> / discover / key. Target = active profile
+  hostOverride > host > defaultHost (norns.local mDNS fallback). discover
+  matches nornsMac in `arp -a` when mDNS fails. key = ssh-public-key install
+  (kills the sleep password prompt). ssh user we.
+- back/c4/norns/profiles.json - committed: user we, defaultHost norns.local,
+  profiles home/studio/anywhere (host per location, null = mDNS), active.
+- Implement + verify on the target device (see doc "verification"), then
+  append a Progress entry here. Commit prefix [pedal-app].
