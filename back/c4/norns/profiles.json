@@ -1,0 +1,17 @@
+{
+  "user": "we",
+  "defaultHost": "norns.local",
+  "nornsMac": "b8:27:eb:00:00:00",
+  "active": "home-wifi",
+  "profiles": {
+    "home": {
+      "host": "192.168.1.70"
+    },
+    "home-wifi": {
+      "host": null
+    },
+    "anywhere": {
+      "host": "norns.local"
+    }
+  }
+}

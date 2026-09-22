@@ -24,9 +24,12 @@ c4hid  (static ARMv7 C binary, zero deps, /dev/hidraw)
 C4 Synth  (VID 0x29a4, PID 0x0302) on norns USB host port
 ```
 
-The norns is reached over the LAN at `we@192.168.1.70` (password `sleep`) using
-`scp`/`ssh`; script package lives under `/home/we/dust/code/c4synth/` (this
-core has no `dust/scripts/`) and the bridge binary at `/home/we/dust/c4hid/c4hid`.
+The norns is reached over the LAN via ssh/scp (password `sleep` on this image).
+Its DHCP IP changes per network, so addressing goes through the profile helper
+in this repo — see `norns-connect-profiles.md`; from `back/c4` run
+`node norns/connect.js list|use <name>|ssh|scp` (+ `discover`/`key`). Script
+package lives under `/home/we/dust/code/c4synth/` (this core has no
+`dust/scripts/`) and the bridge binary at `/home/we/dust/c4hid/c4hid`.
 (The bottom-port USB-gadget filesystem/SSH was not used — wifi SSH is enough.)
 
 ## HID framing (must match c4Hid.js / c4Protocol.js)
@@ -173,7 +176,10 @@ when a toolchain is available.
 
 ## Deploy
 
-1. Reach the norns over wifi: `scp`/`ssh we@192.168.1.70` (password `sleep`).
+1. Reach the norns over wifi via the profile helper: from `back/c4`,
+   `node norns/connect.js use home && node norns/connect.js ssh -- …` (password
+   `sleep`; `node norns/connect.js key` installs your key so the prompt goes
+   away).
 2. `scp` the bridge to `/home/we/dust/c4hid/`, build on-device, `chmod +x`.
 3. Plug the C4 into the norns HOST port; run `./c4hid identify` then
    `./c4hid names` — acceptance for M1 backend.

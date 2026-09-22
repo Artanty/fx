@@ -1,7 +1,8 @@
 # norns — connect profiles (plan)
 
-Status: **plan** (documented 2026-09-22, implementation pending on another
-device). The norns moves between networks (e.g. home wifi `192.168.1.x`,
+Status: **implemented** (2026-09-22; `connect.js` + `profiles.json` live in
+`back/c4/norns/`, verified offline + mDNS resolve). The norns moves between
+networks (e.g. home wifi `192.168.1.x`,
 studio LAN `10.0.0.x`, travel), so its DHCP IP changes per location and the
 hardcoded `we@192.168.1.70` from `norns-port.md` only works at one site. This
 document specifies a small repo-side helper that turns that into switchable

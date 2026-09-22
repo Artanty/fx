@@ -6328,3 +6328,18 @@ Spec summary (for the implementing device):
   profiles home/studio/anywhere (host per location, null = mDNS), active.
 - Implement + verify on the target device (see doc "verification"), then
   append a Progress entry here. Commit prefix [pedal-app].
+## Status - 2026-09-22 pedal-app: norns connect profiles (helper implemented)
+
+Implemented back/c4/norns/connect.js + profiles.json per the plan doc.
+- Commands: list / use <name> / resolve (tcp/22 probe) / ssh / scp (bare
+  norns: and : targets expand to <user>@<target>:) / discover (mDNS first,
+  else arp -a by nornsMac -> active.hostOverride) / key (ssh-key install,
+  dedupes against remote authorized_keys).
+- Resolution order active.hostOverride > host > defaultHost (norns.local).
+- profiles.json committed: user we, nornsMac b8:27:eb:00:00:00, active home,
+  profiles home (192.168.1.70) / studio (null -> mDNS) / anywhere (norns.local).
+- norns-port.md connectivity + Deploy step 1 now reference the helper (the
+  hardcoded we@192.168.1.70 references removed).
+- Verified offline: list/use/resolve. mDNS live on this network: resolve for
+  studio -> norns.local tcp/22 OK; discover -> "mDNS OK, nothing to store".
+  ssh/scp/key need the target device (plan doc verification steps).
