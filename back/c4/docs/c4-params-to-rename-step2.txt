@@ -1,0 +1,125 @@
+ 63  filter1 depth        knob   [0-255]
+ 64  filter1 freq    knob   [0-255]
+ 65  filter1 q            knob   [0-255]
+ 66  filter1 type         select [0-31]  
+                               3 Pll LP | 6 Pole LP | 2 Pole LP | Notch LP Pk | Notch Notch LP | Pk Notch LP | LP Pk Pk | 2 Pll LP | 4 Pole LP | LP Pk | 4 Pole LP Pk | Pk 4 Pole LP | Bandpass 1 | Pk | Triple Pk 1 | Triple Pk 2 | Triple Pk 3 | Triple Pk 4 | Pk Notch Pk | Notch Pk Notch | 2st Phaser | 3st Phaser | 1st Phaser | HP | HP Peak | Wah | Bandpass 2 | Double Pk | 6 PoleAllPass
+ 67  filter1 env     select [0-1]  Env/LFO 1 | Env/LFO 2
+ 68  filter1 invert       toggle  off/on
+ 69  filter1 enable       toggle  off/on
+ 70  filter1 pitch  select [0-3]  OFF | 1/3 Octave | 2/3 Octave | 1 Octave
+ 71  mix1 dest     select [0-3]  Out 1 only | Out 1 + 2 | Out 2 only
+ 72  mix1 enable          toggle  off/on
+ 73  filter2 depth        knob   [0-255]
+ 74  filter2 freq    knob   [0-255]
+ 75  filter2 q            knob   [0-255]
+ 76  filter2 type         select [0-31]  
+                               3 Pll LP | 6 Pole LP | 2 Pole LP | Notch LP Pk | Notch Notch LP | Pk Notch LP | LP Pk Pk | 2 Pll LP | 4 Pole LP | LP Pk | 4 Pole LP Pk | Pk 4 Pole LP | Bandpass 1 | Pk | Triple Pk 1 | Triple Pk 2 | Triple Pk 3 | Triple Pk 4 | Pk Notch Pk | Notch Pk Notch | 2st Phaser | 3st Phaser | 1st Phaser | HP | HP Peak | Wah | Bandpass 2 | Double Pk | 6 PoleAllPass
+ 77  filter2 env     select [0-1]  Env/LFO 1 | Env/LFO 2
+ 78  filter2 invert       toggle  off/on
+ 79  filter2 enable       toggle  off/on
+ 80  filter2 pitch select [0-3]  OFF | 1/3 Octave | 2/3 Octave | 1 Octave
+ 81  mix2 dest     select [0-3]  Out 1 only | Out 1 + 2 | Out 2 only
+ 82  mix2 enable          toggle  off/on
+ 83  env1 sens knob   [0-255]
+ 84  env1 speed      knob   [0-255]
+ 85  env1 gate       knob   [0-255]
+ 86  env1 type       select [0-15]  +At jDec | +++At jDec | Wide1 j At/Dec | Wide2 ++Dec | Snappy | Swell | adsr1 j At/Dec | adsr2 +At jDec | adsr3 j At/Dec | adsr4 | adsr5 | adsr6 -At +Dec
+ 87  env1 input      select [0-15]  Audio In 1 | Audio In 2
+ 88  env2 sens knob   [0-255]
+ 89  env2 speed      knob   [0-255]
+ 90  env2 gate       knob   [0-255]
+ 91  env2 type       select [0-15]  +At jDec | +++At jDec | Wide1 j At/Dec | Wide2 ++Dec | Snappy | Swell | adsr1 j At/Dec | adsr2 +At jDec | adsr3 j At/Dec | adsr4 | adsr5 | adsr6 -At +Dec
+ 92  env2 input      select [0-15]  Audio In 1 | Audio In 2
+ 93  dist drive     knob   [0-255]
+ 94  dist mix       knob   [0-255]
+ 95  dist output    knob   [0-255]
+ 96  dist type      select [0-15]  
+                         Mild | Moderate | HeavyBassy | SmplReducer | OctFuzz | GatedFuzz | FldvrLight | FldvrHeavy | DblFldvr | DblOctFuzz | TripleFold | SingleClip | MaxFldvr
+ 97  dist enable    toggle  off/on
+ 98  fm sine1             knob   [0-255]
+ 99  fm sine2             knob   [0-255]
+100  fm sine1 in       select [0-1]  LFO 1 | LFO 2
+101  fm sine2 in       select [0-127]  LFO 1 | LFO 2
+102  monoPitchFltr1   knob   [0-255]
+103  monoPitchFltr2   knob   [0-255]
+104  lfo speed            knob   [0-255]
+105  lfo env2speed     knob   [0-255]
+106  lfo env2depth     knob   [0-255]
+107  lfo2 phase          knob   [0-255]
+108  lfo2 mult       select [0-255]  lfo2 = lfo1 | lfo2 = 2x lfo1 | lfo2 = 3x lfo1 | lfo2 = 4x lfo1 | lfo2 = 5x lfo1 | lfo2 = 6x lfo1 | lfo2 = 7x lfo1 | lfo2 = 8x lfo1 | lfo2 = 16x lfo1 | lfo2 = 32x lfo1 | lfo2 = 64x lfo1
+109  lfo shape            select [0-15]  
+                               Sine | Pluck | Square | RisingSaw | FallingSaw | 3ngl | SampleHold | 4 Step | 4 Step + S&H | Sine + S&H | SineRiseSkew | SineFallSkew | 3anglRiseSkew | 3anglFallSkew
+110  lfo restart          toggle  off/on
+111  lfoBeatDiv    select [0-7]  Whole | Half | Quarter | Eighth | Triplet | Sixteenth
+112  seq1 steps     select [0-255]  
+                               2 Steps | 3 Steps | 4 Steps | 5 Steps | 6 Steps | 7 Steps | 8 Steps | 9 Steps | 10 Steps | 11 Steps | 12 Steps | 13 Steps | 14 Steps | 15 Steps | 16 Steps
+113  seq1 value0    knob   [0-255]
+114  seq1 value1    knob   [0-255]
+115  seq1 value2    knob   [0-255]
+116  seq1 value3    knob   [0-255]
+117  seq1 value4    knob   [0-255]
+118  seq1 value5    knob   [0-255]
+119  seq1 value6    knob   [0-255]
+120  seq1 value7    knob   [0-255]
+121  seq1 value8    knob   [0-255]
+122  seq1 value9    knob   [0-255]
+123  seq1 value10   knob   [0-255]
+124  seq1 value11   knob   [0-255]
+125  seq1 value12   knob   [0-255]
+126  seq1 value13   knob   [0-255]
+127  seq1 value14   knob   [0-255]
+128  seq1 value15   knob   [0-255]
+129  seq2 steps     select [0-255]  
+                               2 Steps | 3 Steps | 4 Steps | 5 Steps | 6 Steps | 7 Steps | 8 Steps | 9 Steps | 10 Steps | 11 Steps | 12 Steps | 13 Steps | 14 Steps | 15 Steps | 16 Steps
+130  seq2 value0    knob   [0-255]
+131  seq2 value1    knob   [0-255]
+132  seq2 value2    knob   [0-255]
+133  seq2 value3    knob   [0-255]
+134  seq2 value4    knob   [0-255]
+135  seq2 value5    knob   [0-255]
+136  seq2 value6    knob   [0-255]
+137  seq2 value7    knob   [0-255]
+138  seq2 value8    knob   [0-255]
+139  seq2 value9    knob   [0-255]
+140  seq2 value10   knob   [0-255]
+141  seq2 value11   knob   [0-255]
+142  seq2 value12   knob   [0-255]
+143  seq2 value13   knob   [0-255]
+144  seq2 value14   knob   [0-255]
+145  seq2 value15   knob   [0-255]
+146  harm tuning       knob   [0-255]
+147  harm key          select [0-15]  A | A# | B | C | C# | D | D# | E | F | F# | G | G#
+148  harm int1    select [0-15]  +2nd | +3rd | +4th | +5th | +6th | +7th
+149  harm mode         select [0-31]  
+                               IonianMajor | Dorian | Phrygian | Lydian | Mixolydian | AeolianNatMin | Locrian | HarmMin | LocrianNat 6 | Ionian #5 | Dorian #4 | PhrygianNat 3 | Lydian #2 | Altered bb7 | Jazz Min | PhrygianNat 6 | Lydian #5 | Lydian b7 | Mixolydian b6 | LocrianNat 2 | Altered Scale | Half-Whole | Whole-Half
+150  harm int2    select [0-7]  +2nd | +3rd | +4th | +5th | +6th | +7th
+151  pitch in   select [0-1]  Audio In 1 | Audio In 2
+152  pitch mode    select [0-1]  Speed | Accuracy
+153  pitch low select [0-63]  
+                               G2 | F#2 | F2 | E2 6-StrGuit | D#2 | D2 | C#2 | C2 | B1 7-StrGuit | A#1 | A1 | G#1 | G1 | F#1 | F1 | E1 4-StrBass | D#1 | D1 | C#1 | C1 | B0 5-StrBass
+154  pitch high select [0-255]  
+                               E6 Guit24fr | D#6 | D6 Guit22fr | C#6 | C6 | B5 | A#5 | A5 | G#5 | G5 | F#5 | F5 | E5 | D#5 | D5 | C#5 | C5 | B4 | A#4 | A4 | G#4 | G4 Bass24fr | F#4 | F4 | E4 | D#4 Bass20fr | D4 | C#4 | C4 | B3 | A#3 | A3
+155  knob1 assign         select [0-255]  
+                               Input 1 Gain | Input 2 Gain | Master Depth | Mod Source | Bass | Treble | Mix | Output | Output Balance | Voice 1 Level | Voice 1 Pan | Voice 1 Detune | Voice 1 Tremolo | Voice 2 Level | Voice 2 Pan | Voice 2 Detune | Voice 2 Tremolo | Voice 3 Level | Voice 3 Pan | Voice 3 Detune | Voice 3 Tremolo | Voice 4 Level | Voice 4 Pan | Voice 4 Detune | Voice 4 Tremolo | Drive | Distortion Mix | Distortion Output | Filter 1 Depth | Filter 1 Frequency | Filter 1 Q | Filter 2 Depth | Filter 2 Frequency | Filter 2 Q | Envelope 1 Sensitivity | Envelope 1 Speed | Envelope 1 Gate | Envelope 2 Sensitivity | Envelope 2 Speed | Envelope 2 Gate | FM Depth 1 | FM Depth 2 | Octaver Filter 1 | Octaver Filter 2 | LFO Speed | LFO Envelope To Speed | LFO Envelope To Depth | LFO 2 Phase Offset
+156  knob2 assign         select [0-255]  
+                               Input 1 Gain | Input 2 Gain | Master Depth | Mod Source | Bass | Treble | Mix | Output | Output Balance | Voice 1 Level | Voice 1 Pan | Voice 1 Detune | Voice 1 Tremolo | Voice 2 Level | Voice 2 Pan | Voice 2 Detune | Voice 2 Tremolo | Voice 3 Level | Voice 3 Pan | Voice 3 Detune | Voice 3 Tremolo | Voice 4 Level | Voice 4 Pan | Voice 4 Detune | Voice 4 Tremolo | Drive | Distortion Mix | Distortion Output | Filter 1 Depth | Filter 1 Frequency | Filter 1 Q | Filter 2 Depth | Filter 2 Frequency | Filter 2 Q | Envelope 1 Sensitivity | Envelope 1 Speed | Envelope 1 Gate | Envelope 2 Sensitivity | Envelope 2 Speed | Envelope 2 Gate | FM Depth 1 | FM Depth 2 | Octaver Filter 1 | Octaver Filter 2 | LFO Speed | LFO Envelope To Speed | LFO Envelope To Depth | LFO 2 Phase Offset
+157  routing option       select [0-7]  Auto | Single In 1 | Dual In | Ext Loop
+158  filter2 corr   toggle  off/on
+159  on off status        toggle  off/on
+160  ext control on   toggle  off/on
+161  midi clock  toggle  off/on
+162  ext1 dest     select [0-63]  
+                               Input 1 Gain | Input 2 Gain | Master Depth | Mod Source | Bass | Treble | Mix | Output | Output Balance | Voice 1 Level | Voice 1 Pan | Voice 1 Detune | Voice 1 Tremolo | Voice 2 Level | Voice 2 Pan | Voice 2 Detune | Voice 2 Tremolo | Voice 3 Level | Voice 3 Pan | Voice 3 Detune | Voice 3 Tremolo | Voice 4 Level | Voice 4 Pan | Voice 4 Detune | Voice 4 Tremolo | Drive | Distortion Mix | Distortion Output | Filter 1 Depth | Filter 1 Frequency | Filter 1 Q | Filter 2 Depth | Filter 2 Frequency | Filter 2 Q | Envelope 1 Sensitivity | Envelope 1 Speed | Envelope 1 Gate | Envelope 2 Sensitivity | Envelope 2 Speed | Envelope 2 Gate | FM Depth 1 | FM Depth 2 | Octaver Filter 1 | Octaver Filter 2 | LFO Speed | LFO Envelope To Speed | LFO Envelope To Depth | LFO 2 Phase Offset | External Modulation
+163  ext1 source          select [0-3]  OFF | ExpIn X | ExpIn Y | Hub/midi ExpIn
+164  ext1 min             knob   [0-255]
+165  ext1 max             knob   [0-255]
+166  ext2 dest     select [0-63]  
+                               Input 1 Gain | Input 2 Gain | Master Depth | Mod Source | Bass | Treble | Mix | Output | Output Balance | Voice 1 Level | Voice 1 Pan | Voice 1 Detune | Voice 1 Tremolo | Voice 2 Level | Voice 2 Pan | Voice 2 Detune | Voice 2 Tremolo | Voice 3 Level | Voice 3 Pan | Voice 3 Detune | Voice 3 Tremolo | Voice 4 Level | Voice 4 Pan | Voice 4 Detune | Voice 4 Tremolo | Drive | Distortion Mix | Distortion Output | Filter 1 Depth | Filter 1 Frequency | Filter 1 Q | Filter 2 Depth | Filter 2 Frequency | Filter 2 Q | Envelope 1 Sensitivity | Envelope 1 Speed | Envelope 1 Gate | Envelope 2 Sensitivity | Envelope 2 Speed | Envelope 2 Gate | FM Depth 1 | FM Depth 2 | Octaver Filter 1 | Octaver Filter 2 | LFO Speed | LFO Envelope To Speed | LFO Envelope To Depth | LFO 2 Phase Offset | External Modulation
+167  ext2 source          select [0-3]  OFF | ExpIn X | ExpIn Y | Hub/midi ExpIn
+168  ext2 min             knob   [0-255]
+169  ext2 max             knob   [0-255]
+170  ext3 dest     select [0-63]  
+                               Input 1 Gain | Input 2 Gain | Master Depth | Mod Source | Bass | Treble | Mix | Output | Output Balance | Voice 1 Level | Voice 1 Pan | Voice 1 Detune | Voice 1 Tremolo | Voice 2 Level | Voice 2 Pan | Voice 2 Detune | Voice 2 Tremolo | Voice 3 Level | Voice 3 Pan | Voice 3 Detune | Voice 3 Tremolo | Voice 4 Level | Voice 4 Pan | Voice 4 Detune | Voice 4 Tremolo | Drive | Distortion Mix | Distortion Output | Filter 1 Depth | Filter 1 Frequency | Filter 1 Q | Filter 2 Depth | Filter 2 Frequency | Filter 2 Q | Envelope 1 Sensitivity | Envelope 1 Speed | Envelope 1 Gate | Envelope 2 Sensitivity | Envelope 2 Speed | Envelope 2 Gate | FM Depth 1 | FM Depth 2 | Octaver Filter 1 | Octaver Filter 2 | LFO Speed | LFO Envelope To Speed | LFO Envelope To Depth | LFO 2 Phase Offset | External Modulation
+171  ext3 source          select [0-3]  OFF | ExpIn X | ExpIn Y | Hub/midi ExpIn
+172  ext3 min             knob   [0-255]
+173  ext3 max             knob   [0-255]

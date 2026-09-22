@@ -93,17 +93,51 @@ so `lib/` is excluded from the menu and the entry shows as `C4SYNTH`.
 
 M1 (preset browser):
 - `init`: add a `Rescan Presets` trigger param, then `state.scan()`.
-- `lib/c4hid.lua` resolves the bridge lazily via `norns.state.path .. '../../c4hid/c4hid'`
-  (fallback `_path.dust .. '/c4hid/c4hid'`); runs `c4hid names` / `identify` /
-  `activate` via `os.execute` (stdout redirected to `/tmp/c4hid.out`), normalizing
-  `os.execute`'s return (number on LuaJIT/5.1, boolean on 5.2+).
+- Scroll config (this unit's encoder = 2 raw ticks per detent; core
+  `encoders.lua` fires `enc(n, val=floor(tick/sens))` only when `|tick|>=sens`):
+  E2 and E3 run with **accel disabled** and **`sens(2,2)` / `sens(3,2)`**, so one
+  detent = exactly one preset (E2) / one page (E3). The default `sens=2` on the
+  core already coalesces the double-count into 1 step/detent; only raise to 4
+  (1 item per 2 detents) if the stiff knob overshoots. Do NOT use sens=1 (every
+  sub-tick fires -> 2 items/detent).
+- Reload-safe requires: this core's `Script.clear()` does NOT reset
+  `package.loaded` (only `asl` is special-cased), so `c4synth.lua` nils
+  `package.loaded['c4hid']`/`['state']` before `require 'state'`; otherwise a
+  reload reuses the cached modules whose poller metro was already stopped and
+  every bridge call silently never completes ("device is busy - K3 retry",
+  watchdog unlock, journal shows no `c4dbg scan ... cb` lines).
+- `lib/c4hid.lua` is async: it backgrounds the bridge
+  (`os.execute('( c4hid <cmd> > /tmp/c4hid.out 2> /tmp/c4hid.err; echo done > /tmp/c4hid.done ) &')`),
+  then a 50 ms poller metro watches for `/tmp/c4hid.done`. Callbacks reach the
+  UI through `state.scan`/`state.activate_cursor`; a stale job is unsafe-guarded
+  by a watchdog in the 30 Hz redraw metro (force-unlocks `busy` past
+  `state.deadline`). K2 = `c4hid activate <cursor>`, K3 = rescan.
 - `redraw`: status line (C4 / count / errors + active marker `A00`), 6 scrollable
   rows, `>` cursor, `*` on the active preset, footer hints.
-- `enc` E2 scroll (accelerated), E3 page; K2 = `c4hid activate <cursor>` (pedal
-  switches sound), K3 = rescan. Bridge calls run inside `clock.run` with a
-  `busy` flag so the header shows `scanning...`.
 
 M2+ milestones:
+- **settings page (done, M2.1)**: K2 → action menu → "Settings page" opens a
+  read-only view of the preset under the cursor — `state.view='detail'`, fetches
+  `c4hid body <idx>` (async, `busy` guarded), decodes via `lib/c4model.lua`
+  (generated from `WORKBENCH_CONTROL_SPECS` by `back/c4/norns/tools/gen-c4model.js`;
+  173 rows: knobs as ints, 1-bit fields off/on, named enums; Lua 5.1-safe, no
+  bit ops). Detail shows `#NN name` header, 5 scrollable `>label <value>` rows
+  (E2 scroll / E3 page). Layout matches list (footer y=63, rows y=20..52).
+- **editable params (done, M2.4)**: the C4 ignores CTRL_SET, so edits use the
+  web's flash-commit path (`c4hid commit IDX HEX [NAME]` in c4hid.c ==
+  c4Protocol.commitRawPreset: 4x ACTIVE_STORE 0x76 32B blocks w/ 500ms gaps,
+  ACTIVE_WRITE 0x6e idx+flag+32B name, verified read-back, ACTIVE_SET recall).
+  In the settings page K3 edits the row under the cursor (header "edit:<label>",
+  value gets a `*`); E2/E3 change it (E3 steps x8, wraps at the row's max);
+  K3 again saves to the same slot and recalls it (you hear it immediately), K2
+  cancels/restores the fetched bytes (or backs out when not editing). Encoding
+  is per-byte recompose (`m.set` in c4model.lua) - every row is single-byte
+  (mask == max << shift).
+- Controls map (M2.2/M2.5): K1 = unused (OS button on this norns); K2 = action
+  menu in the list, back/cancel elsewhere; K3 = engage the preset in the list,
+  execute menu items, and edit/save params on the settings page. `state.view`
+  is 'list'|'menu'|'detail'; new menu items are appended to
+  `state.menu_items`.
 - randomizer core (algorithms/groups ported from `c4.component.ts`), base body
   via `c4hid body <idx>`, write via `c4hid commit <idx> <hex> <name>`;
 - hear-and-preview + save-to-slot, scene back/forward, auto-play timer,
@@ -198,7 +232,10 @@ ASCII-folded `0x7F` fill back to the bridge's raw `0xFF`; ~0.5 s for 128 rows).
   Check `core/screen.lua` (`^Screen\.[a-z_]+ =`) before using a screen method.
 - Do **not** `sudo systemctl restart norns-matron` on this image: matron
   segfaults on restart (`ssd1322_update: surface_buffer ((nil))`). Reload scripts
-  from the SELECT menu; if matron is already down, `sudo reboot`.
+  from the SELECT menu; if matron is already down, `sudo reboot`. The SYSTEM>
+  RESTART menu item is now safe: `core/norns.lua` `_norns.restart()` was patched
+  to run the clean-shutdown sequence then `sudo reboot` (a real device reboot),
+  instead of restarting the matron/crone/sclang services (the segfault path).
 - Bridge calls use blocking `os.execute`; matron's Lua is single-threaded, so
   each scan/activate freezes the UI for the command's duration (~0.5 s). Switch
   to `norns.system_cmd` (async, stdout to callback) if that feels bad.
