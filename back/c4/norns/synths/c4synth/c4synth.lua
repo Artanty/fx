@@ -5,12 +5,13 @@
 --   E2  scroll (always; presets / menu items / params per view)
 --   E3  page (per view)
 --   K1  OS/menu button - not handled here
---   K2  back to the parent / main screen from every view (list opens the menu)
+--   K2  list opens the menu; every page (settings/randomizer) pops back to the
+--       menu; the menu closes to the list
 --   K3  engage preset (list), open menu item (menu), edit param (detail),
 --       mark param (rbuild), toggle group (rgroups), start/pause (rrun)
 -- Settings page (via menu -> Settings page):
 --   E2/E3 adjust the edited value (E3 steps x8); K3 saves to the preset +
---   recalls it so you hear it, K2 cancels the edit; K2 back to the list
+--   recalls it so you hear it, K2 cancels the edit; K2 again back to the menu
 --
 -- The C4 must be plugged into a norns USB host port; the bridge is built
 -- on-device (see back/c4/docs/norns-port.md). lib/ modules are excluded from
@@ -72,6 +73,10 @@ function init()
         name = 'Rescan Presets',
         action = function() state.scan() end
     }
+    norns.enc.accel(1, false)
+    norns.enc.sens(1, 1)
+    norns.enc.accel(1, false)
+    norns.enc.sens(1, 1)
     norns.enc.accel(2, false)
     norns.enc.sens(2, 2)
     norns.enc.accel(3, false)
@@ -243,7 +248,7 @@ function draw_rgroups()
 
     screen.level(4)
     screen.move(0, 63)
-    screen.text_trim('E3 page K3 toggle K2 back', 124)
+    screen.text_trim('E3 page K3 toggle K2 menu', 124)
 end
 
 function draw_rrun()
@@ -252,10 +257,12 @@ function draw_rrun()
 
     local header = 'Rand #' .. string.format('%02d', math.max(rn.idx, 0))
     if rn.name and rn.name ~= '' then header = header .. ' ' .. rn.name end
+    local play = rn.paused and 'll' or 'l>'
     if rn.running then
-        header = header .. '  #' .. rn.tick .. '  ' .. math.max(0, rn.due - os.time()) .. 's'
+        header = header .. '  ' .. play .. ' #' .. rn.tick .. ' ' ..
+            math.max(0, rn.due - os.time()) .. 's'
     elseif rn.paused then
-        header = header .. '  paused'
+        header = header .. '  ' .. play .. ' #' .. rn.tick .. '  paused'
     end
     if rn.stopping then header = header .. '  restoring' end
     if rn.error and rn.error ~= '' then header = header .. ' !' .. truncate(rn.error, 10) end
@@ -287,9 +294,9 @@ function draw_rrun()
     screen.level(4)
     screen.move(0, 63)
     if rn.running then
-        screen.text_trim('E3 page K2 back K3 pause', 124)
+        screen.text_trim('E3 page K2 menu K3 pause', 124)
     else
-        screen.text_trim('E3 page K2 back K3 start', 124)
+        screen.text_trim('E3 page K2 menu K3 start', 124)
     end
 end
 
@@ -339,7 +346,7 @@ function draw_detail()
     if d.editing then
         screen.text_trim('E2/E3 value K2 cancel K3 save', 124)
     else
-        screen.text_trim('E3 page K2 back K3 edit', 124)
+        screen.text_trim('E3 page K2 menu K3 edit', 124)
     end
 end
 
@@ -373,7 +380,9 @@ function enc(n, d)
             state.rg_move(d > 0 and state.ROWS_VISIBLE or -state.ROWS_VISIBLE)
         end
     elseif state.view == 'rrun' then
-        if n == 2 then
+        if n == 1 then
+            state.rr_iterate(d)
+        elseif n == 2 then
             state.rr_move(d)
         elseif n == 3 then
             state.rr_move(d > 0 and state.ROWS_VISIBLE or -state.ROWS_VISIBLE)
@@ -414,14 +423,13 @@ function key(n, z)
         end
     elseif state.view == 'rbuild' then
         if n == 2 then
-            state.show_build_menu()
+            state.open_menu('rbuild')
         elseif n == 3 then
             state.rb_toggle()
         end
     elseif state.view == 'rgroups' then
         if n == 2 then
-            state.view = 'list'
-            state.status = 'C4 Synth'
+            state.open_menu('list')
         elseif n == 3 then
             state.rg_toggle()
         end

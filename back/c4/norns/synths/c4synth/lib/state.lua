@@ -9,6 +9,7 @@ state.top = 0
 state.busy = false
 state.status = 'starting'
 state.error = ''
+state.channel = 1
 
 state.view = 'list'
 state.detail = { idx = -1, name = '', rows = {}, body = {}, orig = {}, cursor = 0, top = 0, editing = false, edit_row = 0, edit_value = 0 }
@@ -81,6 +82,7 @@ function state.scan(callback)
             return
         end
         state.active = tonumber(id.info and id.info.active) or state.active
+        state.channel = tonumber(id.info and id.info.channel) or state.channel
         state.status = 'C4 Synth'
         c4hid.names(function(all)
             print('c4dbg scan names cb ok=' .. tostring(all.ok) .. ' n=' .. tostring(all.names and #all.names or 0))
@@ -113,7 +115,11 @@ function state.activate_cursor()
         print('c4dbg activate cb ok=' .. tostring(r.ok) .. ' st=' .. tostring(state.status))
         if r.ok then
             state.active = state.cursor
-            state.status = 'now live: ' .. tostring(state.cursor)
+            if not state.pedal_on() then
+                state.status = 'now live: ' .. tostring(state.cursor) .. ' (no midi)'
+            else
+                state.status = 'now live: ' .. tostring(state.cursor)
+            end
         else
             state.status = 'activate failed'
             state.error = r.err or ''
@@ -122,7 +128,38 @@ function state.activate_cursor()
     end)
 end
 
--- Open the settings page for the preset under the cursor (fetch + decode body).
+-- Turn the pedal ON by sending the one-series engage/bypass CC 102 (127) to
+-- the C4 via matron's MIDI output. matron owns the C4's USB-MIDI out
+-- substream (/dev/snd/midiC1D0) so a raw write from the shell is impossible;
+-- a norns script runs inside matron instead and sends over matron's handle.
+function state.pedal_on()
+    local mid = _G.midi
+    if not mid then
+        print('c4dbg pedal_on: no midi runtime')
+        return false
+    end
+    local ch = state.channel or 1
+    for _, vp in ipairs(mid.vports or {}) do
+        if vp and vp.device then
+            local n = tostring(vp.device.name or '')
+            if n:match('Source Audio') or n:match('C4') then
+                vp:cc(102, 127, ch)
+                return true
+            end
+        end
+    end
+    for _, d in pairs(mid.devices or {}) do
+        local n = tostring(d and d.name or '')
+        if n:match('Source Audio') or n:match('C4') then
+            d:cc(102, 127, ch)
+            return true
+        end
+    end
+    print('c4dbg pedal_on: no C4 midi device (ch=' .. tostring(ch) .. ')')
+    return false
+end
+
+-- Open the detail page for the preset under the cursor (fetch + decode body).
 -- Callable from the action menu (K2 opens the menu; menu → Settings page).
 function state.open_detail()
     if state.busy or state.view ~= 'menu' then return end
@@ -185,38 +222,36 @@ function state.refresh_detail()
     end)
 end
 
--- Action menu (K2 from the list). Items are appended over time.
-function state.show_menu()
-    if state.busy or state.view ~= 'list' then return end
-    state.menu_ctx = 'list'
+-- Open the action menu. ctx 'rbuild' adds the builder's Save group / Clear
+-- selection so they remain reachable now the builder itself pops back to this
+-- menu. The menu is the hub: pages inside it pop to the menu (K2), the menu
+-- pops to the list (K2), never the other way around (no stuck child pages).
+function state.open_menu(ctx)
+    if state.busy then return end
+    state.menu_ctx = ctx or 'list'
     state.menu_items = {
         { name = 'Settings page', action = 'detail' },
         { name = 'Randomizer build', action = 'rbuild' },
         { name = 'Randomizer groups', action = 'rgroups' },
         { name = 'Randomizer run', action = 'rrun' },
+        { name = 'Save preset', action = 'save_preset' },
     }
+    if state.menu_ctx == 'rbuild' then
+        state.menu_items[#state.menu_items + 1] = { name = 'Save group', action = 'rb_save' }
+        state.menu_items[#state.menu_items + 1] = { name = 'Clear selection', action = 'rb_clear' }
+    end
     state.menu_cursor = 0
     state.menu_top = 0
     state.view = 'menu'
 end
 
--- Randomizer build page menu (K2 on the builder): save / clear / back.
-function state.show_build_menu()
-    if state.busy or state.view ~= 'rbuild' then return end
-    state.menu_ctx = 'rbuild'
-    state.menu_items = {
-        { name = 'Save group', action = 'rb_save' },
-        { name = 'Clear selection', action = 'rb_clear' },
-        { name = 'Back', action = 'rb_back' },
-    }
-    state.menu_cursor = 0
-    state.menu_top = 0
-    state.view = 'menu'
+-- Action menu (K2 from the list).
+function state.show_menu()
+    if state.busy or state.view ~= 'list' then return end
+    state.open_menu('list')
 end
 
--- K2 in any menu always pops back to the MAIN screen (list), never to the
--- page the menu was opened from - otherwise rbuild <-> build-menu cycles trap
--- the user off the list (they cannot return to the main screen).
+-- K2 in the menu pops back to the MAIN screen (list).
 function state.close_menu()
     state.view = 'list'
     state.status = 'C4 Synth'
@@ -245,23 +280,14 @@ function state.menu_select()
         state.open_rgroups()
     elseif item.action == 'rrun' then
         state.open_rrun()
-    elseif item.action == 'rnd_toggle' then
-        state.rnd_runtoggle()
-    elseif item.action == 'rrun_back' then
-        if state.rnd.running or state.rnd.paused then state.rnd.stop() end
-        state.view = 'list'
-        state.menu_ctx = 'list'
-        state.status = state.rnd.stopping and 'restoring preset...' or 'C4 Synth'
+    elseif item.action == 'save_preset' then
+        state.save_preset()
     elseif item.action == 'rb_save' then
         state.rb_save()
     elseif item.action == 'rb_clear' then
         state.rb_clear()
         state.view = 'rbuild'
         state.menu_ctx = 'rbuild'
-    elseif item.action == 'rb_back' then
-        state.view = 'list'
-        state.menu_ctx = 'list'
-        state.status = 'C4 Synth'
     end
 end
 
@@ -377,8 +403,12 @@ function state.open_rrun()
     state.view = 'rrun'
     state.rr_cursor = 0
     state.rr_top = 0
-    if state.rnd.running then
-        state.status = 'C4 Synth'
+    -- Resume an active OR paused loop without re-reading the preset: the loop
+    -- owns the pedal and rnd keeps the last audible body, iteration count and
+    -- history. Re-entering after a pause (menu -> Randomizer run) must return
+    -- exactly to that state, not fetch the preset afresh.
+    if state.rnd.running or state.rnd.paused then
+        state.status = state.rnd.paused and 'paused - last random kept' or 'C4 Synth'
         return
     end
     state.busy = true
@@ -420,6 +450,16 @@ function state.rr_move(d)
     end
 end
 
+-- E1 on the run page: step through the remembered iterations (last 10).
+-- Forward past the newest iteration immediately generates a fresh one now
+-- (delegates to rnd.iter_step -> gen_next, which also arms the 5 s timer);
+-- backward recalls the stored iteration and commits its body (audible).
+function state.rr_iterate(d)
+    if state.view ~= 'rrun' or state.busy then return end
+    if not (state.rnd.running or state.rnd.paused) then return end
+    state.rnd.iter_step(d > 0 and 1 or -1)
+end
+
 -- K3 on the run page: start the loop or pause it (values held). The pause
 -- resumes from the last randomized values on the next K3.
 function state.rnd_runtoggle()
@@ -437,18 +477,20 @@ function state.rnd_runtoggle()
     end
 end
 
--- K2 on the run page: leave for the main screen, restoring the original
--- preset if the loop ran or was paused.
+-- K2 on the run page: return to the menu, restoring the original preset if
+-- the loop ran or was paused.
 function state.rrun_back()
     if state.view ~= 'rrun' then return end
-    if state.rnd.running or state.rnd.paused then state.rnd.stop() end
-    state.view = 'list'
-    state.menu_ctx = 'list'
-    state.status = state.rnd.stopping and 'restoring preset...' or 'C4 Synth'
+    -- Step back to the menu but PAUSE, not stop: the loop keeps owning the
+    -- pedal and rnd keeps the last audible body, iteration, count and history.
+    -- Re-entering 'Randomizer run' resumes exactly there; 'Save preset' from
+    -- the menu commits the randomized results.
+    if state.rnd.running or state.rnd.paused then state.rnd.pause() end
+    state.open_menu('list')
+    state.status = 'paused - last random kept (save via menu)'
 end
 
 function state.close_detail()
-    state.view = 'list'
     state.detail.idx = -1
     state.detail.name = ''
     state.detail.rows = {}
@@ -457,7 +499,69 @@ function state.close_detail()
     state.detail.editing = false
     state.detail.edit_row = 0
     state.detail.edit_value = 0
+    state.open_menu('list')
     state.status = 'C4 Synth'
+end
+
+-- Save preset (menu item): persist the current parameter state of the engaged
+-- preset to its flash slot. While the randomizer is running/paused the audible
+-- state lives in rnd.body - committing it sticks, and it becomes the new
+-- restore baseline so a later stop() comes back to exactly what was saved.
+function state.save_preset()
+    if state.busy or state.view ~= 'menu' then return end
+    local r = state.rnd
+    local idx, name
+    local randomized = r.running or r.paused
+    if randomized then
+        idx = r.idx
+        name = r.name
+    else
+        idx = state.active
+        name = state.names[idx] or ''
+        if idx < 0 then
+            state.status = 'load a preset first (K3)'
+            state.finish()
+            return
+        end
+    end
+    state.busy = true
+    state.deadline = os.time() + 8
+    state.status = 'saving preset...'
+    local commit_it = function(body)
+        local ok = c4hid.commit(idx, body, name, function(cr)
+            state.busy = false
+            if cr.ok then
+                state.active = idx
+                if randomized then
+                    for i = 0, 127 do r.orig[i] = body[i] or 0 end
+                end
+                state.status = 'saved #' .. string.format('%02d', idx)
+            else
+                state.status = 'save failed'
+                state.error = cr.err or ''
+            end
+            state.finish()
+        end)
+        if not ok then
+            state.busy = false
+            state.status = 'device busy - retry'
+            state.finish()
+        end
+    end
+    if randomized then
+        commit_it(r.body)
+    else
+        c4hid.body(idx, function(br)
+            if not br.ok then
+                state.busy = false
+                state.status = 'read failed'
+                state.error = br.err or ''
+                state.finish()
+                return
+            end
+            commit_it(br.data)
+        end)
+    end
 end
 
 -- Parameter editing -----------------------------------------------------------
