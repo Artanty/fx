@@ -26,11 +26,15 @@ Examples:
 
 ## Layout
 
-- `web/` — Angular frontend (`npm start`, dev port 4211). Top header links
-  both `/dist` (L.A. Lady) and `/h90`.
-- `back/` — backends. `back/h90` (Express :3000), `back/lalady` (Express :3111).
-- From `back/` run `npm run start:la` for the L.A. Lady backend or
-  `npm run start:h90` (or `npm start`) for the H90 backend.
+- `web/` — Angular frontend (`npm start`, dev port 4211). `/` is the home page
+  (links to every app); top header keeps `/la-lady`, `/h90`, `/h90/starters`,
+  `/c4` and `/mc3` one click away.
+- `back/` — backends. `back/h90` (Express :3000), `back/lalady` (Express :3111),
+  `back/c4` (Express :3222), `back/mc3` (Express :3223, read-only MC3 backup
+  inspector + analysis notes).
+- From `back/` run `npm run start:la` for the L.A. Lady backend,
+  `npm run start:h90` (or `npm start`) for the H90 backend, `npm run start:mc3`
+  for the MC3 inspector.
 
 ## DECISIONS.md workflow
 

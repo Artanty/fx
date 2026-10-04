@@ -1,0 +1,139 @@
+<div class="mc3">
+  <header class="head">
+    <h1>
+      Morningstar MC3
+      <span class="sub">3-button controller &middot; all-banks backup</span>
+    </h1>
+    <div class="head-actions">
+      <button class="refresh" (click)="reload()" [disabled]="loading">Refresh</button>
+    </div>
+  </header>
+
+  <p *ngIf="loading" class="state">Loading backup…</p>
+  <div *ngIf="error" class="state bad">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && !error && summary">
+    <section class="facts">
+      <div><label>downloaded</label><span>{{ summary.downloadDate }}</span></div>
+      <div><label>banks</label><span>{{ summary.bankCount }}</span></div>
+      <div>
+        <label>presets</label>
+        <span>{{ summary.namedPresetCount }} named / {{ summary.presetCount }}</span>
+      </div>
+      <div>
+        <label>{{ c4ChannelName() }} channel</label>
+        <span>
+          ch {{ summary.c4Channel.channel }}
+          <em class="muted">remap {{ summary.c4Channel.remap }}</em>
+        </span>
+      </div>
+      <div>
+        <label>CC{{ summary.c4Channel.presetCc }} recalls</label>
+        <span>{{ summary.c4RecallCount }}</span>
+      </div>
+      <div>
+        <label>source</label>
+        <span class="mono">{{ summary.files.mc3Backup }}</span>
+      </div>
+    </section>
+
+    <section class="filters">
+      <input
+        type="search"
+        [(ngModel)]="query"
+        (ngModelChange)="rebuild()"
+        placeholder="filter banks, presets, C4 presets, messages…"
+      />
+      <label class="chk">
+        <input type="checkbox" [(ngModel)]="onlyC4" (ngModelChange)="rebuild()" />
+        only presets that recall a C4 preset
+      </label>
+      <label class="chk">
+        <input type="checkbox" [(ngModel)]="hideEmpty" (ngModelChange)="rebuild()" />
+        hide EMPTY slots
+      </label>
+      <span class="counts">{{ totalRows() }} presets · {{ totalHits() }} C4 recalls</span>
+    </section>
+
+    <p *ngIf="!rows.length" class="state">{{ emptyBankMessage() }}</p>
+
+    <section *ngFor="let b of rows" class="bank">
+      <div class="bank-head">
+        <span class="bank-no">{{ b.ref.bankNumber }}</span>
+        <span class="bank-name">{{ b.ref.bankName || '(unnamed)' }}</span>
+        <span class="bank-meta">
+          {{ b.presets.length }} shown
+          <ng-container *ngIf="b.c4Presets.length">
+            &middot; C4
+            <span class="c4-list mono">
+              <ng-container *ngFor="let cp of b.c4Presets; let last = last">
+                {{ cp }}<span *ngIf="!last">, </span>
+              </ng-container>
+            </span>
+          </ng-container>
+        </span>
+      </div>
+
+      <table class="presets">
+        <tbody>
+          <tr
+            *ngFor="let p of b.presets; trackBy: trackRow"
+            class="preset"
+            [class.open]="isSelected(p)"
+            [class.dim]="p.ref.empty"
+            (click)="toggle(p, b.ref)"
+          >
+            <td class="pno">{{ p.ref.presetNum }}</td>
+            <td class="pname">
+              {{ p.label }}
+              <span *ngIf="p.ref.toggleName" class="tname">→ {{ p.ref.toggleName }}</span>
+            </td>
+            <td class="c4cell">
+              <span *ngIf="!p.c4.length" class="none">—</span>
+              <span *ngFor="let h of p.c4" class="c4hit" [class.notecc]="h.via === 'notecc'">
+                <b class="mono">{{ h.preset }}</b>
+                <span class="c4name">{{ h.name || '(not in backup)' }}</span>
+                <em *ngIf="h.notes.length" class="muted">note {{ h.notes.join(', ') }}</em>
+                <em *ngIf="h.count > 1" class="muted">×{{ h.count }}</em>
+              </span>
+            </td>
+            <td class="others">
+              <span *ngFor="let o of p.others" class="ochip" [title]="o.count + ' message(s)'">
+                {{ o.channelName || 'ch ' + o.channel }}
+                <em class="muted">{{ o.count }}</em>
+              </span>
+            </td>
+            <td class="msgnum muted">{{ p.messageCount }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="selected" class="detail">
+        <h3>
+          bank {{ selectedBank?.bankNumber }} “{{ selectedBank?.bankName || '(unnamed)' }}” &middot;
+          preset {{ selected.ref.presetNum }} “{{ selected.ref.name }}”
+          <span *ngIf="selected.ref.longName" class="muted">({{ selected.ref.longName }})</span>
+        </h3>
+        <div class="detail-cols">
+          <div *ngFor="let g of channelsOf(selected)" class="chan">
+            <h4>
+              ch {{ g.channel }}
+              <span *ngIf="g.channelName">{{ g.channelName }}</span>
+              <em class="muted">{{ g.messages.length }} msg</em>
+            </h4>
+            <ul>
+              <li *ngFor="let m of g.messages">
+                <span class="slot mono">{{ m.slot }}</span>
+                <span class="txt">{{ m.text }}</span>
+                <em *ngIf="m.toggleGroup < 2" class="tg">tg{{ m.toggleGroup }}</em>
+                <em class="muted">a{{ m.action }}</em>
+                <em *ngIf="m.note" class="unote">“{{ m.note }}”</em>
+              </li>
+            </ul>
+          </div>
+          <div *ngIf="!selected.ref.channels.length" class="muted">no messages</div>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</div>

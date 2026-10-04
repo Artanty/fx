@@ -1,11 +1,13 @@
 # FX — Eventide H90 Patch Explorer + Source Audio L.A. Lady
 
-Two Angular-backed tools live under `web/`, with their backends under `back/`:
+Angular-backed tools live under `web/`, with their backends under `back/`:
 
 - **H90** — local database + web UI for browsing the **491 Eventide H90
   presets** downloaded from [patchstorage.com](https://patchstorage.com/platform/eventide-h90/).
-- **L.A. Lady (dist)** — inspector + preset write/upload against a connected
+- **L.A. Lady (la-lady)** — inspector + preset write/upload against a connected
   Source Audio L.A. Lady via HID/MIDI.
+- **C4 Synth (c4synth)** — HID workbench for the C4.
+- **MC3 (mc3)** — read-only inspector for the Morningstar MC3 all-banks backup.
 
 > This README covers the **H90/FX** project. Other projects in this repo:
 >
@@ -19,23 +21,31 @@ Two Angular-backed tools live under `web/`, with their backends under `back/`:
 fx/
 ├── web/                    # Angular frontend (ng serve, :4211)
 │   └── src/app/
-│       ├── dist/           # L.A. Lady app (default route /dist), hits :3111
+│       ├── pages/home/            # home page (/), links to every app
+│       ├── la-lady/               # L.A. Lady app (/la-lady), hits :3111
 │       │   └── lalady/
+│       ├── c4/                    # C4 Synth app (/c4), hits :3222
+│       ├── mc3/                   # MC3 inspector (/mc3), hits :3223
 │       ├── pages/browse/          # H90 filter/search page (/h90)
 │       ├── pages/preset-detail/   # H90 per-preset page (/h90/preset/:slug)
+│       ├── pages/starters/        # H90 effect starters (/h90/starters)
 │       └── services/ + models.ts
 ├── back/
-│   ├── package.json        # orchestrates backends (start / start:h90 / start:la)
+│   ├── package.json        # orchestrates backends (start / start:h90 / start:la / start:c4 / start:mc3)
 │   ├── h90/                # H90 backend + reverse-engineering tooling
 │   │   ├── server.js       # Express API (serves presets.db, :3000)
 │   │   ├── build_db.py     # builds presets.db (files + Patchstorage metadata)
 │   │   ├── patchstorage/   # downloaded preset files (generated)
 │   │   ├── presets.db      # SQLite database (generated)
 │   │   └── h90_*.py / h90-*.js   # H90 RE scripts, captures, notes
-│   └── lalady/             # Source Audio L.A. Lady backend
-│       └── server.js       # Express API (:3111)
-├── input/                  # shared raw data (H90 backups/lists + L.A. Lady .osbf/.pre/dist-engines)
-└── mc3/                    # Morningstar MC3 backup notes
+│   ├── lalady/             # Source Audio L.A. Lady backend
+│   │   └── server.js       # Express API (:3111)
+│   ├── c4/                 # Source Audio C4 Synth backend
+│   │   └── server.js       # Express API + HID workbench (:3222)
+│   └── mc3/                # Morningstar MC3 backup inspector (read-only)
+│       ├── server.js       # Express API (:3223)
+│       └── src/            # backup parser + C4 .osbf name reader
+├── input/                  # shared raw data (H90 backups/lists + Source Audio .osbf/.pre/dist-engines)
 ```
 
 ## Running it
@@ -48,8 +58,8 @@ npm install        # once
 npm start          # ng serve, dev port 4211
 ```
 
-Open http://localhost:4211. The top header links both apps: `/dist` (L.A. Lady)
-and `/h90` (H90 explorer).
+Open http://localhost:4211 — the home page links to every app, and the top
+header keeps them one click away.
 
 **L.A. Lady backend (port 3111)**
 
@@ -67,8 +77,21 @@ npm install --prefix h90      # once
 npm run start:h90             # starts back/h90/server.js; or: npm start
 ```
 
-From `web/` you can also run `npm run server` (H90 API) or
-`npm run start:lalady` as shortcuts.
+From `web/` you can also run `npm run server` (H90 API), `npm run start:lalady`
+or `npm run start:mc3` as shortcuts.
+
+**MC3 backend (port 3223)** — read-only, no device access
+
+```bash
+cd back
+npm install --prefix mc3     # once
+npm run start:mc3            # starts back/mc3/server.js
+```
+
+It parses `input/Morningstar_MC3_*.json` plus `input/*c4backup.osbf` and serves
+the bank/preset tree; the `/mc3` page lists every preset with the C4 effect it
+recalls (CC104 on MC3 MIDI channel 2). Details in
+[`back/mc3/README.md`](back/mc3/README.md).
 
 The Angular dev server proxies `/api/*` to the H90 API on **:3000**
 (`web/proxy.conf.json`); the L.A. Lady app talks to **:3111** directly.

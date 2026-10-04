@@ -1,0 +1,21 @@
+<div class="home">
+  <header class="head">
+    <h1>fx</h1>
+    <p class="lead">Tools for the pedals on the board. Each one needs its own backend running.</p>
+    <a *ngIf="lastRoute" class="resume" [routerLink]="lastRoute">
+      continue where you left off &rarr; {{ resumeLabel() }}
+    </a>
+  </header>
+
+  <div class="grid">
+    <a *ngFor="let l of links" class="card" [routerLink]="l.path">
+      <div class="row1">
+        <span class="label">{{ l.label }}</span>
+        <span class="tag">{{ l.tag }}</span>
+      </div>
+      <span class="title">{{ l.title }}</span>
+      <p class="about">{{ l.about }}</p>
+      <span class="backend mono">{{ l.backend }}</span>
+    </a>
+  </div>
+</div>

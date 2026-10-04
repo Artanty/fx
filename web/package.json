@@ -9,7 +9,8 @@
     "test": "ng test",
     "test:e2e:lalady": "playwright test --config=playwright.config.ts",
     "server": "npm --prefix ../back/h90 start",
-    "start:lalady": "npm --prefix ../back/lalady start"
+    "start:lalady": "npm --prefix ../back/lalady start",
+    "start:mc3": "npm --prefix ../back/mc3 start"
   },
   "private": true,
   "dependencies": {

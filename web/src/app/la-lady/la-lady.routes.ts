@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-export const distRoutes: Routes = [
+export const laLadyRoutes: Routes = [
   {
     path: '',
     loadComponent: () =>

@@ -6364,3 +6364,197 @@ exists -> scp copies the dir into it), so a 2nd deploy created
   a pointer to the connect.js helper.
 - Not committed. deploy.ps1 still uses `scp -r $local host:...` which re-nests on
   every 2nd+ push - a real fix (contents push / stage-then-mv) offered to user.
+
+## Plan - 2026-09-27 mc3: back/mc3 read-only backend + web mc3-module
+
+Goal: turn the root `mc3/` analysis folder into a real project — a read-only
+backend that parses the Morningstar MC3 all-banks backup and answers "which C4
+effect does each MC3 preset use", plus an `mc3` module in the Angular frontend
+that lists all banks/presets with their C4 CC104 recalls.
+
+Decisions (confirmed with user before writing code):
+- **Move** `mc3/` -> `back/mc3` (README.md becomes back/mc3/README.md; add
+  server.js + src/ + package.json next to it). Root `mc3/` is removed.
+- **C4 channel** = MC3 MIDI channel slot 2, the one named "C4"
+  (`channel: 2, remap: 6`). Extract only `c == 2`; surface the `remap: 6` value
+  as metadata in the API/UI instead of acting on it. (Channel 6 "sxLab" is a
+  different device in this backup, so it is NOT treated as C4.)
+- **Backend** = read-only parser, no HID, no device writes. Port **3223**
+  (h90 :3000, lalady :3111, c4 :3222).
+- **C4 preset names** come from `input/2026-07-31_c4backup.osbf` (126 USER_PRESET
+  records, 32-byte NUL-padded NAME field, slots 45/105 absent) — the file that
+  sits next to the MC3 backup. No dependency on back/c4 state.
+
+Message decode derived from the backup (types seen with live data):
+- `t=1` Note (d1=note, d2=velocity)
+- `t=2` Control Change (d1=CC, d2=value)  <- **this is where CC104 lives**
+- `t=3` Program Change (d1=program)
+- `t=32` inferred "note + CC" pair (d1=note, d2=CC, d3=value) — used by bank 21
+  "C4 SYNTH" to play a note and set CC104=65; flagged as `via: 'notecc'` so it is
+  never confused with a plain preset recall.
+- everything else (t=4,6,7,14,15,18,23,24,26,27,31,33) stays `raw` with its
+  `typeId` + d1..d4; not enough evidence in the backup to name them.
+- `tg` = toggle group, `a` = action/attribute, `c` = outgoing MIDI channel.
+
+Deliverables this session:
+- `back/mc3/{package.json,server.js,README.md,.gitignore}`
+- `back/mc3/src/{mc3Model.js,mc3Backup.js,c4Presets.js}`
+- API: `GET /api/summary`, `/api/channels`, `/api/c4-presets`, `/api/banks`
+- `web/src/app/mc3/{mc3.routes.ts,mc3-api.service.ts,mc3.models.ts,mc3.component.{ts,html,scss}}`
+- route `/mc3` in app.routes.ts + header link; `back/package.json` `start:mc3`;
+  `web/package.json` `start:mc3`
+
+## Status - 2026-09-27 mc3: back/mc3 backend + web mc3 module
+
+Done as planned.
+
+**Moved** `mc3/` -> `back/mc3/` (git mv, README.md carries over and grew a
+"MC3 — Morningstar MC3 inspector" section on top of the original analysis).
+
+**Backend** `back/mc3` (:3223, read-only, express only, no HID):
+- `src/mc3Model.js` - message decode. Type ids 1 note / 2 CC / 3 program /
+  32 note+CC (inferred); everything else stays `raw` with typeId + d1..d4.
+  `c4Recall()` pulls the C4 preset out of a message: `t=2 d1=104` -> d2
+  (`via:'cc'`), `t=32 d2=104` -> d3 (`via:'notecc'`, keeps the note).
+- `src/mc3Backup.js` - backup JSON -> banks/presets/exp-presets, per-channel
+  message groups, C4 channel = slot 2 (the one named "C4").
+- `src/c4Presets.js` - minimal .osbf reader, pulls LOCATION/NAME out of
+  USER_PRESET blocks (names are 32-byte NUL-padded).
+- `src/mc3Data.js` - joins the two, annotates every recall with the C4 preset
+  name, builds the /api/summary counts.
+- `server.js` - /api/summary, /api/banks, /api/banks/:bank,
+  /api/preset/:bank/:preset, /api/channels, /api/c4-presets, /api/reload.
+  `MC3_INPUT` env overrides the input dir; result parsed once and cached.
+
+**Frontend** `web/src/app/mc3/` (route `/mc3`, header link "mc3"): facts strip
+(banks / presets / C4 channel + remap / CC104 recall count), text filter over
+bank + preset + C4 preset + channel + message text, "only C4" and "hide EMPTY"
+toggles, per-bank preset table with the C4 chip (`loc + name`, note list for
+notecc, `xN` when the same preset is fired twice), other-target channel chips,
+click a row to expand all decoded messages grouped by channel. Calls
+:3223 directly, like the c4 module does with :3222.
+
+**Wiring**: app.routes.ts + app.component.html, `back/package.json`
+`start:mc3`, `web/package.json` `start:mc3`, root README.md project layout +
+run section, AGENTS.md layout section.
+
+**Extraction result**: 30 banks (not 33), 180 preset slots, 141 named.
+51 CC104 recalls on channel 2 across 23 distinct C4 presets, all listed in
+/api/summary.c4PresetsUsed. Per-bank, e.g. bank 28 "C4 effects" maps
+Q-tron->61, spaceship->60, Wooow->58, tron-sitar->53, moog->48, C#4 pad->42.
+
+**Names do not always line up** and that is data, not a bug: bank 28 `Q-tron`
+is C4 preset 61 = "wilis - Mono Dirty filter". The MC3 presets were authored
+against an earlier state of the C4, and the .osbf is a 2026-07-31 dump.
+Called out in back/mc3/README.md.
+
+**Verified**: `node --check` on all 5 backend files; parser run offline over
+the real backup (counts + bank 28 sample above); `tsc -p tsconfig.app.json
+--noEmit` clean; `ngc -p tsconfig.app.json --noEmit` clean (only the pre-existing
+NG8102 warning in c4.component.html). `ng build` was not completed - it exceeded
+a 5 min timeout in this session, not a code error. Backend server itself not
+started (AGENTS.md: the user runs it) - `npm --prefix back/mc3 install` is still
+needed once.
+
+## Status - 2026-09-27 web: repaired broken web/node_modules
+
+Not an mc3 change. `npm start` failed with `Cannot find module
+@rollup/rollup-darwin-arm64` right after the user ran `npm i -f` in `web/`.
+
+Root cause was npm-orphaned: `web/node_modules` had been placed there by a
+browser download (it still carried
+`com.apple.quarantine` from Chrome Canary), so it arrived with macOS broken in
+two ways that npm would never create:
+- the quarantine flag made the system refuse to `dlopen` rollup's
+  `rollup.darwin-arm64.node` ("library load disallowed by system policy") —
+  surfaced by npm as the misleading "optional dependencies" error;
+- the archive lost symlinks and exec bits, so `node_modules/.bin/*` were plain
+  text files containing a path (`ng` = 18 bytes of `../@angular/cli/bin/ng.js`)
+  and `@esbuild/darwin-arm64/bin/esbuild` was mode 644.
+
+`xattr -dr com.apple.quarantine node_modules` cleared the dlopen error but the
+`.bin` stubs could not be repaired in place, so: `rm -rf node_modules && npm ci`
+in `web/`. 954 packages reinstalled from the existing `package-lock.json`;
+`package-lock.json` unchanged (git reports it clean). `.bin` is 59 symlinks
+again, esbuild is 755, no quarantine.
+
+Verified `npx ng serve --port 4299` builds clean in 2.8s and lists
+`mc3-component` (37.57 kB) + `mc3-routes` as lazy chunks. Only the pre-existing
+NG8102 warning in `c4.component.html` remains. The test server was stopped
+afterwards.
+
+Lesson: if `ng` starts complaining about rollup/esbuild, check
+`xattr -l node_modules` and `file node_modules/.bin/ng` before touching
+`package-lock.json` — a bad lockfile cannot cause either symptom.
+
+## Plan - 2026-09-27 web: home page as default route + rename dist -> la-lady
+
+Two frontend changes, no backend involvement.
+
+1. **Home page at `/`.** Today `''` redirects to `dist`, so the app always
+   boots into the L.A. Lady inspector and the header's "home" link was a lie.
+   Add `web/src/app/pages/home/` (HomeComponent, standalone, eager like the
+   other `pages/*`) listing a card per destination with a one-line description
+   and the backend it talks to. Route `''` becomes the home page instead of a
+   redirect.
+
+2. **Rename `dist` -> `la-lady`.** `dist` was only ever a placeholder name for
+   the L.A. Lady app, and it collided with the Angular build output dir (root
+   `.gitignore` needed `!web/src/app/dist/` + `!web/src/app/dist/**`
+   negations to keep the source folder tracked). Changes:
+   - `git mv web/src/app/dist web/src/app/la-lady`
+   - `dist.routes.ts` -> `la-lady.routes.ts`, `distRoutes` -> `laLadyRoutes`
+   - route path `/dist` -> `/la-lady`, lazy import path updated
+   - header link text + path
+   - drop the two `.gitignore` negations (nothing named `dist` is source)
+   - `web/README.md`, root `README.md`, `AGENTS.md` text
+
+   NOT touched (build output, unrelated to the app name): `angular.json`
+   `outputPath: "dist/h90-web"` and `tsconfig.json` `outDir: "./dist/out-tsc"`.
+
+Deliverables: `web/src/app/pages/home/{home.component.ts,.html,.scss}`,
+renamed `web/src/app/la-lady/`, updated `app.routes.ts` + `app.component.html`
++ docs.
+
+## Status - 2026-09-27 web: home page default route + dist -> la-lady
+
+Both requested changes are in.
+
+**1. Home page.** New `web/src/app/pages/home/` (HomeComponent, standalone,
+OnPush, CommonModule + RouterLink). `/` is now `component: HomeComponent`
+instead of a redirect to the L.A. Lady app, and `**` now redirects to `''` so
+a stale `/dist` URL lands on the home page instead of the deep-linked app.
+Five cards (la-lady, h90 presets, h90 starters, c4synth, mc3), each with a
+one-liner and the backend port it needs. Header keeps its quick links; only
+`dist` -> `la-lady` there.
+
+**2. dist -> la-lady.** `git mv web/src/app/dist web/src/app/la-lady`,
+`dist.routes.ts` -> `la-lady.routes.ts` (`distRoutes` -> `laLadyRoutes`),
+route path `/la-lady`. Side effect worth having: the root `.gitignore` needed
+`!web/src/app/dist/` + `!web/src/app/dist/**` negations just to keep a *source*
+folder named like the Angular build output — both removed, and
+`git check-ignore` confirms nothing under `web/src/app/la-lady/` is ignored.
+Build output paths left alone (`angular.json` outputPath `dist/h90-web`,
+`tsconfig.json` outDir `./dist/out-tsc`).
+
+**Blocking bug found and fixed.** `AppComponent` had a pre-existing
+`restoreLastRoute()` that called `navigateByUrl(localStorage['fx.lastRoute'])`
+from the constructor — every load bounced to the last visited app, so `/` could
+never be reached by typing the URL and the "default page" requirement was
+impossible. Replaced: `src/app/last-route.ts` holds the key + guarded
+read/write helpers, AppComponent still records on NavigationEnd but no longer
+redirects, and the home page renders "continue where you left off -> <label>"
+when a saved route exists. Verified the link shows the resolved label, that
+clicking it navigates there, and that `/` stays put afterwards.
+
+**Verified** with a headless chromium pass over the dev server (:4299, stopped
+afterwards): `/`, `/la-lady`, `/h90`, `/h90/starters`, `/c4`, `/mc3` each land
+on themselves with the right header link active; `/dist` lands on `/`; zero
+page errors. `tsc --noEmit` clean, `ngc --noEmit` clean (only the pre-existing
+NG8102 warning in c4.component.html).
+
+**Note for later**: `ngc --noEmit` does NOT catch a template using a structural
+directive that is missing from `imports` (it compiled clean while the page
+threw NG0303 twice, for `*ngFor` and then `*ngIf` in HomeComponent). Only the
+browser pass caught it. Prefer `CommonModule` over cherry-picked `NgFor`/`NgIf`
+in new standalone components.

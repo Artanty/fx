@@ -1,4 +1,96 @@
-# MC3 Backup Analysis
+# MC3 — Morningstar MC3 inspector
+
+Read-only backend + analysis of the Morningstar MC3 (3-button MIDI controller)
+all-banks backup, plus the frontend module that lists every preset and the C4
+effect it recalls.
+
+```
+back/mc3/server.js          Express app (:3223)
+back/mc3/src/mc3Model.js    message decoding (type ids, CC104 detection)
+back/mc3/src/mc3Backup.js   backup JSON -> banks/presets/messages
+back/mc3/src/c4Presets.js   .osbf -> C4 preset names
+back/mc3/src/mc3Data.js     joins the two into the served model
+web/src/app/mc3/            Angular module at /mc3
+```
+
+## Run
+
+```
+npm --prefix back/mc3 start        # or: npm run start:mc3  (from back/)
+```
+
+Reads `input/Morningstar_MC3_*.json` and `input/*c4backup.osbf` (override the
+directory with `MC3_INPUT`). No HID, no device access, no writes — the whole
+backup is parsed once and cached in memory.
+
+## API
+
+| Route | Returns |
+|---|---|
+| `GET /api/summary` | backup header, general settings, bank/preset counts, C4 channel info, distinct C4 presets used |
+| `GET /api/banks` | every bank with its 6 presets + expression preset, decoded messages, C4 recalls |
+| `GET /api/banks/:bank` | one bank |
+| `GET /api/preset/:bank/:preset` | one preset (e.g. `/api/preset/28/0`) |
+| `GET /api/channels` | the 16 MC3 MIDI channel slots (name, channel, ports, remap) |
+| `GET /api/c4-presets` | the 128 C4 user preset names from the `.osbf` |
+| `GET /api/reload` | drop the cache and re-read `input/` |
+
+## Which C4 effect does an MC3 preset use?
+
+The C4 sits on **MC3 MIDI channel slot 2** — the channel literally named `C4` in
+`data.controller_settings.data.midi_channels`:
+
+```json
+{ "name": "C4", "channel": 2, "sendToPort": 2047, "remap": 6 }
+```
+
+`remap: 6` is carried through to the API and shown in the UI as metadata only;
+it is **not** applied to the extraction. Channel 6 in this rig is a different
+device (`sxLab`), so CC104 recalls are read from `c == 2` alone.
+
+CC104 is the Source Audio "load user preset" controller and its value is the
+0..127 preset index, so `CC104 = 61` means *C4 user preset 61*. Two encodings
+appear in the backup:
+
+| `via` | encoding | example (bank 21 "C4 SYNTH", preset 0 "FZ %F8") |
+|---|---|---|
+| `cc` | `t=2`, `d1=104`, `d2=<preset>` | bank 28 "Q-tron" → `104, 61` |
+| `notecc` | `t=32`, `d1=<note>`, `d2=104`, `d3=<preset>` | `[24, 104, 65]` → play note 24 **and** load preset 65 |
+
+`via: 'notecc'` is an inference from the data, not a documented MC3 type name —
+the UI colours it differently so it is never confused with a plain recall.
+
+51 CC104 recalls across 30 banks / 180 preset slots touch 23 distinct C4
+presets. Note the names come from the C4 dump of the same date, and several no
+longer describe what the MC3 preset was named after (MC3 `Q-tron` → C4 preset 61
+`wilis - Mono Dirty filter`): the C4 was re-patched after those MC3 presets were
+written.
+
+## Message type ids
+
+`t` is the MC3 message type. Only these are named, and only from evidence in the
+dump; everything else is passed through as `raw` with its `typeId` and raw
+`d1..d4` so nothing is invented.
+
+| `t` | name | fields |
+|---|---|---|
+| 1 | Note | `d1` note, `d2` velocity |
+| 2 | Control Change | `d1` CC, `d2` value |
+| 3 | Program Change | `d1` program |
+| 32 | Note + CC (inferred) | `d1` note, `d2` CC, `d3` value |
+| 0 | unused slot | filtered out |
+
+Also seen with live data but left `raw`: `t` 4, 6, 7, 14, 15, 18, 23, 24, 26, 27,
+31, 33. `t=27` in particular (`d1=0/29, d2=5, d3=1..10` on bank 0 "pedals
+actions") is a per-pedal on/off thing that is not standard CC.
+
+Per message the API also carries `slot` (index in the 16-entry table), `tg`
+(toggle group — `0`/`1` are the two states of one toggle, `2` is a plain
+message), `a` (action byte) and `mi` (the user's own note).
+
+---
+
+# Backup analysis
 
 Analysis of the Morningstar MC3 backup file:
 

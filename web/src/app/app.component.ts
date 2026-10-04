@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
-
-const LAST_ROUTE_KEY = 'fx.lastRoute';
+import { writeLastRoute } from './last-route';
 
 @Component({
   selector: 'app-root',
@@ -14,21 +13,11 @@ const LAST_ROUTE_KEY = 'fx.lastRoute';
 })
 export class AppComponent {
   constructor(private router: Router) {
-    this.rememberLastRoute();
-    this.restoreLastRoute();
-  }
-
-  private rememberLastRoute(): void {
+    // Remember where the user was, but do NOT jump there automatically: "/" is
+    // the home page and typing the URL has to land on it. The home page offers
+    // the saved route as a "continue" link instead.
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
-      .subscribe((e) => {
-        localStorage.setItem(LAST_ROUTE_KEY, e.urlAfterRedirects);
-      });
-  }
-
-  private restoreLastRoute(): void {
-    const last = localStorage.getItem(LAST_ROUTE_KEY);
-    if (!last || last === this.router.url) return;
-    this.router.navigateByUrl(last);
+      .subscribe((e) => writeLastRoute(e.urlAfterRedirects));
   }
 }

@@ -7,6 +7,7 @@
     "start": "npm --prefix h90 start",
     "start:h90": "npm --prefix h90 start",
     "start:la": "npm --prefix lalady start",
-    "start:c4": "npm --prefix c4 start"
+    "start:c4": "npm --prefix c4 start",
+    "start:mc3": "npm --prefix mc3 start"
   }
 }
