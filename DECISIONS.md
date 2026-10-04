@@ -6562,3 +6562,142 @@ via controlled bash/push-on-device, and final hashes compare locally == device.
 WORK: state.rr_iterate/draw_rrun sync path — iteration counter no longer lags the params.
 DONE: (1) enc1 sens(1,1)+accel(1,false) off on c4synth init — one physical tick == one iteration, E1 predictable; (2) start() zeroes tick only when not paused, so play/resume keeps the iteration # (only a cold start resets it); (3) rnd.recall() adopts e.tick synchronously and fires on_change() before the async c4hid.commit — the header iteration # + glyph repaint the instant E1 steps, no pedal round-trip wait; (4) rnd.due = os.time()+5 resets the countdown in recall()/start()/pause(), and prev(E2)/next(E3)/pause always give a full fresh window; pause() stops the metro so the countdown is frozen while held. E2/E3 stay accel-off + sens 2. run header shows paused glyph "ll" / playing "l>" + iteration #.
 STATUS: deployed flat to norns (lib/rnd.lua, lib/state.lua, c4synth.lua) with dedup patches verified on-device via grep; on-device luac -p passed earlier this session (full luac verify on the resumed session's first device pass; the trailing luac call this turn used an ssh PATH without luac — re-run via norns login shell to confirm, duplicates left behind are idempotent no-ops). BACKLOG: none for this feature.
+
+### 2026-09-23 - randomizer: play-mode random #, param rows, and sound change all at once
+PLAN: In play-mode (rrun loop) rnd.gen_next() mutates rnd.body in memory first,
+so the 30fps redraw metro repaints the param rows instantly while the iteration
+# (tick) and the audible change only follow when the ~2 s c4hid.commit
+round-trip (4x ACTIVE_STORE @ 500 ms + ACTIVE_WRITE + verify + ACTIVE_SET)
+returns - hence "params change first, sound 1-2 s later, random # lags like the
+sound". Fix in lib/rnd.lua: generate the next iteration into a PENDING body,
+keep displaying the last audible iteration during the commit, and only adopt
+the pending body (rnd.body := pending) + tick + hist_push + on_change redraw
+in the commit-success callback, so random #, visible values and the
+already-applied sound flip together. Failed commits leave the display (and
+rnd.body) on the values that actually are audible (before, a failed commit
+showed values that never reached the pedal). Scope: gen_next only (auto loop +
+E1 forward-past-newest); rnd.recall (manual E1 prev/next) keeps its
+instant-header repaint. Verify: local luac -p, deploy flat to
+/home/we/dust/code/c4synth/, on-device luac -p + sha256 compare, flat layout +
+rndgroups.json preserved.
+
+### 2026-09-23 - c4hid bridge: kill the ~3 s commit latency
+PLAN: c4hid.c cmd_commit sleeps 4x500ms (ACTIVE_STORE) + 500ms (ACTIVE_WRITE)
++ 500ms + 1500ms read-timeout (ACTIVE_SET) = the whole 4.6 s commit is padding
+(the C4 never replies to ACTIVE_SET - every ack poll burned its full timeout;
+reads are fast, ~25-35ms each). Replace the hardcoded 500/1500 with stage knobs
+STORE_GAP_MS/WRITE_GAP_MS/SET_SETTLE_MS/SET_ACK_TIMEOUT_MS and shrink them,
+relying on the existing verify read-back as the correctness gate. Stress on a
+sacrificial slot (127 re-committing its own body, so content self-heals and
+sound is untouched): 200ms x12 ok (1.6s), 100ms x20 ok (0.96s), 50ms x20 ok
+(0.65s). Ship 50/50/100/150; backup + swap the live /home/we/dust/c4hid/c4hid
+and sync device c4hid.c to the repo source; verify identify/commit/body on the
+live binary and confirm slot 127 bytes intact.
+STATUS: implemented + shipped. c4hid.c now paces flash writes with
+STORE_GAP_MS=50, WRITE_GAP_MS=50, SET_SETTLE_MS=100, SET_ACK_TIMEOUT_MS=150
+(the old 500/1500 made every commit ~4.6 s; the C4 never acks ACTIVE_SET, so
+each call was eating the full 1500 ms timeout). On-device stress on slot 127
+(re-commit own body, verify read-back gate): 12x @200ms ok, 20x @100ms ok,
+20x @50ms ok, slot bytes intact each time. Live /home/we/dust/c4hid/c4hid
+replaced (orig backed up as c4hid.orig), device c4hid.c synced to repo (sha
+323065c7.. == local), old test binaries removed. Live verify: commit 0.64 s
+(down from 4.6 s), activate 0.33 s (from 2.1 s), identify normal. Studio pedal
+active preset restored to slot 1 (Taurus) after the slot-127 tests. Combined
+with the gen_next display-sync, a play-mode random iteration now lands: random
+#, on-screen params and the audible change all together ~0.7 s after the 5 s
+tick (was ~3-4 s), and a plain load (K3) is ~0.3 s. Docs norns-port.md line
+"Writes run waitMs(500)... bridge replicates that pacing" is now stale - not
+touched (doc-only, low value).
+
+### 2026-09-23 - randomizer: E1 forward acts on every detent (queue while busy)
+PLAN: In play-mode an E1 forward-past-newest tick calls iter_step, which bails on
+rnd.busy - the ~0.65 s commit window after every 5 s tick swallowed coincident
+E1 ticks ("sometimes i need 2 ticks to turn random by E1"). Fix in lib/rnd.lua:
+an E1 forward tick arriving while a commit is in flight counts into rnd.queue
+(cap 4) instead of being dropped, and gen_next's commit-success callback drains
+one queued tick by chaining gen_next (only while running or paused). Also allow
+E1 forward on an empty history (loop just started, first iteration not yet
+landed) to generate immediately. Backward (recall) path keeps its busy guard.
+rnd.queue is cleared in pause()/stop(). Verify: read-through, on-device luac -p,
+deploy flat, on-device sha == local, flat layout + rndgroups.json intact.
+STATUS: implemented + deployed flat. lib/rnd.lua: iter_step no longer drops an
+E1 forward tick that lands during the ~0.65 s commit window - while busy it
+counts into rnd.queue (cap 4, so holding E1 can't outrun the bridge), and
+gen_next's commit-success callback drains one queued tick per landing by
+chaining gen_next (only while running or paused). E1 forward on an empty
+history (loop just started) now generates the first iteration immediately
+instead of doing nothing. Backward recall keeps its busy guard. rnd.queue reset
+in pause()/stop(). On-device: luac -p OK all 5 files, lib/rnd.lua sha1
+95338c28b3f35a41e1800d77562aaf15cfcd6769 == local, flat layout intact,
+rndgroups.json preserved. Every E1 detent now yields its own random iteration;
+the "sometimes 2 ticks" loss is gone.
+
+### 2026-09-23 - randomizer: E1 prev/next navigates by iteration NUMBER not state
+PLAN: In play-mode the run header shows the iteration number (#tick) and E1 is
+supposed to be prev/next of it. Today, stepping back into stored iterations and
+then waiting lets the 5 s auto-timer fire gen_next from the RECALLED state,
+which forks a new random and re-pushes it - duplicating an old tick number and
+making subsequent E1 steps jump non-monotonically ("works by previous state,
+not by numbers"). Fix in lib/rnd.lua: rnd.tick_once() holds (skips) while
+rnd.hist_pos < #rnd.hist - i.e. whenever the user has stepped back from the
+newest - refreshing rnd.due so the panel reads "waiting" instead of parking at
+0 s. That keeps tick numbers globally consecutive (new == newest+1, no forks),
+so E1 right = #+1 (recall next stored, or generate new only past the newest)
+and E1 left = #-1 (recall previous stored) with no state-drift. Verify:
+read-through, on-device luac -p, deploy flat, sha equal, rndgroups intact.
+STATUS: implemented (both parts). (1) rnd.tick_once() now holds while the user
+has stepped back into history (hist_pos < #rnd.hist) - refreshing rnd.due so
+the panel reads "waiting" - so the 5 s timer can no longer fork a new random
+off a recalled state; new iterations can only be born at the newest, making
+tick numbers globally consecutive (new == newest+1, zero duplicates). (2)
+iter_step was generalized into rnd.nav(sign) + rnd.step_q (signed queue, cap 4)
++ rnd.drain(): E1 right = #+1 (recall next stored, or generate new only past
+the newest), E1 left = #-1 (recall previous stored); any step arriving while a
+commit/recall is in flight is queued by sign instead of dropped, and drained
+after each commit/recall callback - so backward E1 is no longer swallowable by
+the busy window either. rnd.queue removed; pause()/stop() reset step_q. Deploy
+flat verified: luac -p OK all 5 files, lib/rnd.lua sha1
+ff2f74937f815f16401a7f6030a4b622aadb66d6 == local, flat layout intact,
+rndgroups.json preserved.
+STATUS: implemented + deployed flat to norns. lib/rnd.lua: randomize() now takes
+the target body; rnd.gen_next() builds the new iteration into a pending body
+(copy of the current audible rnd.body), leaves rnd.body and the run-page
+display untouched while the ~2 s c4hid.commit round-trip is in flight, and in
+the commit-success callback adopts pending (rnd.body := pending), increments
+tick, hist_push() and fires on_change - so the iteration #, the visible param
+rows and the (already-applied) sound all flip together; on commit failure the
+display/rnd.body stay on the values that actually are audible. E1
+forward-past-newest (iter_step -> gen_next) inherits the same sync; manual
+rnd.recall (prev/next) keeps its instant-header repaint. Verified on-device:
+luac -p OK for all 5 files, lib/rnd.lua sha1 c5e76b186869160dca518807e555f70af2afd4a4
+== local, flat layout intact (no nested c4synth), rndgroups.json untouched.
+
+### 2026-09-23 - randomizer: E1 scrub must not freeze playback
+PLAN: User reports that after using E1 the loop stops auto-advancing. Cause:
+rnd.tick_once() holds whenever hist_pos < #rnd.hist (the hold from the previous
+entry), so a single E1-left during play parks the user back in history and the
+5 s timer never forks anything again UNTIL the user manually walks back to the
+newest - effectively freezing playback. Fix in lib/rnd.lua rnd.tick_once():
+drop the hold entirely; when hist_pos < #hist and hist is non-empty, first
+RE-ANCHOR to the newest iteration (adopt newest body, tick, hist_pos = #hist)
+then gen_next() as usual. This keeps playback rolling every 5 s from the newest
+(no duplicates: new number is always newest+1), while E1 stays pure number
+navigation over the stored window (prev = #-1, next = #+1 -> generate only past
+the newest). Scrubbing back is a temporary peek (max ~5 s while playing); pause
+to hold a recalled iteration. Verify: read-through, on-device luac -p, deploy
+flat, sha equal, rndgroups intact.
+STATUS: implemented + deployed flat. rnd.tick_once() no longer holds while the
+user is scrubbed back; instead, if hist_pos < #hist and hist is non-empty, it
+first re-anchors to the newest iteration (adopts newest body snapshot, its tick
+number, hist_pos = #hist) and then proceeds with gen_next() as normal. The 5 s
+loop therefore continues rolling every tick from the newest with the next
+unique consecutive number, even right after an E1 step - no fork off the
+recalled state (gen_next now ALWAYS has current == newest as its parent), no
+duplicate numbers, playback never stalls. E1 remains pure number navigation
+within the stored window (prev = current#-1 recall, next = current#+1 recall,
+generate only when stepping past the newest). One E1 step during play now
+briefly peeks the adjacent iteration and playback resumes on the next 5 s tick
+(the recalled view is re-anchored/overwritten by that tick); pause if a
+recalled iteration must be held. Deploy flat verified: luac -p OK all 5 files,
+lib/rnd.lua sha1 d493d1f28def50ed6610f19853582034f3e3e26c == local, flat layout
+intact, rndgroups.json preserved.
