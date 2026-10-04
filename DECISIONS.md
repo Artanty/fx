@@ -6740,3 +6740,44 @@ move only. KNOWN LANDMINE (not fixed, pre-existing): deploy.ps1's scp -r re-nest
 on every push where the remote dir already exists; it should push '/.'
 instead. BACKLOG: add the second monome script as monome/<script>/, deployed flat
 to /home/we/dust/code/<script>/.
+### 2026-10-04 - c4synth: input 1/2 swap in the action menu; norns script library pruned
+PLAN: (1) user wants only c4synth on the norns - delete every other dir under
+/home/we/dust/code (35 community scripts; reinstallable via awake, not from
+here). (2) new menu item that swaps the audio input of the selected preset
+between two states: envelope1_input + envelope2_input + pitch_detect_input
+follow the input, input1/input2 gain become 100%/0% (or the mirror), and in
+BOTH states mix=100%, lo_retain=0%, mix1/mix2 destination = Out 1+2. Byte
+values were read off all 128 flash presets on the device rather than guessed:
+full-scale gain/mix is 0xfe=254 (mix=254 in 116/128 presets, never 255), 0x00 is
+0%; envelope*_input is a 4-bit field where only bit 1 selects the input (input-2
+patches have the nibble 2 or 3, input-1 patches 0/8/12) - c4Model.js lists only
+two options (0/1) which does NOT match what the hardware writes, so the feature
+sets/clears bit 1 and leaves the other bits alone; pitch_detect_input is a plain
+1-bit field (0=in1, 1=in2); mix destination 1 = 'Out 1 + 2'. Implementation: new
+pure module monome/c4synth/lib/inswap.lua (no norns globals, so it can be unit
+tested on-device with luac) doing apply(body, to2)/toggle(body) through
+c4model.set; state.lua grows a 'Swap input 1/2' menu item that fetches the body
+under the cursor, toggles, commits (commit recalls the slot, so it is audible)
+and reports the resulting state in the status line, mirroring save_preset.
+Verify: luac -p all files on-device, then run inswap against a real captured body
+on-device and print every touched byte before/after (no flash writes); no commit
+to the pedal without the user asking.
+STATUS (2026-10-04): DONE and verified on the norns. New lib/inswap.lua
+(apply/toggle/is_input2/describe, rows resolved by name through c4model so a
+regenerated decoder cannot shift them); state.lua adds the 'Swap input 1/2'
+menu item (inserted above 'Save preset', list menu = 6 items, menu view already
+scrolls via menu_top) plus state.swap_input(), which fetches the body under the
+list cursor, toggles, commits (commit recalls the slot, so it is audible) and
+reports '#NN -> input 1/2' in the status line; mirrors save_preset's busy/
+deadline/error handling. Deployed flat (scp 'monome/c4synth/.', no nesting,
+rndgroups.json untouched) and luac -p passes on all 6 files; ran
+/tmp/inswap_test.lua on-device against real bodies captured from all 128 flash
+slots: slot 0 (input-2 patch) detected correctly, swap to input 1 clears bit 1 of
+both envelope nibbles while leaving the other bits (env2 3 -> 1, not 0) and a
+double toggle returns it to 128/128 identical; slots with non-canonical gains
+(e.g. g1=150) come out 254/0 as specified, so a double toggle is only identical
+when the preset was already canonical - expected, not a bug; every swap changed
+4-7 bytes and mix/lo-retain/mix1+mix2 destinations came out 254/0/1+1 in both
+states. NO flash writes were made - the user has not been asked to commit a real
+preset yet. Open: whether to also surface the current input state in the menu
+label (needs an async body read when the menu opens).

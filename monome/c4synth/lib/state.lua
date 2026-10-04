@@ -36,8 +36,10 @@ state.ROWS_VISIBLE = 5
 
 local c4hid = require 'c4hid'
 local c4model = require 'c4model'
+local inswap = require 'inswap'
 local rnd = require 'rnd'
 state.rnd = rnd
+state.inswap = inswap
 
 -- Move cursor (E2). d may be >1 with accel.
 function state.move(d)
@@ -234,6 +236,7 @@ function state.open_menu(ctx)
         { name = 'Randomizer build', action = 'rbuild' },
         { name = 'Randomizer groups', action = 'rgroups' },
         { name = 'Randomizer run', action = 'rrun' },
+        { name = 'Swap input 1/2', action = 'swap_input' },
         { name = 'Save preset', action = 'save_preset' },
     }
     if state.menu_ctx == 'rbuild' then
@@ -282,6 +285,8 @@ function state.menu_select()
         state.open_rrun()
     elseif item.action == 'save_preset' then
         state.save_preset()
+    elseif item.action == 'swap_input' then
+        state.swap_input()
     elseif item.action == 'rb_save' then
         state.rb_save()
     elseif item.action == 'rb_clear' then
@@ -565,6 +570,52 @@ function state.save_preset()
 end
 
 -- Parameter editing -----------------------------------------------------------
+
+-- Input 1/2 swap ---------------------------------------------------------------
+
+-- Toggle the preset under the cursor between "follows input 1" and "follows
+-- input 2" (byte rules in lib/inswap.lua). c4hid.commit also recalls the slot,
+-- so the result is audible immediately; all other preset bytes are kept.
+function state.swap_input()
+    if state.busy or state.view ~= 'menu' then return end
+    local idx = state.cursor
+    if #state.names == 0 or idx < 0 then
+        state.status = 'no preset selected'
+        state.finish()
+        return
+    end
+    local name = state.names[idx] or ''
+    state.busy = true
+    state.deadline = os.time() + 8
+    state.status = 'swapping input...'
+    c4hid.body(idx, function(br)
+        if not br.ok then
+            state.busy = false
+            state.status = 'read failed'
+            state.error = br.err or ''
+            state.finish()
+            return
+        end
+        local body = br.data
+        local to2 = inswap.toggle(body)
+        local ok = c4hid.commit(idx, body, name, function(cr)
+            state.busy = false
+            if cr.ok then
+                state.active = idx
+                state.status = '#' .. string.format('%02d', idx) .. ' -> ' .. inswap.state_name(to2)
+            else
+                state.status = 'swap failed'
+                state.error = cr.err or ''
+            end
+            state.finish()
+        end)
+        if not ok then
+            state.busy = false
+            state.status = 'device busy - retry'
+            state.finish()
+        end
+    end)
+end
 
 -- Enter value-edit mode for the row under the cursor (K2 in detail view).
 function state.enter_edit()
