@@ -6701,3 +6701,42 @@ briefly peeks the adjacent iteration and playback resumes on the next 5 s tick
 recalled iteration must be held. Deploy flat verified: luac -p OK all 5 files,
 lib/rnd.lua sha1 d493d1f28def50ed6610f19853582034f3e3e26c == local, flat layout
 intact, rndgroups.json preserved.
+
+### 2026-10-04 - monome norns scripts move to a root-level monome/ folder
+PLAN: the norns (monome) scripts were living under back/c4/norns/synths/c4synth,
+buried inside the C4 backend tree; commit 681e639 added a wrong 'foot' copy plus an
+unrequested c4synth2 duplicate. User correction: monome scripts belong in a
+top-level monome/ folder at the repo root, one subfolder per script, so a second
+monome script can be added as a sibling. Plan: git mv back/c4/norns/synths/c4synth
+-> monome/c4synth (real move, single source of truth), git rm -r back/c4/norns/foot
+(drop both foot copies incl. c4synth2), drop the now-empty norns/synths/ dir, and
+repoint every repo reference at the new path: back/c4/norns/deploy.ps1 (),
+back/c4/norns/tools/gen-c4model.js (generated c4model.lua output + header comment),
+back/c4/docs/norns-port.md (script section heading). Device side is unchanged: the
+package still deploys flat to /home/we/dust/code/c4synth/ (AGENTS.md norns rule), and
+a second script deploys flat to /home/we/dust/code/<script>/ as its own sibling.
+Verify: no remaining 'norns/synths' references outside DECISIONS history, gen-c4model
+--check regenerates identically at the new path, luac -p not needed (no lua edits).
+STATUS: moved. monome/c4synth/{c4synth.lua,lib/{c4hid,c4model,rnd,state}.lua} is
+the single source of truth; back/c4/norns/synths/ and back/c4/norns/foot/ (both
+the c4synth copy and the c4synth2 duplicate) are gone from the repo and disk.
+References repointed: deploy.ps1 now resolves the repo root three levels up from
+back/c4/norns and pushes monome\c4synth; gen-c4model.js writes
+../../../../monome/c4synth/lib/c4model.lua (re-ran it: 'wrote 173 rows', output
+byte-identical to the committed decoder, so the new output path is correct);
+norns-port.md script section heading updated; AGENTS.md Layout now lists monome/
+(one subfolder per script, device-side support stays in back/c4/norns/). No
+remaining 'norns/synths' reference outside DECISIONS history. Device: found the
+norns at 192.168.1.121 (mDNS norns.local, host key matches the old 192.168.1.70
+entry); non-interactive auth works via the SSH_ASKPASS trick documented in
+deploy.ps1 - no key install needed. ACCIDENT + CLEANUP: running deploy.ps1 to
+validate the new path pushed with 'scp -r  <dir>', which re-nested into
+/home/we/dust/code/c4synth/c4synth/ (the exact spurious nesting AGENTS.md warns
+about); removed it with rm -rf and re-verified: exactly one entry file, no nested
+dir, rndgroups.json intact, luac -p OK on all 5 files, and every device file's
+sha1 equals the repo copy (c4synth.lua/c4hid.lua/state.lua differ only in CRLF vs
+LF). Device content is unchanged from the previous deploy - this was a repo-side
+move only. KNOWN LANDMINE (not fixed, pre-existing): deploy.ps1's scp -r re-nests
+on every push where the remote dir already exists; it should push '/.'
+instead. BACKLOG: add the second monome script as monome/<script>/, deployed flat
+to /home/we/dust/code/<script>/.

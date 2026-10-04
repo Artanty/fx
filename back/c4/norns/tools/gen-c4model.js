@@ -1,4 +1,4 @@
-// Generate back/c4/norns/synths/c4synth/lib/c4model.lua from c4Model.js
+// Generate monome/c4synth/lib/c4model.lua from c4Model.js
 // WORKBENCH_CONTROL_SPECS. Keeps the norns decoder in sync with the web model.
 const fs = require('fs');
 const path = require('path');
@@ -91,5 +91,5 @@ const DATA = specs.map(s => {
   return `  { name='${s.name}', ${fields.join(', ')} },`;
 }).join('\n');
 
-fs.writeFileSync(path.join(__dirname, '../synths/c4synth/lib/c4model.lua'), HEAD + DATA + '\n' + TAIL);
+fs.writeFileSync(path.join(__dirname, '../../../../monome/c4synth/lib/c4model.lua'), HEAD + DATA + '\n' + TAIL);
 console.log('wrote', specs.length, 'rows');

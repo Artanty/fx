@@ -29,6 +29,9 @@ Examples:
 - `web/` — Angular frontend (`npm start`, dev port 4211). Top header links
   both `/dist` (L.A. Lady) and `/h90`.
 - `back/` — backends. `back/h90` (Express :3000), `back/lalady` (Express :3111).
+- `monome/` — monome norns scripts, one subfolder per script
+  (`monome/c4synth/`). Device-side support for these lives in `back/c4/norns/`
+  (HID bridge `c4hid.c`, `connect.js`, `docs/`, `tools/`).
 - From `back/` run `npm run start:la` for the L.A. Lady backend or
   `npm run start:h90` (or `npm start`) for the H90 backend.
 

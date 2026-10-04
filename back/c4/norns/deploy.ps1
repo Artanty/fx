@@ -17,8 +17,8 @@ $ErrorActionPreference = 'Stop'
 
 if (-not $Password) { $Password = 'sleep' }   # documented LAN password
 
-$root      = Split-Path -Parent $PSScriptRoot          # ...\c4
-$local     = Join-Path $root 'norns\synths\c4synth'
+$repo      = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))  # repo root
+$local     = Join-Path $repo 'monome\c4synth'
 $remoteDir = '/home/we/dust/code/c4synth'
 
 if (-not (Test-Path -LiteralPath $local)) { throw "script dir not found: $local" }
