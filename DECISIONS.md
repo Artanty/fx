@@ -6781,3 +6781,31 @@ when the preset was already canonical - expected, not a bug; every swap changed
 states. NO flash writes were made - the user has not been asked to commit a real
 preset yet. Open: whether to also surface the current input state in the menu
 label (needs an async body read when the menu opens).
+## Plan - 2026-10-04 pedal-app: voice octave option list is mirrored vs the firmware
+User reported that in the C4 settings (voice x octave) setting '-1' plays a
+HIGH octave, i.e. our raw-value -> label mapping is upside down. Checked both
+write paths first: state.edit_step/commit_edit (norns) and the web editor both
+take the raw value straight from the option index, and c4model.set recomposes
+the byte correctly, so this is not a UI inversion - the descending VOICE_OCTAVES
+list in back/c4/src/c4Model.js (raw 0='Oct +3' ... 6='Oct -3') contradicts what
+the firmware does. The list came from the editor bundle sa-249.json with only a
+weak preset-name plausibility check ('octave 4/5 dominant = the -1/-2 bass
+patches'), which was circular. Fix: reverse VOICE_OCTAVES to ascending
+(raw 0='Oct -3' ... 6='Oct +3'), regenerate monome/c4synth/lib/c4model.lua and
+back/c4/docs/c4-params.txt, deploy flat, luac -p. This only re-labels - no
+existing preset body changes - but it flips how all 128 stored presets read
+(raw 4/5 will now show as +1/+2). Voice semitone stays descending on purpose:
+its centre (raw 11 = 'Semi --') dominates across the 128 presets, so a mirror
+there would be undetectable from data and the user chose not to re-test it.
+STATUS (2026-10-04): DONE. back/c4/src/c4Model.js VOICE_OCTAVES reversed to
+ascending (raw 0='Oct -3' ... 6='Oct +3') with a comment recording that the
+direction was verified by ear, not by preset statistics; regenerated
+monome/c4synth/lib/c4model.lua (173 rows) and back/c4/docs/c4-params.txt via
+gen-c4model.js / gen-c4params.js. Only labels changed - no preset body or
+offset was touched, so nothing on the pedal moved; the 128 stored presets now
+simply read the other way round (raw 4/5 = '+1'/'+2' instead of '-1'/'-2').
+Deployed flat to /home/we/dust/code/c4synth (scp 'monome/c4synth/.', no nested
+copy, rndgroups.json untouched) and luac -p passes on all 6 files. The web
+editor picks the new list up automatically from ENUM_NAMES (backend restart is
+the user's call - we never spawn node here). Voice semitone left descending per
+the user's decision. Open: user to confirm 'Oct -3' is now the lowest octave.

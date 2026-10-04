@@ -255,14 +255,17 @@ function enumOpts(names) {
 // Where the editor's range is shorter than the pedal field (e.g. filter1_type
 // max 28 vs 5-bit field max 31) upper values stay unnamed; the UI shows a
 // disabled numeric placeholder via selectValueKnown.
+// raw value is the firmware's octave offset: it climbs with pitch, so the
+// list is ascending. Verified by ear on 2026-10-04 - the descending version of
+// this list made "-1" play a high octave.
 const VOICE_OCTAVES = [
-  'Oct +3',
-  'Oct +2',
-  'Oct +1',
-  'Oct --',
-  'Oct -1',
+  'Oct -3',
   'Oct -2',
-  'Oct -3'
+  'Oct -1',
+  'Oct --',
+  'Oct +1',
+  'Oct +2',
+  'Oct +3'
 ];
 const VOICE_SEMITONES = [
   'Semi +11', 'Semi +10', 'Semi +9', 'Semi +8', 'Semi +7', 'Semi +6',
