@@ -6809,3 +6809,24 @@ copy, rndgroups.json untouched) and luac -p passes on all 6 files. The web
 editor picks the new list up automatically from ENUM_NAMES (backend restart is
 the user's call - we never spawn node here). Voice semitone left descending per
 the user's decision. Open: user to confirm 'Oct -3' is now the lowest octave.
+## Plan - 2026-10-04 norns-drums: new standalone drum generator script (saved to monome/docs/drumgen-plan.md)
+User wants a second norns script: 'something like Logic Pro drummer', explicitly
+NOT coupled to c4synth - it must not touch the C4 HID bridge. Research was
+read-only on the device; the whole plan is in monome/docs/drumgen-plan.md so a
+fresh session can start from it without re-probing. Scope the user chose:
+output switchable (norns audio AND MIDI out), generator + editable step grid,
+10-voice kit without clap, own clock with optional MIDI sync, JSON patterns on
+the device. Name/steps-per-bar/deploy-tooling/commit-prefix are still open and
+are listed as open decisions in that doc; nothing is implemented yet.
+Device facts that shaped the design (all verified this session): no dust engine
+binary and snd_file only exposes audio.file_info, so there is no way to play
+WAV one-shots - the internal kit has to be engine- or MIDI-based; engine names
+can only be listed from inside a running script because plain lua on the device
+has none of matron's globals; matron's Lua lives in /home/we/norns/lua with
+beatclock (24 ticks/quarter, no swing - ours to implement), sequins,
+pattern_time, musicutil; midi.devices is keyed by id (iterate with pairs, which
+is the bug c4synth's pedal_on hit); Lua is 5.1.5, the core dofiles only the
+selected .lua so all norns callbacks stay globals in the entry file, lib/ is
+hidden from the script menu, and package.loaded must be cleared on reload.
+Layout note: docs for norns scripts now live in monome/docs/ (this core has no
+scripts dir on device, and back/<project>/docs is the convention elsewhere).
