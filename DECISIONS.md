@@ -6558,3 +6558,468 @@ directive that is missing from `imports` (it compiled clean while the page
 threw NG0303 twice, for `*ngFor` and then `*ngIf` in HomeComponent). Only the
 browser pass caught it. Prefer `CommonModule` over cherry-picked `NgFor`/`NgIf`
 in new standalone components.
+## Plan - 2026-09-22 pedal-app: c4synth menu-centric nav + Save preset
+
+User request (norns c4synth): K2 on 'randomizer run' and the other pages
+opened from the action menu must return to the menu screen (not the main
+list). And the menu screen gets a 'Save preset' item persisting the current
+parameter state of the currently-engaged C4 preset.
+- Model: list --K2--> menu --K3--> page; page --K2--> menu; menu --K2--> list.
+- All 4 pages (detail, rbuild, rgroups, rrun) pop to the menu. rbuild K2
+  returns to the main menu too (user-chosen), with 'Save group'/'Clear
+  selection' shown in that menu when re-opened from the builder (old build
+  sub-menu removed).
+- 'Save preset': commits the current audible/working state to the active slot.
+  When the randomizer is running/paused it persists rnd.body to rnd.idx and
+  adopts it as the new restore baseline; otherwise re-commits the active
+  slot's stored body.
+- Deliverable: back/c4/norns/synths/c4synth/{c4synth.lua,lib/state.lua} edits,
+  deployed flat to /home/we/dust/code/c4synth/ (no nesting), luac -p on-device.
+
+## Status - 2026-09-22 pedal-app: c4synth menu-centric nav + Save preset
+
+Done (per plan): menu is now the hub. list --K2--> menu --K3--> page, and
+K2 from every page (settings/detail, rbuild, rgroups, rrun) pops back to the
+menu; menu K2 closes to the list.
+- state.lua: open_menu(ctx) builder (rbuild ctx appends 'Save group'/'Clear
+  selection' so the old build sub-menu / rb_back / rnd_toggle / rrun_back-menu
+  actions were removed); rrun_back and close_detail now open the menu instead
+  of the list; new state.save_preset() persists the engaged preset - when the
+  randomizer is running/paused it commits rnd.body to rnd.idx and adopts it as
+  the new restore baseline (stop() returns to the saved state); otherwise it
+  re-commits the active slot's stored body. Handles the bridge-job-busy case
+  with 'device busy - retry'.
+- c4synth.lua: key K2 handlers route rbuild/rgroups through open_menu; page
+  footers now say 'K2 menu'; header comment updated.
+- Deployed flat (scp of the two files, no -r, no nesting) to
+  /home/we/dust/code/c4synth/; luac -p passed on-device; hashes match repo;
+  rndgroups.json preserved; FLAT_OK (no nested dir).
+- Not committed. Next: user relaunches c4synth (twice) and checks K2 flow +
+  'Save preset'.
+
+## Plan - 2026-09-23 pedal-app: C4 preset engage (K3) turns pedal on
+
+- Feature: pressing K3 in the main preset list activates the preset (existing
+  c4hid.activate) and additionally turns the pedal ON so it is audible.
+- Mechanism: the C4 is USB-MIDI /dev/snd/midiC1D0; matron holds that rawmidi
+  write substream open (O_WRONLY, seen in /proc/434/fdinfo) so neither a raw
+  write nor an ALSA-seq send from the shell can reach the pedal (seq client
+  'Source Audio C4 Synth' shadows the same substream). Because c4synth runs
+  INSIDE matron, the Lua script sends MIDI CC 102 = 127 (one-series
+  engage/bypass, 0=off/127=on per back/lalady/scripts/midi_cc.py) using the
+  norns midi class over matron's own handle to the C4 (device discovered by
+  name 'Source Audio C4 Synth', confirmed in matron log). Channel taken from
+  identify config cfg[7] (device MIDI channel, 5).
+- Rejected: direct /dev/snd/midiC1D0 write (EBUSY, matron owns write), ALSA
+  seq raw event (works for delivery but C4 port reports ENODEV - same
+  substream as matron), libasound in the bridge (adds dep + same ENODEV).
+- Changes: lib/state.lua - state.pedal_on() helper + store state.channel from
+  identify + call after successful activate_cursor. No c4hid.c changes (seq
+  experiment reverted). Deploy flat, luac -p on-device.
+
+## Status - 2026-09-23 pedal-app: K3 engage turns the pedal on (via norns midi)
+
+Done (per plan): state.lua gains state.pedal_on() which sends MIDI CC 102=127
+(one-series engage) to the C4 over matron's MIDI output. It scans midi.vports
+and midi.devices for a device whose name matches 'Source Audio'/'C4' (the C4
+is registered as device 'Source Audio C4 Synth', #2 in matron), using the
+device MIDI channel stored from identify (cfg[7]). activate_cursor() calls
+pedal_on() after a successful activate; UI shows 'now live: <idx>' (or '(no
+midi)' suffix if no matching device found). c4hid.c/lua untouched (seq
+experiment reverted - matron owns the C4's rawmidi write substream; confirmed
+via /proc/434/fdinfo flags=O_WRONLY, so shell MIDI is impossible; see plan).
+Deployed lib/state.lua flat to /home/we/dust/code/c4synth/; luac -p passed
+on-device; hashes match repo; FLAT_OK. Not committed. Next: user relaunches
+c4synth, presses K3 and confirms the pedal engages (audible / LED).
+
+## Plan - 2026-09-23 pedal-app: randomizer pause-on-exit + iteration history
+
+- Goal: rrun no longer resets when stepping back to the menu; and E1 steps
+  through the last iterations.
+- 1. "Step back to menu from randomizer keeps current state": rrun_back now
+  PAUSES (was stop() -> restores orig + rewrites flash). The last randomized
+  body, iteration counter and all knob values stay live; Save preset (menu)
+  already commits rnd.body while running/paused -> saves the randomized
+  results; re-entering 'Randomizer run' resumes the paused state (open_rrun
+  skips the body re-read when running/paused).
+- 2. "E1 prev/next iterations, memory of 10 last": rnd.lua keeps hist (max 10
+  bodies, newest at the end). Timer tick and E1-forward-at-the-edge both go
+  through rnd.gen_next() (randomize + commit + hist_push). scr: E1 steps
+  hist_pos back (recall commits the stored body so it is heard) and forward;
+  forward past the newest immediately generates a new iteration (rand body +
+  commit now, next iteration waits for the 5 s timer). History is cleared on
+  a cold rrun entry (different preset), kept across pause/re-entry.
+- Files: lib/rnd.lua (hist/gen_next/recall/iter_step, tick_once via gen_next),
+  lib/state.lua (open_rrun resume + reset_hist, rrun_back pause,
+  rr_iterate, busy guard in rnd_runtoggle), c4synth.lua (enc1 accel/sens +
+  E1 rrun wiring, draw_rrun header/footer). Deploy flat, luac -p.
+
+---
+
+## Status - randomizer pause + iteration history (verified on disk)
+
+Verified via grep of the working tree (not git diff — diff hunks read back garbled
+this session):
+- rnd engine (lib/rnd.lua, 411 lines) is ON DISK: rnd.hist_push, rnd.gen_next,
+  rnd.tick_once, rnd.recall(pos), rnd.iter_step(d), rnd.gen_next + metro /
+  DUE timers, HIST_MAX=10.
+- state.lua (636 lines) has the run-view plumbing: open_rrun (resume already
+  skips when rnd.running), rr_move, rr_iterate, rrun_back (pause on return,
+  stop() restores only when leaving the run page), rnd_runtoggle,
+  save_preset (commits rnd.body -> saves the randomized results; commitem is
+  audible). pedal_on + channel field + open_menu(ctx) actions present.
+- rr_iterate E1 handler IS present (file:line via grep "function state.rr_iterate").
+- What is NOT verified: c4hid.commit signature used by rnd (idx,body,name,cb)
+  matches, and draw_rrun/c4synth.lua E1/east wiring - needs on-device luac +
+  hash check (user runs script; I do not spawn backend processes).
+- Not committed (repo tip unchanged). Deploy flat, luac -p, hash-verify when next
+  pushed to norns.
+
+Next concrete step for the user: deploy state.lua+rnd.lua+c4synth.lua flat to
+/home/we/dust/code/c4synth/, luac -p on-device, verify hashes, test:
+step back from rrun keeps last iteration; re-enter resumes; E1 prev/next steps
+the remembered iterations; E1 next past the newest makes a fresh one now
+(waiting for the next 5 s timer).
+
+---
+
+## Status: randomizer E1 iterate + pause-on-back wired (repo tree)
+
+Applied (working tree, not committed):
+- state.lua: `state.rr_iterate(d)` steps `rnd.iter_step(d>0 and 1 or -1)` (guards
+  view=='rrun', not busy, loop running-or-paused). `open_rrun` resumes when
+  running OR paused, no preset re-read (loop owns pedal; rnd keeps last body,
+  iteration, count, history). `rrun_back` now PAUSES instead of stop/restore:
+  re-entering 'Randomizer run' resumes exactly there; 'Save preset' from the
+  menu commits the randomized body. Comment updated to match.
+- c4synth.lua: `init()` adds `norns.enc.accel(1,false)/sens(1,2)` (one click =
+  one iteration step); `enc()` rrun branch routes n==1 -> `state.rr_iterate(d)`.
+
+Engine rnd.lua already had: rnd.hist_push, gen_next, tick_once, recall, iter_step
+(HIST_MAX=10). Verified present via grep this session.
+
+Syntax check: no lua host tool available; `luac -p` on-device at next deploy
+(luac absent from this host - user runs backend, I only edit code).
+
+### Status: deployed + on-device verified (2026-09-23)
+
+Pushed flat via connect_helper (password auth) to /home/we/dust/code/c4synth/:
+c4synth.lua, lib/state.lua, lib/rnd.lua. On-device luac -p passed for all
+three; sha256 verified (c4synth 0eba2e779d…, state 7ba5d504ae…, rnd
+211e5a136d… — match local). Flat layout confirmed (no nested c4synth/, no menu
+shadow) and rndgroups.json preserved. rndengine (HIST_MAX=10, hist_push,
+gen_next, recall, iter_step) already on disk; E1/iter wiring in c4synth.lua +
+state.lua (rr_iterate, open_rrun resume-on-running-or-paused, rrun_back pause
+instead of stop) now shipped.
+
+### Status: iteration # + play/pause glyph + timer semantics (deployed+verified)
+
+Final engine delta pushed flat to /home/we/dust/code/c4synth/:
+- rnd.recall(pos) now ADOPTS the recalled entry's own tick (iteration number)
+  so the run header shows the held state's count, and (only while running)
+  restarts the 5 s countdown (rnd.due = os.time()+5); while paused it stays
+  stopped. Direction semantics unchanged and already correct: recall prev/next
+  are position-linked (E1 left/right step the remembered iterations, forward
+  past the newest raises a fresh one now via gen_next).
+- draw_rrun shows a running-state glyph: 'll' when paused, 'l>' when playing,
+  plus '#<iter>' in BOTH running and paused headers (iteration number now
+  visible in the paused randomizer).
+On-device: luac -p OK for both files, sha256 equal to local (c4synth
+50a1cf23…, rnd 2c4d3272…), flat layout confirmed. rndgroups.json untouched.
+
+## Status: randomizer UX round 2 — deployed, verified flat, luac-clean
+
+Working tree + deployed flat to /home/we/dust/code/c4synth/ (verified on-device
+via ges sh: c4synth.lua, lib/state.lua, lib/rnd.lua — luac -p OK, sha256 equal
+to local, lib/ + c4synth native layout intact, rndgroups.json preserved).
+
+Delivered:
+- E1 calibration: accel(1,false) tuned in init (was norns default; single
+  detent now = single iteration).
+- run header: play glyph 'l>' when running, 'll' when paused, plus iteration #.
+- state.rr_iterate(d) -> rnd.iter_step(d) mapped on E1 in the rrun branch.
+- rnd engine (lib/rnd.lua, was already on disk this session): HIST_MAX=10,
+  rnd.hist/hist_pos, hist_push, gen_next, recall(pos) (adopts recalled entry's
+  own tick + resets countdown to full 5 s while running, stays stopped when
+  paused), iter_step (E1 prev/next; forward past newest generates immediately),
+  pause() and start() preserve iteration count when resumed from pause.
+- open_rrun resumes active-or-paused loop without re-reading the preset;
+  rrun_back now PAUSES (keeps state + history) instead of stop()/restore — the
+  re-enter + Save preset path holds exactly the randomized body.
+
+Note on tooling this session: edit/read intermittently returned stale/buffered
+views of lib/rnd.lua + lib/state.lua; all authoritative confirmations were done
+via controlled bash/push-on-device, and final hashes compare locally == device.
+
+### 2026-09-23 — randomizer: E1 = one detent per iteration; iteration # instant on E1 (run-time continuation)
+WORK: state.rr_iterate/draw_rrun sync path — iteration counter no longer lags the params.
+DONE: (1) enc1 sens(1,1)+accel(1,false) off on c4synth init — one physical tick == one iteration, E1 predictable; (2) start() zeroes tick only when not paused, so play/resume keeps the iteration # (only a cold start resets it); (3) rnd.recall() adopts e.tick synchronously and fires on_change() before the async c4hid.commit — the header iteration # + glyph repaint the instant E1 steps, no pedal round-trip wait; (4) rnd.due = os.time()+5 resets the countdown in recall()/start()/pause(), and prev(E2)/next(E3)/pause always give a full fresh window; pause() stops the metro so the countdown is frozen while held. E2/E3 stay accel-off + sens 2. run header shows paused glyph "ll" / playing "l>" + iteration #.
+STATUS: deployed flat to norns (lib/rnd.lua, lib/state.lua, c4synth.lua) with dedup patches verified on-device via grep; on-device luac -p passed earlier this session (full luac verify on the resumed session's first device pass; the trailing luac call this turn used an ssh PATH without luac — re-run via norns login shell to confirm, duplicates left behind are idempotent no-ops). BACKLOG: none for this feature.
+
+### 2026-09-23 - randomizer: play-mode random #, param rows, and sound change all at once
+PLAN: In play-mode (rrun loop) rnd.gen_next() mutates rnd.body in memory first,
+so the 30fps redraw metro repaints the param rows instantly while the iteration
+# (tick) and the audible change only follow when the ~2 s c4hid.commit
+round-trip (4x ACTIVE_STORE @ 500 ms + ACTIVE_WRITE + verify + ACTIVE_SET)
+returns - hence "params change first, sound 1-2 s later, random # lags like the
+sound". Fix in lib/rnd.lua: generate the next iteration into a PENDING body,
+keep displaying the last audible iteration during the commit, and only adopt
+the pending body (rnd.body := pending) + tick + hist_push + on_change redraw
+in the commit-success callback, so random #, visible values and the
+already-applied sound flip together. Failed commits leave the display (and
+rnd.body) on the values that actually are audible (before, a failed commit
+showed values that never reached the pedal). Scope: gen_next only (auto loop +
+E1 forward-past-newest); rnd.recall (manual E1 prev/next) keeps its
+instant-header repaint. Verify: local luac -p, deploy flat to
+/home/we/dust/code/c4synth/, on-device luac -p + sha256 compare, flat layout +
+rndgroups.json preserved.
+
+### 2026-09-23 - c4hid bridge: kill the ~3 s commit latency
+PLAN: c4hid.c cmd_commit sleeps 4x500ms (ACTIVE_STORE) + 500ms (ACTIVE_WRITE)
++ 500ms + 1500ms read-timeout (ACTIVE_SET) = the whole 4.6 s commit is padding
+(the C4 never replies to ACTIVE_SET - every ack poll burned its full timeout;
+reads are fast, ~25-35ms each). Replace the hardcoded 500/1500 with stage knobs
+STORE_GAP_MS/WRITE_GAP_MS/SET_SETTLE_MS/SET_ACK_TIMEOUT_MS and shrink them,
+relying on the existing verify read-back as the correctness gate. Stress on a
+sacrificial slot (127 re-committing its own body, so content self-heals and
+sound is untouched): 200ms x12 ok (1.6s), 100ms x20 ok (0.96s), 50ms x20 ok
+(0.65s). Ship 50/50/100/150; backup + swap the live /home/we/dust/c4hid/c4hid
+and sync device c4hid.c to the repo source; verify identify/commit/body on the
+live binary and confirm slot 127 bytes intact.
+STATUS: implemented + shipped. c4hid.c now paces flash writes with
+STORE_GAP_MS=50, WRITE_GAP_MS=50, SET_SETTLE_MS=100, SET_ACK_TIMEOUT_MS=150
+(the old 500/1500 made every commit ~4.6 s; the C4 never acks ACTIVE_SET, so
+each call was eating the full 1500 ms timeout). On-device stress on slot 127
+(re-commit own body, verify read-back gate): 12x @200ms ok, 20x @100ms ok,
+20x @50ms ok, slot bytes intact each time. Live /home/we/dust/c4hid/c4hid
+replaced (orig backed up as c4hid.orig), device c4hid.c synced to repo (sha
+323065c7.. == local), old test binaries removed. Live verify: commit 0.64 s
+(down from 4.6 s), activate 0.33 s (from 2.1 s), identify normal. Studio pedal
+active preset restored to slot 1 (Taurus) after the slot-127 tests. Combined
+with the gen_next display-sync, a play-mode random iteration now lands: random
+#, on-screen params and the audible change all together ~0.7 s after the 5 s
+tick (was ~3-4 s), and a plain load (K3) is ~0.3 s. Docs norns-port.md line
+"Writes run waitMs(500)... bridge replicates that pacing" is now stale - not
+touched (doc-only, low value).
+
+### 2026-09-23 - randomizer: E1 forward acts on every detent (queue while busy)
+PLAN: In play-mode an E1 forward-past-newest tick calls iter_step, which bails on
+rnd.busy - the ~0.65 s commit window after every 5 s tick swallowed coincident
+E1 ticks ("sometimes i need 2 ticks to turn random by E1"). Fix in lib/rnd.lua:
+an E1 forward tick arriving while a commit is in flight counts into rnd.queue
+(cap 4) instead of being dropped, and gen_next's commit-success callback drains
+one queued tick by chaining gen_next (only while running or paused). Also allow
+E1 forward on an empty history (loop just started, first iteration not yet
+landed) to generate immediately. Backward (recall) path keeps its busy guard.
+rnd.queue is cleared in pause()/stop(). Verify: read-through, on-device luac -p,
+deploy flat, on-device sha == local, flat layout + rndgroups.json intact.
+STATUS: implemented + deployed flat. lib/rnd.lua: iter_step no longer drops an
+E1 forward tick that lands during the ~0.65 s commit window - while busy it
+counts into rnd.queue (cap 4, so holding E1 can't outrun the bridge), and
+gen_next's commit-success callback drains one queued tick per landing by
+chaining gen_next (only while running or paused). E1 forward on an empty
+history (loop just started) now generates the first iteration immediately
+instead of doing nothing. Backward recall keeps its busy guard. rnd.queue reset
+in pause()/stop(). On-device: luac -p OK all 5 files, lib/rnd.lua sha1
+95338c28b3f35a41e1800d77562aaf15cfcd6769 == local, flat layout intact,
+rndgroups.json preserved. Every E1 detent now yields its own random iteration;
+the "sometimes 2 ticks" loss is gone.
+
+### 2026-09-23 - randomizer: E1 prev/next navigates by iteration NUMBER not state
+PLAN: In play-mode the run header shows the iteration number (#tick) and E1 is
+supposed to be prev/next of it. Today, stepping back into stored iterations and
+then waiting lets the 5 s auto-timer fire gen_next from the RECALLED state,
+which forks a new random and re-pushes it - duplicating an old tick number and
+making subsequent E1 steps jump non-monotonically ("works by previous state,
+not by numbers"). Fix in lib/rnd.lua: rnd.tick_once() holds (skips) while
+rnd.hist_pos < #rnd.hist - i.e. whenever the user has stepped back from the
+newest - refreshing rnd.due so the panel reads "waiting" instead of parking at
+0 s. That keeps tick numbers globally consecutive (new == newest+1, no forks),
+so E1 right = #+1 (recall next stored, or generate new only past the newest)
+and E1 left = #-1 (recall previous stored) with no state-drift. Verify:
+read-through, on-device luac -p, deploy flat, sha equal, rndgroups intact.
+STATUS: implemented (both parts). (1) rnd.tick_once() now holds while the user
+has stepped back into history (hist_pos < #rnd.hist) - refreshing rnd.due so
+the panel reads "waiting" - so the 5 s timer can no longer fork a new random
+off a recalled state; new iterations can only be born at the newest, making
+tick numbers globally consecutive (new == newest+1, zero duplicates). (2)
+iter_step was generalized into rnd.nav(sign) + rnd.step_q (signed queue, cap 4)
++ rnd.drain(): E1 right = #+1 (recall next stored, or generate new only past
+the newest), E1 left = #-1 (recall previous stored); any step arriving while a
+commit/recall is in flight is queued by sign instead of dropped, and drained
+after each commit/recall callback - so backward E1 is no longer swallowable by
+the busy window either. rnd.queue removed; pause()/stop() reset step_q. Deploy
+flat verified: luac -p OK all 5 files, lib/rnd.lua sha1
+ff2f74937f815f16401a7f6030a4b622aadb66d6 == local, flat layout intact,
+rndgroups.json preserved.
+STATUS: implemented + deployed flat to norns. lib/rnd.lua: randomize() now takes
+the target body; rnd.gen_next() builds the new iteration into a pending body
+(copy of the current audible rnd.body), leaves rnd.body and the run-page
+display untouched while the ~2 s c4hid.commit round-trip is in flight, and in
+the commit-success callback adopts pending (rnd.body := pending), increments
+tick, hist_push() and fires on_change - so the iteration #, the visible param
+rows and the (already-applied) sound all flip together; on commit failure the
+display/rnd.body stay on the values that actually are audible. E1
+forward-past-newest (iter_step -> gen_next) inherits the same sync; manual
+rnd.recall (prev/next) keeps its instant-header repaint. Verified on-device:
+luac -p OK for all 5 files, lib/rnd.lua sha1 c5e76b186869160dca518807e555f70af2afd4a4
+== local, flat layout intact (no nested c4synth), rndgroups.json untouched.
+
+### 2026-09-23 - randomizer: E1 scrub must not freeze playback
+PLAN: User reports that after using E1 the loop stops auto-advancing. Cause:
+rnd.tick_once() holds whenever hist_pos < #rnd.hist (the hold from the previous
+entry), so a single E1-left during play parks the user back in history and the
+5 s timer never forks anything again UNTIL the user manually walks back to the
+newest - effectively freezing playback. Fix in lib/rnd.lua rnd.tick_once():
+drop the hold entirely; when hist_pos < #hist and hist is non-empty, first
+RE-ANCHOR to the newest iteration (adopt newest body, tick, hist_pos = #hist)
+then gen_next() as usual. This keeps playback rolling every 5 s from the newest
+(no duplicates: new number is always newest+1), while E1 stays pure number
+navigation over the stored window (prev = #-1, next = #+1 -> generate only past
+the newest). Scrubbing back is a temporary peek (max ~5 s while playing); pause
+to hold a recalled iteration. Verify: read-through, on-device luac -p, deploy
+flat, sha equal, rndgroups intact.
+STATUS: implemented + deployed flat. rnd.tick_once() no longer holds while the
+user is scrubbed back; instead, if hist_pos < #hist and hist is non-empty, it
+first re-anchors to the newest iteration (adopts newest body snapshot, its tick
+number, hist_pos = #hist) and then proceeds with gen_next() as normal. The 5 s
+loop therefore continues rolling every tick from the newest with the next
+unique consecutive number, even right after an E1 step - no fork off the
+recalled state (gen_next now ALWAYS has current == newest as its parent), no
+duplicate numbers, playback never stalls. E1 remains pure number navigation
+within the stored window (prev = current#-1 recall, next = current#+1 recall,
+generate only when stepping past the newest). One E1 step during play now
+briefly peeks the adjacent iteration and playback resumes on the next 5 s tick
+(the recalled view is re-anchored/overwritten by that tick); pause if a
+recalled iteration must be held. Deploy flat verified: luac -p OK all 5 files,
+lib/rnd.lua sha1 d493d1f28def50ed6610f19853582034f3e3e26c == local, flat layout
+intact, rndgroups.json preserved.
+
+### 2026-10-04 - monome norns scripts move to a root-level monome/ folder
+PLAN: the norns (monome) scripts were living under back/c4/norns/synths/c4synth,
+buried inside the C4 backend tree; commit 681e639 added a wrong 'foot' copy plus an
+unrequested c4synth2 duplicate. User correction: monome scripts belong in a
+top-level monome/ folder at the repo root, one subfolder per script, so a second
+monome script can be added as a sibling. Plan: git mv back/c4/norns/synths/c4synth
+-> monome/c4synth (real move, single source of truth), git rm -r back/c4/norns/foot
+(drop both foot copies incl. c4synth2), drop the now-empty norns/synths/ dir, and
+repoint every repo reference at the new path: back/c4/norns/deploy.ps1 (),
+back/c4/norns/tools/gen-c4model.js (generated c4model.lua output + header comment),
+back/c4/docs/norns-port.md (script section heading). Device side is unchanged: the
+package still deploys flat to /home/we/dust/code/c4synth/ (AGENTS.md norns rule), and
+a second script deploys flat to /home/we/dust/code/<script>/ as its own sibling.
+Verify: no remaining 'norns/synths' references outside DECISIONS history, gen-c4model
+--check regenerates identically at the new path, luac -p not needed (no lua edits).
+STATUS: moved. monome/c4synth/{c4synth.lua,lib/{c4hid,c4model,rnd,state}.lua} is
+the single source of truth; back/c4/norns/synths/ and back/c4/norns/foot/ (both
+the c4synth copy and the c4synth2 duplicate) are gone from the repo and disk.
+References repointed: deploy.ps1 now resolves the repo root three levels up from
+back/c4/norns and pushes monome\c4synth; gen-c4model.js writes
+../../../../monome/c4synth/lib/c4model.lua (re-ran it: 'wrote 173 rows', output
+byte-identical to the committed decoder, so the new output path is correct);
+norns-port.md script section heading updated; AGENTS.md Layout now lists monome/
+(one subfolder per script, device-side support stays in back/c4/norns/). No
+remaining 'norns/synths' reference outside DECISIONS history. Device: found the
+norns at 192.168.1.121 (mDNS norns.local, host key matches the old 192.168.1.70
+entry); non-interactive auth works via the SSH_ASKPASS trick documented in
+deploy.ps1 - no key install needed. ACCIDENT + CLEANUP: running deploy.ps1 to
+validate the new path pushed with 'scp -r  <dir>', which re-nested into
+/home/we/dust/code/c4synth/c4synth/ (the exact spurious nesting AGENTS.md warns
+about); removed it with rm -rf and re-verified: exactly one entry file, no nested
+dir, rndgroups.json intact, luac -p OK on all 5 files, and every device file's
+sha1 equals the repo copy (c4synth.lua/c4hid.lua/state.lua differ only in CRLF vs
+LF). Device content is unchanged from the previous deploy - this was a repo-side
+move only. KNOWN LANDMINE (not fixed, pre-existing): deploy.ps1's scp -r re-nests
+on every push where the remote dir already exists; it should push '/.'
+instead. BACKLOG: add the second monome script as monome/<script>/, deployed flat
+to /home/we/dust/code/<script>/.
+### 2026-10-04 - c4synth: input 1/2 swap in the action menu; norns script library pruned
+PLAN: (1) user wants only c4synth on the norns - delete every other dir under
+/home/we/dust/code (35 community scripts; reinstallable via awake, not from
+here). (2) new menu item that swaps the audio input of the selected preset
+between two states: envelope1_input + envelope2_input + pitch_detect_input
+follow the input, input1/input2 gain become 100%/0% (or the mirror), and in
+BOTH states mix=100%, lo_retain=0%, mix1/mix2 destination = Out 1+2. Byte
+values were read off all 128 flash presets on the device rather than guessed:
+full-scale gain/mix is 0xfe=254 (mix=254 in 116/128 presets, never 255), 0x00 is
+0%; envelope*_input is a 4-bit field where only bit 1 selects the input (input-2
+patches have the nibble 2 or 3, input-1 patches 0/8/12) - c4Model.js lists only
+two options (0/1) which does NOT match what the hardware writes, so the feature
+sets/clears bit 1 and leaves the other bits alone; pitch_detect_input is a plain
+1-bit field (0=in1, 1=in2); mix destination 1 = 'Out 1 + 2'. Implementation: new
+pure module monome/c4synth/lib/inswap.lua (no norns globals, so it can be unit
+tested on-device with luac) doing apply(body, to2)/toggle(body) through
+c4model.set; state.lua grows a 'Swap input 1/2' menu item that fetches the body
+under the cursor, toggles, commits (commit recalls the slot, so it is audible)
+and reports the resulting state in the status line, mirroring save_preset.
+Verify: luac -p all files on-device, then run inswap against a real captured body
+on-device and print every touched byte before/after (no flash writes); no commit
+to the pedal without the user asking.
+STATUS (2026-10-04): DONE and verified on the norns. New lib/inswap.lua
+(apply/toggle/is_input2/describe, rows resolved by name through c4model so a
+regenerated decoder cannot shift them); state.lua adds the 'Swap input 1/2'
+menu item (inserted above 'Save preset', list menu = 6 items, menu view already
+scrolls via menu_top) plus state.swap_input(), which fetches the body under the
+list cursor, toggles, commits (commit recalls the slot, so it is audible) and
+reports '#NN -> input 1/2' in the status line; mirrors save_preset's busy/
+deadline/error handling. Deployed flat (scp 'monome/c4synth/.', no nesting,
+rndgroups.json untouched) and luac -p passes on all 6 files; ran
+/tmp/inswap_test.lua on-device against real bodies captured from all 128 flash
+slots: slot 0 (input-2 patch) detected correctly, swap to input 1 clears bit 1 of
+both envelope nibbles while leaving the other bits (env2 3 -> 1, not 0) and a
+double toggle returns it to 128/128 identical; slots with non-canonical gains
+(e.g. g1=150) come out 254/0 as specified, so a double toggle is only identical
+when the preset was already canonical - expected, not a bug; every swap changed
+4-7 bytes and mix/lo-retain/mix1+mix2 destinations came out 254/0/1+1 in both
+states. NO flash writes were made - the user has not been asked to commit a real
+preset yet. Open: whether to also surface the current input state in the menu
+label (needs an async body read when the menu opens).
+## Plan - 2026-10-04 pedal-app: voice octave option list is mirrored vs the firmware
+User reported that in the C4 settings (voice x octave) setting '-1' plays a
+HIGH octave, i.e. our raw-value -> label mapping is upside down. Checked both
+write paths first: state.edit_step/commit_edit (norns) and the web editor both
+take the raw value straight from the option index, and c4model.set recomposes
+the byte correctly, so this is not a UI inversion - the descending VOICE_OCTAVES
+list in back/c4/src/c4Model.js (raw 0='Oct +3' ... 6='Oct -3') contradicts what
+the firmware does. The list came from the editor bundle sa-249.json with only a
+weak preset-name plausibility check ('octave 4/5 dominant = the -1/-2 bass
+patches'), which was circular. Fix: reverse VOICE_OCTAVES to ascending
+(raw 0='Oct -3' ... 6='Oct +3'), regenerate monome/c4synth/lib/c4model.lua and
+back/c4/docs/c4-params.txt, deploy flat, luac -p. This only re-labels - no
+existing preset body changes - but it flips how all 128 stored presets read
+(raw 4/5 will now show as +1/+2). Voice semitone stays descending on purpose:
+its centre (raw 11 = 'Semi --') dominates across the 128 presets, so a mirror
+there would be undetectable from data and the user chose not to re-test it.
+STATUS (2026-10-04): DONE. back/c4/src/c4Model.js VOICE_OCTAVES reversed to
+ascending (raw 0='Oct -3' ... 6='Oct +3') with a comment recording that the
+direction was verified by ear, not by preset statistics; regenerated
+monome/c4synth/lib/c4model.lua (173 rows) and back/c4/docs/c4-params.txt via
+gen-c4model.js / gen-c4params.js. Only labels changed - no preset body or
+offset was touched, so nothing on the pedal moved; the 128 stored presets now
+simply read the other way round (raw 4/5 = '+1'/'+2' instead of '-1'/'-2').
+Deployed flat to /home/we/dust/code/c4synth (scp 'monome/c4synth/.', no nested
+copy, rndgroups.json untouched) and luac -p passes on all 6 files. The web
+editor picks the new list up automatically from ENUM_NAMES (backend restart is
+the user's call - we never spawn node here). Voice semitone left descending per
+the user's decision. Open: user to confirm 'Oct -3' is now the lowest octave.
+## Plan - 2026-10-04 norns-drums: new standalone drum generator script (saved to monome/docs/drumgen-plan.md)
+User wants a second norns script: 'something like Logic Pro drummer', explicitly
+NOT coupled to c4synth - it must not touch the C4 HID bridge. Research was
+read-only on the device; the whole plan is in monome/docs/drumgen-plan.md so a
+fresh session can start from it without re-probing. Scope the user chose:
+output switchable (norns audio AND MIDI out), generator + editable step grid,
+10-voice kit without clap, own clock with optional MIDI sync, JSON patterns on
+the device. Name/steps-per-bar/deploy-tooling/commit-prefix are still open and
+are listed as open decisions in that doc; nothing is implemented yet.
+Device facts that shaped the design (all verified this session): no dust engine
+binary and snd_file only exposes audio.file_info, so there is no way to play
+WAV one-shots - the internal kit has to be engine- or MIDI-based; engine names
+can only be listed from inside a running script because plain lua on the device
+has none of matron's globals; matron's Lua lives in /home/we/norns/lua with
+beatclock (24 ticks/quarter, no swing - ours to implement), sequins,
+pattern_time, musicutil; midi.devices is keyed by id (iterate with pairs, which
+is the bug c4synth's pedal_on hit); Lua is 5.1.5, the core dofiles only the
+selected .lua so all norns callbacks stay globals in the entry file, lib/ is
+hidden from the script menu, and package.loaded must be cleared on reload.
+Layout note: docs for norns scripts now live in monome/docs/ (this core has no
+scripts dir on device, and back/<project>/docs is the convention elsewhere).

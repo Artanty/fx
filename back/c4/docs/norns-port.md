@@ -77,7 +77,7 @@ Discovery: iterate `/dev/hidraw*`, read
 0x29a4 PID 0x0302, open, send CONFIG_GET, require a valid `0x32` reply;
 remember the node. Non-zero exit + message on stderr on failure.
 
-## The script: `back/c4/norns/synths/c4synth/`
+## The script: `monome/c4synth/`
 
 norns package layout, **single-file style** (this core `dofile`s one entry file
 and does NOT auto-load `init/redraw/enc/key.lua`; `ps.lua` is also dead):
@@ -190,6 +190,16 @@ when a toolchain is available.
 Sanity after any push: `luac -p` every `.lua` (Lua 5.1.5 on-device) and confirm
 no BOM/CRLF (PowerShell `-Encoding UTF8` pipes add a BOM that Lua rejects; use
 `scp`).
+
+Normal push from the dev box: `back/c4/norns/deploy.ps1` (source dir is now
+`monome/c4synth`). It feeds the documented password through SSH_ASKPASS, so it
+runs non-interactively without installing a key — no `connect.js key` needed.
+Two caveats: its `-Host_` default (`we@192.168.1.70`) is a stale DHCP address
+(the norns was on `192.168.1.121` on 2026-10-04; `node norns/connect.js resolve`
+or `discover` gives the current one, or use `norns.local`), and its
+`scp -r $local <dir>` **re-nests** into `code/c4synth/c4synth/` whenever the
+remote dir already exists — after any run either `rm -rf` the nested dir or
+switch it to `scp -r $local/.`.
 
 ### script layout (do not re-nest)
 

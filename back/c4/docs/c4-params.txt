@@ -19,7 +19,7 @@
  12  voice1 pan           knob   [0-255]
  13  voice1 detune        knob   [0-255]
  14  voice1 tremolo       knob   [0-255]
- 15  voice1 octave        select [0-7]  Oct +3 | Oct +2 | Oct +1 | Oct -- | Oct -1 | Oct -2 | Oct -3
+ 15  voice1 octave        select [0-7]  Oct -3 | Oct -2 | Oct -1 | Oct -- | Oct +1 | Oct +2 | Oct +3
  16  voice1 semitone      select [0-31]  
                                Semi +11 | Semi +10 | Semi +9 | Semi +8 | Semi +7 | Semi +6 | Semi +5 | Semi +4 | Semi +3 | Semi +2 | Semi +1 | Semi -- | Semi -1 | Semi -2 | Semi -3 | Semi -4 | Semi -5 | Semi -6 | Semi -7 | Semi -8 | Semi -9 | Semi -10 | Semi -11
  17  voice1 mode          select [0-3]  Fixed Int | Int + Harm 1 | Int + Seq 1
@@ -34,7 +34,7 @@
  25  voice2 pan           knob   [0-255]
  26  voice2 detune        knob   [0-255]
  27  voice2 tremolo       knob   [0-255]
- 28  voice2 octave        select [0-7]  Oct +3 | Oct +2 | Oct +1 | Oct -- | Oct -1 | Oct -2 | Oct -3
+ 28  voice2 octave        select [0-7]  Oct -3 | Oct -2 | Oct -1 | Oct -- | Oct +1 | Oct +2 | Oct +3
  29  voice2 semitone      select [0-31]  
                                Semi +11 | Semi +10 | Semi +9 | Semi +8 | Semi +7 | Semi +6 | Semi +5 | Semi +4 | Semi +3 | Semi +2 | Semi +1 | Semi -- | Semi -1 | Semi -2 | Semi -3 | Semi -4 | Semi -5 | Semi -6 | Semi -7 | Semi -8 | Semi -9 | Semi -10 | Semi -11
  30  voice2 mode          select [0-3]  Fixed Int | Int + Harm 1 | Int + Seq 1
@@ -49,7 +49,7 @@
  38  voice3 pan           knob   [0-255]
  39  voice3 detune        knob   [0-255]
  40  voice3 tremolo       knob   [0-255]
- 41  voice3 octave        select [0-7]  Oct +3 | Oct +2 | Oct +1 | Oct -- | Oct -1 | Oct -2 | Oct -3
+ 41  voice3 octave        select [0-7]  Oct -3 | Oct -2 | Oct -1 | Oct -- | Oct +1 | Oct +2 | Oct +3
  42  voice3 semitone      select [0-31]  
                                Semi +11 | Semi +10 | Semi +9 | Semi +8 | Semi +7 | Semi +6 | Semi +5 | Semi +4 | Semi +3 | Semi +2 | Semi +1 | Semi -- | Semi -1 | Semi -2 | Semi -3 | Semi -4 | Semi -5 | Semi -6 | Semi -7 | Semi -8 | Semi -9 | Semi -10 | Semi -11
  43  voice3 mode          select [0-3]  Fixed Int | Int + Harm 1 | Int + Seq 1
@@ -64,7 +64,7 @@
  51  voice4 pan           knob   [0-255]
  52  voice4 detune        knob   [0-255]
  53  voice4 tremolo       knob   [0-255]
- 54  voice4 octave        select [0-7]  Oct +3 | Oct +2 | Oct +1 | Oct -- | Oct -1 | Oct -2 | Oct -3
+ 54  voice4 octave        select [0-7]  Oct -3 | Oct -2 | Oct -1 | Oct -- | Oct +1 | Oct +2 | Oct +3
  55  voice4 semitone      select [0-31]  
                                Semi +11 | Semi +10 | Semi +9 | Semi +8 | Semi +7 | Semi +6 | Semi +5 | Semi +4 | Semi +3 | Semi +2 | Semi +1 | Semi -- | Semi -1 | Semi -2 | Semi -3 | Semi -4 | Semi -5 | Semi -6 | Semi -7 | Semi -8 | Semi -9 | Semi -10 | Semi -11
  56  voice4 mode          select [0-3]  Fixed Int | Int + Harm 1 | Int + Seq 1

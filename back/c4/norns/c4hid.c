@@ -48,6 +48,10 @@
 #define C4_NAME_SIZE      32
 #define C4_PRESET_COUNT   128
 #define WRITE_ROW         16
+#define STORE_GAP_MS        50
+#define WRITE_GAP_MS        50
+#define SET_SETTLE_MS       100
+#define SET_ACK_TIMEOUT_MS  150
 
 #define C_CONF_GET        0x45
 #define C_FLASH_READ      0x36
@@ -328,8 +332,8 @@ static void cmd_activate(const char *idx_s) {
     r[1] = (unsigned char)(idx & 0x7f);
     r[2] = 0;
     report_send(r);
-    sleep_ms(500);
-    n = report_read(dummy, 1500);
+    sleep_ms(SET_SETTLE_MS);
+    n = report_read(dummy, SET_ACK_TIMEOUT_MS);
     if (n <= 0) fprintf(stderr, "c4hid: warning: no reply (preset may still have switched)\n");
     printf("ok %d\n", idx);
     close(g_fd);
@@ -337,7 +341,7 @@ static void cmd_activate(const char *idx_s) {
 
 /* Commit a full 128-byte body to flash slot <idx> and recall it so the change
  * is heard. Mirrors c4Protocol.commitRawPreset (the C4 ignores CTRL_SET):
- *   4x ACTIVE_STORE (0x76) blocks of 32 bytes, 500ms apart;
+ *   4x ACTIVE_STORE (0x76) blocks of 32 bytes, STORE_GAP_MS apart;
  *   ACTIVE_WRITE (0x6e) with idx + flag 1 + 32-byte name;
  *   verify read-back; ACTIVE_SET (0x77) to recall. */
 static void cmd_commit(const char *idx_s, const char *hex, const char *name) {
@@ -369,7 +373,7 @@ static void cmd_commit(const char *idx_s, const char *hex, const char *name) {
         r[3] = (unsigned char)PAYLOAD_LEN;
         memcpy(r + 4, body + i, PAYLOAD_LEN);
         report_send(r);
-        sleep_ms(500);
+        sleep_ms(STORE_GAP_MS);
     }
 
     memset(r, 0, sizeof(r));
@@ -378,7 +382,7 @@ static void cmd_commit(const char *idx_s, const char *hex, const char *name) {
     r[2] = 1;
     memcpy(r + 3, namebuf, C4_NAME_SIZE);
     report_send(r);
-    sleep_ms(500);
+    sleep_ms(WRITE_GAP_MS);
 
     read_region(back, idx, C4_DATA_OFF, C4_DATA_SIZE);
     for (i = 0; i < C4_DATA_SIZE; i++) {
@@ -394,8 +398,8 @@ static void cmd_commit(const char *idx_s, const char *hex, const char *name) {
     r[1] = (unsigned char)(idx & 0x7f);
     r[2] = 0;
     report_send(r);
-    sleep_ms(500);
-    if (report_read(r, 1500) <= 0)
+    sleep_ms(SET_SETTLE_MS);
+    if (report_read(r, SET_ACK_TIMEOUT_MS) <= 0)
         fprintf(stderr, "c4hid: warning: no reply (preset may still have switched)\n");
 
     printf("ok %d\n", idx);

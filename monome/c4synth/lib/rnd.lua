@@ -8,6 +8,7 @@
 
 local rnd = {}
 
+rnd.HIST_MAX = 10 -- iterations remembered for E1 prev/next on the run page
 rnd.groups = {}
 rnd.sel = { rows = {} }
 rnd.eligible = {}
@@ -15,6 +16,7 @@ rnd.running = false
 rnd.stopping = false
 rnd.paused = false
 rnd.busy = false
+rnd.step_q = 0
 rnd.tick = 0
 rnd.due = 0
 rnd.error = ''
@@ -23,6 +25,8 @@ rnd.name = ''
 rnd.orig = {}
 rnd.body = {}
 rnd.run_rows = {}
+rnd.hist = {}      -- newest-last; each entry { tick = n, body = {0..127} }
+rnd.hist_pos = 0   -- 1-based index of the audible/current iteration
 rnd.on_change = nil
 
 local c4hid = require 'c4hid'
@@ -236,7 +240,7 @@ function rnd.union_rows()
   return out
 end
 
-local function randomize()
+local function randomize(b)
   for _, rn in ipairs(rnd.run_rows) do
     local row = c4model.row(rn)
     if row then
@@ -246,28 +250,126 @@ local function randomize()
       else
         v = math.random(0, row.max)
       end
-      c4model.set(rnd.body, rn, v)
+      c4model.set(b, rn, v)
     end
   end
 end
 
-function rnd.tick_once()
-  if not rnd.running or rnd.busy then return end
+-- Remember the current body as a completed iteration (newest-last, capped at
+-- HIST_MAX). The most recent entry is the audible/current one; earlier ones can
+-- be revisited with E1 prev on the run page.
+function rnd.hist_push()
+  local snap = {}
+  for i = 0, 127 do snap[i] = rnd.body[i] or 0 end
+  rnd.hist[#rnd.hist + 1] = { tick = rnd.tick, body = snap }
+  while #rnd.hist > rnd.HIST_MAX do table.remove(rnd.hist, 1) end
+  rnd.hist_pos = #rnd.hist
+end
+
+-- Randomize the current body and commit it to the pedal. Shared by the 5 s
+-- timer (tick_once) and the run page's E1 next-past-the-newest handler: each
+-- success becomes a new remembered iteration. The next iteration waits for the
+-- next timer tick.
+function rnd.gen_next()
+  if rnd.busy then return end
   rnd.busy = true
   rnd.due = os.time() + 5
-  randomize()
-  if not c4hid.commit(rnd.idx, rnd.body, rnd.name, function(r)
+  local pending = {}
+  for i = 0, 127 do pending[i] = rnd.body[i] or 0 end
+  randomize(pending)
+  if not c4hid.commit(rnd.idx, pending, rnd.name, function(r)
     rnd.busy = false
     if r.ok then
       rnd.tick = rnd.tick + 1
+      for i = 0, 127 do rnd.body[i] = pending[i] or 0 end
       rnd.error = ''
+      rnd.hist_push()
     else
       rnd.error = r.err or 'commit failed'
     end
     if rnd.on_change then rnd.on_change() end
+    rnd.drain()
   end) then
     rnd.busy = false
   end
+end
+
+-- One timer tick: randomize and commit (audible), remembering the result.
+function rnd.tick_once()
+  if not rnd.running or rnd.busy then return end
+  if rnd.hist_pos < #rnd.hist and #rnd.hist > 0 then
+    local newest = rnd.hist[#rnd.hist]
+    for i = 0, 127 do rnd.body[i] = newest.body[i] or 0 end
+    rnd.tick = newest.tick
+    rnd.hist_pos = #rnd.hist
+  end
+  rnd.gen_next()
+end
+
+-- Re-commit a remembered iteration so it is heard, and make it the current
+-- one. The iteration counter is unchanged (recalling is not a new tick). The
+-- 5 s timer keeps running, so the loop continues from wherever the user
+-- lands.
+function rnd.recall(pos)
+  local e = rnd.hist[pos]
+  if not e or rnd.busy then return end
+  rnd.busy = true
+  -- Adopt the recalled entry's own iteration number so the run header shows
+  -- the held state's count, and restart the countdown to a full 5 s when the
+  -- loop is running (manual E1 stepping owns the pedal; paused stays stopped).
+  if e.tick then rnd.tick = e.tick end
+  rnd.due = os.time() + 5
+  for i = 0, 127 do rnd.body[i] = e.body[i] or 0 end
+  rnd.hist_pos = pos
+  -- E1 owns the heel here: repaint the header the moment the step lands so the
+  -- iteration # (and ll/l> glyph) tracks the knob without waiting on the async
+  -- c4hid commit round-trip (that callback only clears busy / reports errors).
+  if rnd.on_change then rnd.on_change() end
+  if rnd.on_change then rnd.on_change() end
+  if not c4hid.commit(rnd.idx, rnd.body, rnd.name, function(r)
+    rnd.busy = false
+    if not r.ok then rnd.error = r.err or 'recall failed' end
+    if rnd.on_change then rnd.on_change() end
+    rnd.drain()
+  end) then
+    rnd.busy = false
+  end
+end
+
+-- E1 on the run page: navigate the remembered iterations BY NUMBER. d > 0 means
+-- current-number + 1 (recall the next stored iteration; stepping past the
+-- newest generates a brand-new one, the next consecutive number). d < 0 means
+-- current-number - 1 (recall the previous stored iteration). Steps arriving
+-- while a commit/recall is in flight are queued (signed) and drained as the
+-- pedal frees up, so no E1 tick is dropped.
+function rnd.nav(sign)
+  if sign > 0 then
+    if #rnd.hist == 0 or rnd.hist_pos >= #rnd.hist then
+      rnd.gen_next()
+    else
+      rnd.recall(rnd.hist_pos + 1)
+    end
+  else
+    if rnd.hist_pos > 1 then rnd.recall(rnd.hist_pos - 1) end
+  end
+end
+
+function rnd.drain()
+  while rnd.step_q ~= 0 and not rnd.busy do
+    local s = rnd.step_q > 0 and 1 or -1
+    rnd.step_q = rnd.step_q - s
+    rnd.nav(s)
+  end
+end
+
+function rnd.iter_step(d)
+  local sign = d > 0 and 1 or -1
+  if not rnd.busy then
+    rnd.nav(sign)
+    rnd.drain()
+    return
+  end
+  rnd.step_q = math.max(-4, math.min(rnd.step_q + sign, 4))
 end
 
 function rnd.start()
@@ -275,7 +377,7 @@ function rnd.start()
     rnd.error = rnd.stopping and 'restore in progress - wait' or (rnd.running and 'already running' or '')
     return
   end
-  rnd.tick = 0
+  if not rnd.paused then rnd.tick = 0 end
   rnd.error = ''
   rnd.paused = false
   rnd.running = true
@@ -297,6 +399,12 @@ function rnd.pause()
   if not rnd.running then return end
   rnd.running = false
   rnd.paused = true
+  rnd.step_q = 0
+  -- Hold pedal state but reset the countdown to the full 5 s window so the
+  -- resume (start/play) begins from a clean full window; stays stopped while
+  -- paused (metro stops below).
+  rnd.due = os.time() + 5
+  rnd.due = os.time() + 5
   if _G and _G.c4rnd_metro then _G.c4rnd_metro:stop() end
 end
 
@@ -322,6 +430,7 @@ function rnd.stop()
   rnd.running = false
   rnd.paused = false
   rnd.stopping = true
+  rnd.step_q = 0
   if _G and _G.c4rnd_metro then _G.c4rnd_metro:stop() end
   if rnd.busy then
     local retry = metro.init {
