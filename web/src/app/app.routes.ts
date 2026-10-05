@@ -28,5 +28,12 @@ export const routes: Routes = [
     path: 'mc3',
     loadChildren: () => import('./mc3/mc3.routes').then((m) => m.mc3Routes),
   },
+  {
+    // No backend: the drumgen core runs as Lua inside the tab, from
+    // public/lua/drumgen (npm run sync:lua).
+    path: 'drumgen',
+    loadChildren: () =>
+      import('./drumgen/drumgen.routes').then((m) => m.drumgenRoutes),
+  },
   { path: '**', redirectTo: '' },
 ];

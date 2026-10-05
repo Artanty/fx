@@ -170,10 +170,12 @@ recalled, like Drummer's A/B/C/D sections.
 4. **UI** — grid matrix, menu hub, style picker, velocity popover, output page.
 5. **Persistence** — save/load patterns + kit trims to `drumgen.json` in the
    script dir (device-only; `scp dir/.` deploys do not delete extra files).
-6. **Verify** — `luac -p` all files on-device; deterministic generator test in
-   plain `lua` (generate ~500 bars across all styles, assert legal positions,
-   velocity bounds, fill cadence); deploy flat and check
-   `test -f /home/we/dust/code/drumgen/drumgen.lua` and
+6. **Verify** — the pure core is covered on the host by `monome/test/`
+   (`luajit monome/test/run.lua`, LuaJIT = Lua 5.1 = the norns dialect): ~500
+   bars across all styles asserting legal positions, velocity bounds and fill
+   cadence, plus pattern/kit/store units and the harness itself. On-device this
+   reduces to `luac -p` on the glue and UI files the host cannot run; deploy flat
+   and check `test -f /home/we/dust/code/drumgen/drumgen.lua` and
    `test ! -e /home/we/dust/code/drumgen/drumgen`; then the user judges timing.
 
 ## Open decisions (answered next session)

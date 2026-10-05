@@ -7023,3 +7023,237 @@ selected .lua so all norns callbacks stay globals in the entry file, lib/ is
 hidden from the script menu, and package.loaded must be cleared on reload.
 Layout note: docs for norns scripts now live in monome/docs/ (this core has no
 scripts dir on device, and back/<project>/docs is the convention elsewhere).
+
+## Plan - 2026-10-05 norns-drums: host test harness + drumgen pure modules
+No norns hardware on hand, so this session continues drumgen (monome/docs/
+drumgen-plan.md, still unimplemented) by making the code testable OFF the device
+first. Decisions taken with the user: target = drumgen (not c4synth), depth =
+tests only (no fake-norns runtime, no web frontend this session), interpreter =
+Homebrew LuaJIT 2.1 (Lua 5.1 semantics, same VM family as the device; brew's
+'lua' is now 5.5 and lua@5.1 is gone), harness shared at monome/test/ (so any
+future script reuses it and the same files can run on the device later), commit
+prefix [norns-drums] (new, added to the AGENTS.md project list).
+
+Hard constraint that makes this work: the new modules contain NO matron globals
+(no norns, screen, metro, params, musicutil, midi, _menu). Everything they need
+is injected - the RNG arrives as a function, the storage path as a string - and
+they return values instead of touching hardware. That is what lets them be
+tested here and still run unchanged on the device.
+
+Deliverables:
+- monome/.luacheckrc - std lua51, max line 100, norns globals allowed. Scoped
+  to monome/drumgen + monome/test; c4synth findings are reported, not fixed.
+- monome/test/harness.lua - zero-dependency runner (suite/test, assert_eq,
+  assert_true, assert_near, assert_deep_eq, assert_error, snapshot), stdlib
+  only so the identical files run under `lua` on the norns.
+- monome/test/run.lua - adds monome/*/lib to package.path, runs test_*.lua
+  sorted, optional name filter, exit 1 on any failure.
+- monome/test/test_harness.lua - self-test proving failures are reported.
+- monome/drumgen/lib/{pattern,kit,gen,store}.lua - the pure core:
+  pattern = 10 lanes x N steps grid (N default 16, stored as a field so 32 is a
+  config change later, not a rewrite), velocity clamp 1..127;
+  kit = 10 voices, no clap (id/label/note/engine/gain/pan/choke);
+  gen = styles + per-bar mutation + intensity/complexity/swing/variation + fills
+  at bar boundaries with cadence, RNG INJECTED so 500-bar runs are reproducible;
+  store = hand-rolled JSON like rnd.lua but path passed in, validating on load.
+- monome/test/test_{pattern,kit,gen,store}.lua - notably gen: 500 bars across all
+  styles asserting legal positions, velocity bounds, fill placement/cadence,
+  style invariants (four-on-floor kick on every quarter), determinism under a
+  fixed RNG sequence, complexity raising mean hit count, swing hitting odd 16ths
+  only.
+
+Not written this session (need matron): drumgen.lua entry, lib/clock.lua,
+lib/out.lua, UI. Their seams stay pure encoders (out.encode_note etc.) later.
+
+Verification: `luajit monome/test/run.lua` exits 0, `luacheck monome/drumgen
+monome/test` is clean, and drumgen-plan.md item 6 is updated to say the
+deterministic generator test runs on the host instead of on the device.
+
+## Done - 2026-10-05 norns-drums: host harness + drumgen pure core (tests green)
+Result: `luajit monome/test/run.lua` = 20 suites, 106 tests, 106 ok, 0 failed
+(~0.16s). `luacheck monome/drumgen monome/test` = 0 warnings / 0 errors in 11
+files. Both commands are now recorded in AGENTS.md; drumgen-plan.md item 6 was
+rewritten to point the 500-bar deterministic generator test at the host instead
+of the device. Nothing committed or pushed this session (working tree dirty).
+
+Toolchain: brew LuaJIT 2.1 (Lua 5.1 = the norns VM) is the interpreter;
+`luacheck` 1.2 runs under the brew lua 5.5 dependency and only parses, which is
+fine. monome/.luacheckrc pins std lua51 + max line 100 + norns callback globals.
+
+Harness (monome/test/): harness.lua is stdlib-only so the same file can run on
+the device later - it only needs io.open/os.exit/os.remove/print. run.lua lists
+the suites EXPLICITLY (a new test_*.lua is dead code until it is listed there,
+which is the intended friction) and supports a name-substring filter plus
+--update-goldens. Snapshots live in monome/test/golden/. test_harness.lua proves
+the runner reports failures instead of swallowing them, by capturing print and a
+private results table.
+
+Pure core, all four modules device-free and RNG/path-injected:
+- pattern.lua - 10 lanes x N steps (N a field, so 32 is a config change),
+  clamp_vel 1..127, to_rows/from_rows/rotate for debug dumps.
+- kit.lua - 10 voices, no clap. `kit.engine` stays nil on purpose: the
+  capability probe is device-only and calls kit.set_engine(), so no fabricated
+  value can leak into a test.
+- store.lua - hand-rolled JSON, validates on load and defaults missing fields.
+- gen.lua - 5 styles, injected RNG, fills on `bar % fill_every == 0`, swing on
+  the off-eighths (step % 4 == 3).
+
+Three real bugs found BY the tests, not by reading (worth remembering: the draw
+invariants below only became visible once the tests existed):
+1. gen's RNG draw count LEAKED into its outputs. velocity() was called as an
+   argument to place(), so it only drew when complexity was high enough for a
+   note to land - a parameter changed the number of draws, which shifted the
+   whole stream and destroyed bar-for-bar comparability. Fixed by drawing the
+   velocity first and deciding separately whether to place it.
+2. Same leak via the skeleton loop: it iterated `#steps` of the CHOSEN
+   placement list, so an alt list shorter than the base list changed the draw
+   count. Fixed by iterating max(#steps, #alt) and drawing for every slot,
+   present or not.
+3. intensity = 0 still drifted notes, because drift() consulted only its own
+   draws. Fixed: intensity 0 is now a dead-straight grid, while still consuming
+   its two draws so the stream stays comparable.
+
+Invariants the generator now guarantees, each covered by a test: draw count per
+bar is identical for every parameter setting; fixed style anchors never move
+(four-on-floor kick stays on 1/5/9/13 with humanize on); a fill lands on the last
+bar of every group and is never empty; two hits of the SAME voice never share a
+tick (two different voices on one step is normal and allowed); swing delays only
+step % 4 == 3 and never reorders the grid; and every style survives 500 bars plus
+a 32-step bar with legal positions and 1..127 velocities.
+
+Test-side corrections made along the way: the "different seed gives different
+bars" test used t.deq as a comparison (it is an assertion, so differing bars
+raised instead of counting); the four-on-floor snare test demanded the alt
+placement while leaving humanize on, which contradicted the code; the collision
+test asserted a GLOBAL tick-uniqueness invariant that is simply wrong (kick and
+hat on step 1 legitimately share tick 0), now per-voice; and swing 0.5 buys half
+the half-step maximum (3 ticks), not 6.
+
+Not written (needs matron): drumgen.lua, lib/clock.lua, lib/out.lua, UI. Their
+seams are planned to stay pure encoders (out.encode_note) so they can be tested
+the same way later.
+
+## Plan - 2026-10-05 norns-drums: /drumgen browser page running the real Lua
+Next session continues drumgen with a NEW goal: make the norns UI/UX developable
+without the device. User decisions taken: runtime = fengari-web (pure-JS Lua
+5.3), first milestone = screen core + in-browser VM + live pixel view, input =
+faithful norns controls (encoders/keys, not direct manipulation), sound = WebAudio
+(no MIDI out yet).
+
+Answer to the user's question ("can web really trigger real lua functions?"):
+YES. The page fetches the actual monome/drumgen/lib/*.lua sources and runs them in
+the browser VM; nothing is reimplemented in TypeScript. TS only marshals JSON and
+paints the framebuffer Lua produces. The one real gap is Lua 5.3 vs the device's
+5.1 - audited clean: no unpack/setfenv/module()/bit32/`//` anywhere in lib/, and
+the only 5.1-ism is the optional default math.random in gen.lua:105, which fengari
+provides. The LuaJIT host suite stays the parity authority.
+
+Architecture - ONE source of truth, two runtimes:
+  monome/drumgen/lib/*.lua   pattern kit store gen        (done, 106 tests)
+  + lib/screen.lua           128x64 @ levels 0..15, norns-shaped API
+  + lib/bridge.lua           the ONLY functions TS may call
+        |                         host: luajit + goldens            device: norns
+        +-- browser: fengari + WebAudio                      page: canvas
+Hard rule that keeps this honest: bridge.lua is a TRANSPORT, not a second
+implementation. The device entry drumgen.lua will call ui.enc(n,d) /
+ui.key(n,z) / ui.redraw() - the exact functions the browser calls. The UI never
+touches the `screen` global; it draws through lib/screen.lua which mirrors norns
+call-for-call, so going on-device is one adapter plus a dirty-pixel blit.
+
+Facts verified in norns source this session (not guessed):
+- screen.level(v) is 0..15; screen.pixel(x,y); screen.font_face(1) = "norns",
+  6x8, listed first in Screen.font_face_names, file resources/norns.ttf.
+- screen.peek(x,y,w,h) and screen.export_screenshot(file) exist -> one-time
+  device-side verification path; no guessing needed later.
+- Script API is key(n,z) / enc(n,d) / redraw(), n = 1..3; _menu is a separate
+  PARAM system, so the UI must not use _menu if it is to run in a browser.
+- gen.schedule() already emits {tick,step,lane,note,vel} -> WebAudio is driven by
+  real Lua output.
+- Monome docs: a script folder containing lib/data/docs/test/crow is HIDDEN from
+  the SELECT menu. Host tests therefore stay in monome/test/, and deployment
+  copies the CONTENTS of monome/drumgen/ flat (same trap as c4synth).
+
+Phases:
+0. Spike, go/no-go: npm i fengari-web; angular.json assets copy
+   monome/drumgen/lib -> public/drumgen/lib and the fengari-web UMD bundle ->
+   /vendor; web/scripts/sync-lua.mjs copies + writes sha256 MANIFEST.json; the
+   page injects <script> for the VM (never a TS import - keeps 211KB out of the
+   initial bundle and dodges CJS/UMD interop), registers sources in
+   package.preload, requires 'gen' and renders one real bar. Fallback if esbuild
+   fights us: wasmoon, same bridge code.
+1. lib/screen.lua + font6x8.lua + tools/capture_font.lua (device font capture,
+   run once when hardware is back) + monome/test/test_screen.lua with ASCII
+   goldens (one char per pixel: the golden IS the image, reviewable in a diff).
+2. lib/bridge.lua: boot/input/next_bar/state, events identical to the device
+   ({"kind":"enc","n":2,"d":-1}, {"kind":"key","n":1,"z":true}), one JSON string
+   per call carrying {"ok","dirty":[[x,y,lvl]...],"state","notes"}. JSON both
+   ways on purpose: no fengari table interop, and store.lua's encoder is reused.
+3. web/src/app/drumgen/ following the c4 precedent (flat folder, standalone, SCSS,
+   lazy routes): norns-screen component (128x64 canvas, image-rendering:pixelated,
+   4x, 16-level ramp, one ImageData + single putImageData per frame, optional 2x2
+   LED dot look), norns-controls component (2 encoders + 3 keys emitting
+   enc/key exactly as the device, via encoders.set_sens quantization),
+   drumgen-audio.service.ts (lookahead scheduler off the notes array, per-voice
+   synthesis for all 10 kit voices). Registered in app.routes.ts + nav + home
+   card. NOTE: this page needs NO backend, unlike /la-lady :3111, /h90 :3000,
+   /c4 :3222, /mc3 :3223. Playwright audit (mandatory *.audit.spec.ts glob)
+   asserts the canvas equals the Lua golden and re-checks MANIFEST hashes.
+4. Device-only, later: drumgen.lua, lib/clock.lua (clock not metro), lib/out.lua,
+   lib/screen_device.lua (diff -> screen.pixel -> screen.update),
+   lib/params_device.lua. Then deploy flat and verify with screen.peek.
+
+Risks: fengari is 2018-era (phase 0 is the go/no-go gate, wasmoon is the fallback,
+~50x slower than LuaJIT so redraw on change not on a timer, dirty-pixel payloads);
+5.3-vs-5.1 as above; font not yet proven exact (provisional + capture tool +
+goldens make the gap visible and one-session fixable); lib duplication into
+web/public (sync script + sha256 manifest + Playwright drift check + a note in
+AGENTS.md).
+
+Verification: luajit monome/test/run.lua, luacheck monome/drumgen monome/test,
+cd web && npm run sync:lua && npm run build, and the user running npm start
+(I must not start backends or the dev server). Nothing committed or pushed unless
+asked. Deferred: the editor UI in lib/ui.lua, Web MIDI out, a Node parity
+endpoint against LuaJIT.
+
+### 2026-10-05 — [norns-drums] drums mvp: pure core + host harness + in-browser lua
+
+Status: pure core landed and the in-browser spike passed end to end. Committed,
+not pushed.
+
+Pure core (monome/drumgen/lib), norns-free and device-free by design:
+pattern.lua (10 lanes, 16/32 steps), kit.lua (10 voices, no clap), store.lua
+(JSON, pretty + compact), gen.lua (5 styles, fills, swing, injected RNG),
+bridge.lua (JSON-in/JSON-out boot/tick/set/cells - the only module a host may
+call). Host harness in monome/test: 20 suites, 106 tests, 106 ok, 0 failed;
+luacheck 0 warnings / 0 errors over 12 files. Three generator bugs were found by
+the harness and fixed: a conditional extra-note velocity draw that shifted RNG
+streams, chosen alt-list lengths that changed draw counts, and intensity = 0
+still drifting notes.
+
+Browser spike: fengari-web 0.1.4 (pure-JS Lua 5.3) runs the real sources at
+web/drumgen. Two things changed from the plan after trying it. The plan had the
+VM injected as a plain <script> from /vendor; that does not work here, because
+the dev server 404s any file added under public/ while it is already running, and
+listing it in angular.json assets forces a restart for every future vendor file.
+It is now a dynamic import('fengari-web'), which esbuild puts in its own lazy
+chunk (353kB, loaded only on /drumgen) so the initial bundle is unchanged and
+esbuild's CJS interop does the work. That also removed the public/vendor step.
+The second bug: the service called bridge.tick(...) as a global, but bridge is a
+module, so it was nil ("attempt to index a nil value (global 'bridge')"). It now
+goes through require 'bridge', which also proves the package.preload registration
+works.
+
+Wiring: web/scripts/sync-lua.mjs copies monome/drumgen/lib -> public/lua/drumgen
+with a sha256 MANIFEST.json, and runs as prestart/prebuild so the copies cannot
+drift. The copies are gitignored (they are build output; the source of truth is
+monome/drumgen/lib). MANIFEST hashes show on the page, so a stale copy is
+visible rather than silent. Playwright audit tests/drumgen-lua.audit.spec.ts
+asserts the chain: VM boots, five served files listed, a real gen.lua bar arrives
+as data, and the bar counter advances. Needed `npx playwright install chromium`
+(Playwright 1.62 wanted a build the local cache did not have).
+
+Knowns: the running dev server can serve a stale transform for an edited file, so
+the audit needs a restart of npm start after changing a component. web/public/lua
+is generated, so do not hand-edit it. Phase 0 is done; screen.lua / font6x8.lua
+and the norns controls come next, which is what the MVP actually needs before
+this page is usable.

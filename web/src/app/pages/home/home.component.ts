@@ -74,6 +74,17 @@ export class HomeComponent {
         'which C4 effect each preset recalls (CC104 on MIDI channel 2).',
       backend: 'back/mc3 :3223',
     },
+    {
+      path: '/drumgen',
+      label: 'drumgen',
+      tag: 'norns',
+      title: 'Drumgen — norns UI, off-device',
+      about:
+        'The norns drum machine with its Lua core running in the browser tab: ' +
+        'real generated bars on a 128x64 screen you can judge without the ' +
+        'hardware plugged in.',
+      backend: 'none (lua runs in the tab)',
+    },
   ];
 
   resumeLabel(): string {

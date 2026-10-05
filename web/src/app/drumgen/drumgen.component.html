@@ -1,0 +1,43 @@
+<div class="drumgen">
+  <header class="head">
+    <h1>drumgen</h1>
+    <p class="lead">
+      The norns drum machine, running its own Lua in this tab. Nothing below is
+      reimplemented in TypeScript: the bar comes out of
+      <span class="mono">monome/drumgen/lib/gen.lua</span>.
+    </p>
+  </header>
+
+  <div class="status mono">
+    <span class="dot" [class.ok]="!!state" [class.bad]="!!error"></span>
+    {{ status }}
+    @if (luaVersion) {
+      <span>&middot; lua {{ luaVersion }}</span>
+    }
+    @if (state; as s) {
+      <span>&middot; {{ s.style }} &middot; bar {{ s.bar }}</span>
+    }
+  </div>
+
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  @if (files.length) {
+    <div class="files mono">
+      @for (f of files; track f.name) {
+        <div class="file"><span class="name">{{ f.name }}</span><span class="hash">{{ f.hash }}</span></div>
+      }
+    </div>
+  }
+
+  <div class="panel">
+    <div class="panel-head">
+      <span class="mono">{{ eventCount }} events in this bar</span>
+      <button type="button" (click)="play()">next bar</button>
+    </div>
+    @if (grid) {
+      <pre class="grid mono">{{ grid }}</pre>
+    }
+  </div>
+</div>

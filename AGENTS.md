@@ -12,6 +12,7 @@ Current projects:
 - `[pedal-app]` — pedal/app prototyping (L.A. Lady, source-audio) (`back/lalady`)
 - `[web]` — web frontends / shared web tooling (`web`)
 - `[server]` — shared server work (proxy, captures, fx)
+- `[norns-drums]` — norns drum machine / `monome/` scripts + host test harness
 
 Add new prefixes as new projects are introduced.
 
@@ -22,7 +23,28 @@ Examples:
 [pedal-app] Fix MIDI frame capture over-read bug
 [web] Refresh package-lock after dependency resolution
 [server] Validate DEFLATE decoder LENGTH table
+[norns-drums] Add host tests for the drumgen pattern core
 ```
+
+## norns scripts
+
+- `monome/drumgen/` — generative drum machine. Its pure core (`lib/pattern.lua`,
+  `lib/kit.lua`, `lib/store.lua`, `lib/gen.lua`) is norns-free and device-free:
+  no `norns`, `screen`, `metro`, `params`, `musicutil`, RNG or filesystem access
+  unless injected. `drumgen.lua` and the norns glue (`lib/clock.lua`,
+  `lib/out.lua`) come later.
+- Host tests run on Homebrew LuaJIT (Lua 5.1, the norns dialect), from the repo
+  root:
+
+```
+luajit monome/test/run.lua            # all suites
+luajit monome/test/run.lua gen        # one suite by name substring
+luajit monome/test/run.lua --update-goldens
+luacheck monome/drumgen monome/test
+```
+
+- `monome/test/run.lua` lists the suites explicitly: a new `test_*.lua` is not
+  picked up until it is added there. No test framework, no npm install.
 
 ## Layout
 
