@@ -101,6 +101,24 @@ local EXTRAS = {
   { role = 'rim', steps = { 7, 10, 14 }, vel = 38, weight = 0.6 },
 }
 
+-- A seeded RNG. math.randomseed is global and process-wide, so a second generator
+-- would inherit the first one's stream and a reload would not repeat: a broken
+-- set would not come back the same. A per-generator LCG keeps every generator
+-- independent and reproducible from its seed alone, which is what makes
+-- gen.new{seed=42} mean something on the device and in the browser.
+function gen.rng(seed)
+  local s = math.floor((tonumber(seed) or 0) % 2147483647)
+  if s <= 0 then s = s + 2147483646 end
+  return function(min, max)
+    -- Schrage's constants keep this inside 32-bit ints, so the same arithmetic
+    -- runs on the norns (Lua 5.1, doubles) and in fengari (Lua 5.3).
+    s = (s * 16807) % 2147483647
+    local v = s / 2147483647
+    if max then return math.floor(v * (max - min + 1)) + min end
+    return v
+  end
+end
+
 local function default_rng(min, max)
   if max then return math.random(min, max) end
   return math.random()
@@ -157,7 +175,9 @@ function gen.new(opts)
     fill_every = fill_every,
     bar = 0,          -- bars generated so far
     last_fill = false,
-    rng = opts.rng or default_rng,
+    -- rng beats seed beats default, so a host can inject its own generator for
+    -- tests, or just ask for a reproducible one with a number
+    rng = opts.rng or (opts.seed and gen.rng(opts.seed) or default_rng),
     params = {},
   }
   for i = 1, #gen.PARAM_KEYS do
@@ -306,10 +326,14 @@ local function build_fill(g, p)
 end
 
 -- Generate the next bar in place and return it. g.bar counts from 1.
-function gen.next_bar(g)
+-- opts.force_fill makes this bar a fill regardless of the cadence, which is what
+-- the FILL key does. The cadence counter is untouched, so a forced fill does not
+-- move the next scheduled one.
+function gen.next_bar(g, opts)
   g.bar = g.bar + 1
   local p = pattern.new{ steps = g.steps, lanes = g.lanes }
-  local is_fill = g.fill_every > 0 and (g.bar % g.fill_every == 0)
+  local is_fill = (opts and opts.force_fill)
+    or (g.fill_every > 0 and (g.bar % g.fill_every == 0))
   g.last_fill = is_fill
   if is_fill then
     build_fill(g, p)

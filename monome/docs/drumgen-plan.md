@@ -207,3 +207,36 @@ lua /tmp/gen_test.lua            # run *on the device*
 Note the deploy rule from `AGENTS.md`: push contents (`dir/.`), never
 `scp -r dir`, or the script re-nests as `code/drumgen/drumgen/drumgen` and shows
 up as a spurious `drumgen/drumgen/drumgen` entry in the norns menu.
+## Next step: run it on a connected device
+
+Host testing is done and the browser page works; what is left needs the norns in
+front of us. The pure core (`lib/pattern.lua`, `lib/kit.lua`, `lib/store.lua`,
+`lib/gen.lua`, plus `screen.lua`, `font6x8.lua`, `ui.lua`) passes 181 host tests
+under LuaJIT, so the generator is trustworthy. Three things cannot be checked off
+the device and are the whole point of the next session:
+
+1. **Timing and feel** — the host only proves bars are legal, not that they feel
+   right at tempo. The swing settings and fill cadence get judged by ear.
+2. **Font and layout** — `font6x8.lua` is provisional, written to norns metrics
+   but never rendered on a real screen. `screen.peek()` and the real panel may
+   disagree about widths; `ui.lua` needs an actual look at 128×64.
+3. **Device glue** — `drumgen.lua`, `lib/clock.lua` and `lib/out.lua` do not
+   exist yet. They are the norns-only shell: `metro` for the clock, `audio` for
+   voices, `screen` for the panel, params for the encoders. Everything they call
+   into is already tested, so this is wiring, not new logic.
+
+Deploy flat and keep the script visible under `DRUMGEN`:
+
+```
+scp -r "monome/drumgen/." we@norns.local:/home/we/dust/code/drumgen/
+ssh we@norns.local "test -f /home/we/dust/code/drumgen/drumgen.lua && test ! -e /home/we/dust/code/drumgen/drumgen && cd /home/we/dust/code/drumgen && for f in *.lua lib/*.lua; do luac -p $f; done"
+```
+
+Push contents (`dir/.`), never `scp -r dir`, or it re-nests on the second push
+and shadows the real entry in the script menu.
+
+Audio is still unverified in the browser too: the page holds the host clock and
+drums through WebAudio, and headless Chromium cannot make a sound, so the gap at
+each bar loop point found and fixed in the scheduler has only been reasoned
+about, not heard. Checking that in a browser is cheap and can be done before the
+device session.

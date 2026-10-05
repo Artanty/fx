@@ -2,7 +2,16 @@ import { Injectable } from '@angular/core';
 
 import type { Fengari } from 'fengari-web';
 
-import { BridgeFn, DrumgenManifest, DrumgenReply, DrumgenState } from './drumgen.models';
+import {
+  BridgeFn,
+  DrumgenEvent,
+  DrumgenFrame,
+  DrumgenInputEvent,
+  DrumgenManifest,
+  DrumgenPixels,
+  DrumgenReply,
+  DrumgenState,
+} from './drumgen.models';
 
 /**
  * Runs the real drumgen Lua in the browser.
@@ -28,7 +37,16 @@ import { BridgeFn, DrumgenManifest, DrumgenReply, DrumgenState } from './drumgen
 
 // Keep this list in step with monome/drumgen/lib; sync-lua.mjs and the manifest
 // check in tests/drumgen-assets.audit.spec.ts catch a missing entry.
-const MODULES = ['pattern', 'kit', 'store', 'gen', 'bridge'];
+const MODULES = [
+  'pattern',
+  'kit',
+  'store',
+  'gen',
+  'screen',
+  'font6x8',
+  'ui',
+  'bridge',
+];
 
 const LUA_DIR = 'lua/drumgen/';
 
@@ -69,15 +87,15 @@ export class DrumgenLuaService {
     this.vm = fengari;
     fengari.load(REGISTER_HOOK)();
 
-    for (const mod of MODULES) {
-      const res = await fetch(`${LUA_DIR}${mod}.lua`);
+    for (const name of MODULES) {
+      const res = await fetch(`${LUA_DIR}${name}.lua`);
       if (!res.ok) {
         throw new Error(
-          `cannot fetch ${LUA_DIR}${mod}.lua (${res.status}) - run: npm run sync:lua`,
+          `cannot fetch ${LUA_DIR}${name}.lua (${res.status}) - run: npm run sync:lua`,
         );
       }
       const src = await res.text();
-      this.run(`__drumgen_register("${mod}", ${this.luaQuote(src)})`);
+      this.run(`__drumgen_register("${name}", ${this.luaQuote(src)})`);
     }
     return fengari;
   }
@@ -100,6 +118,62 @@ export class DrumgenLuaService {
     const chunk =
       `local bridge = require 'bridge'\nreturn bridge.${fn}(${this.luaQuote(JSON.stringify(payload))})`;
     return JSON.parse(this.toText(chunk)) as DrumgenReply<T>;
+  }
+
+  /** Apply a UI change: style, params, tempo, play state. */
+  async set(change: {
+    style?: string;
+    params?: Record<string, number>;
+    tempo?: number;
+    playing?: boolean;
+  }): Promise<DrumgenReply> {
+    await this.start();
+    return this.call('set', change);
+  }
+
+  /**
+   * Generate one bar and hand back its events for scheduling.
+   *
+   * `playhead` tells Lua where the host is, so the redraw that follows shows the
+   * column that is sounding. `force_fill` is the FILL action, separate from the
+   * cadence in gen.lua so a fill never shifts the next scheduled one.
+   */
+  async tick(opts: { playhead?: number; force_fill?: boolean } = {}): Promise<
+    DrumgenReply & { events?: DrumgenEvent[] }
+  > {
+    await this.start();
+    return this.call('tick', opts);
+  }
+
+  /** Feed device-shaped input in: the same numbers a norns enc()/key() would send. */
+  async input(events: DrumgenInputEvent[]): Promise<DrumgenReply> {
+    await this.start();
+    return this.call('input', { events });
+  }
+
+  /**
+   * Redraw and get the pixels back.
+   *
+   * Lua hands the screen over run-length encoded because a 128x64 framebuffer is
+   * mostly one level: a few hundred pairs cross the boundary instead of 8192
+   * numbers, and none of them need fengari table interop. This expands them into
+   * one row-major array for the canvas.
+   */
+  async render(opts: { playhead?: number; playing?: boolean } = {}): Promise<
+    DrumgenReply & { pixels?: DrumgenPixels }
+  > {
+    await this.start();
+    return this.call('render', opts);
+  }
+
+  /** Expand run-length encoded levels into a row-major frame, one level per pixel. */
+  static toFrame(pixels: DrumgenPixels): DrumgenFrame {
+    const frame = new Uint8Array(pixels.width * pixels.height);
+    let at = 0;
+    for (const [count, level] of pixels.rle) {
+      for (let i = 0; i < count && at < frame.length; i++) frame[at++] = level;
+    }
+    return frame;
   }
 
   /** The Lua version string, for the status line. */

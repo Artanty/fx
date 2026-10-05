@@ -127,3 +127,182 @@
   line-height: 1.35;
   overflow-x: auto;
 }
+// The machine: the screen at its real aspect, and the three knobs and three keys
+// the norns shield has. Nothing here invents a control the device does not have,
+// which is why there are three encoders for four params and a FILL button that is
+// an action rather than a fourth encoder.
+.machine {
+  display: grid;
+  gap: 18px;
+  margin: 20px 0;
+  padding: 18px;
+  background: #14141a;
+  border: 1px solid #2c2c35;
+  border-radius: 10px;
+}
+
+.screen-wrap {
+  // The canvas is sized by its own width/height attributes (128x64 at the chosen
+  // scale), so its CSS width has to follow them. Sizing it with width:100% instead
+  // stretched every scale to the same box, which made the scale buttons do
+  // nothing you could see.
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.screen {
+  display: block;
+  // width/height auto so the element is exactly canvas.width x canvas.height: one
+  // screen pixel per that many CSS pixels, which is what makes pixelated honest.
+  width: auto;
+  height: auto;
+  // Never stretch to fit: a narrower window scrolls rather than blurring the
+  // picture, because a non-integer scale would resample it.
+  max-width: none;
+  image-rendering: pixelated;
+  background: #000;
+  border: 1px solid #2c2c35;
+  border-radius: 4px;
+}
+
+.knobs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.dial {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2px solid #3a3a46;
+  background: radial-gradient(circle at 35% 30%, #2a2a34, #17171d);
+  color: #e6e6ee;
+  font-size: 15px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #6fd08c;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #6fd08c;
+    outline-offset: 2px;
+  }
+}
+
+.knob-label {
+  font-size: 11px;
+  color: #9a9aa8;
+
+  em {
+    display: block;
+    color: #6fd08c;
+    font-style: normal;
+  }
+}
+
+.knob-note {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #6f6f7f;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.key {
+  min-width: 84px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #22222b;
+  border: 1px solid #3a3a46;
+  border-radius: 6px;
+  color: #f0f0f4;
+  font-size: 16px;
+  cursor: pointer;
+
+  span {
+    font-size: 11px;
+    color: #9a9aa8;
+  }
+
+  &.accent {
+    border-color: #6fd08c;
+    color: #6fd08c;
+  }
+
+  &:hover {
+    border-color: #6fd08c;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #6fd08c;
+    outline-offset: 2px;
+  }
+}
+
+.scales {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scale {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid #3a3a46;
+  border-radius: 4px;
+  color: #9a9aa8;
+  font-size: 11px;
+  cursor: pointer;
+
+  &.on {
+    border-color: #6fd08c;
+    color: #6fd08c;
+  }
+}
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 12px 0 0;
+
+  div {
+    display: flex;
+    gap: 6px;
+  }
+
+  dt {
+    color: #6f6f7f;
+  }
+
+  dd {
+    margin: 0;
+    color: #c9c9d4;
+  }
+}
+
+.hint {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: #241f14;
+  border: 1px solid #4a3d1c;
+  border-radius: 6px;
+  color: #d8c48a;
+  font-size: 13px;
+}

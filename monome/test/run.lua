@@ -30,6 +30,8 @@ local FILES = {
   'test_pattern',
   'test_store',
   'test_gen',
+  'test_screen',
+  'test_bridge',
 }
 
 local filter, update = nil, false

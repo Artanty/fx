@@ -2,9 +2,11 @@
   <header class="head">
     <h1>drumgen</h1>
     <p class="lead">
-      The norns drum machine, running its own Lua in this tab. Nothing below is
-      reimplemented in TypeScript: the bar comes out of
-      <span class="mono">monome/drumgen/lib/gen.lua</span>.
+      The norns drum machine, running its own Lua in this tab. No hit and no pixel
+      below is produced by TypeScript: the bar comes out of
+      <span class="mono">gen.lua</span> and the picture out of
+      <span class="mono">ui.lua</span>, both fetched from
+      <span class="mono">/lua/drumgen</span>.
     </p>
   </header>
 
@@ -23,21 +25,105 @@
     <p class="error">{{ error }}</p>
   }
 
-  @if (files.length) {
-    <div class="files mono">
-      @for (f of files; track f.name) {
-        <div class="file"><span class="name">{{ f.name }}</span><span class="hash">{{ f.hash }}</span></div>
-      }
-    </div>
+  @if (audioBlocked) {
+    <p class="hint">
+      The browser holds sound back until you click something. Any control below will
+      start the audio and the clock together.
+    </p>
   }
+
+  <div class="machine">
+    <!-- The 128x64 screen, scaled. width/height are set by the component from the
+         frame Lua actually returned, so the aspect never guesses. -->
+    <div class="screen-wrap">
+      <canvas
+        #screen
+        class="screen"
+        role="img"
+        [attr.aria-label]="'the drum machine screen at ' + scale + 'x'"
+      ></canvas>
+    </div>
+
+    <div class="knobs">
+      @for (n of [1, 2, 3]; track n) {
+        <div class="knob">
+          <button
+            type="button"
+            class="dial"
+            [attr.aria-label]="'encoder ' + n + ': ' + paramFor(n)"
+            (click)="turn(n, 3)"
+            (contextmenu)="$event.preventDefault(); turn(n, -3)"
+          >
+            <span class="mono">{{ percent(paramFor(n)) }}</span>
+          </button>
+          <span class="knob-label mono">
+            E{{ n }} {{ paramFor(n) || '—' }}
+            @if (n === 3 && state?.swing_page) {
+              <em>(all three are swing)</em>
+            }
+          </span>
+        </div>
+      }
+      <p class="knob-note">click a knob up, right-click down</p>
+    </div>
+
+    <div class="keys">
+      <button type="button" class="key" (click)="press(1)">
+        1<span>play / stop</span>
+      </button>
+      <button type="button" class="key" (click)="press(2)">
+        2<span>next style</span>
+      </button>
+      <button type="button" class="key" (click)="press(3)">
+        3<span>swing page</span>
+      </button>
+      <button type="button" class="key accent" (click)="forceFill()">
+        fill<span>one bar, now</span>
+      </button>
+    </div>
+  </div>
 
   <div class="panel">
     <div class="panel-head">
-      <span class="mono">{{ eventCount }} events in this bar</span>
-      <button type="button" (click)="play()">next bar</button>
+      <span class="mono">
+        {{ state?.tempo ?? 120 }} bpm · {{ eventCount }} events · {{ barsPlayed }} bars ·
+        {{ stepMs | number: '1.0-1' }} ms a step
+      </span>
+      <span class="scales">
+        screen
+        @for (s of scales; track s) {
+          <button
+            type="button"
+            class="scale"
+            [class.on]="scale === s"
+            [attr.aria-pressed]="scale === s"
+            (click)="setScale(s)"
+          >
+            {{ s }}x
+          </button>
+        }
+      </span>
     </div>
-    @if (grid) {
-      <pre class="grid mono">{{ grid }}</pre>
+
+    @if (state; as s) {
+      <dl class="readout mono">
+        <div><dt>selected</dt><dd>{{ paramFor(state.selected) }}</dd></div>
+        <div><dt>styles</dt><dd>{{ styleList }}</dd></div>
+        <div><dt>fill every</dt><dd>{{ s.fill_every }} bars</dd></div>
+        <div><dt>last bar</dt><dd>{{ s.last_fill ? 'fill' : 'plain' }}</dd></div>
+        <div><dt>lanes</dt><dd>{{ s.voices.length }}</dd></div>
+        <div><dt>kit</dt><dd>{{ kitNotes }}</dd></div>
+      </dl>
+    }
+
+    @if (files.length) {
+      <div class="files mono">
+        @for (f of files; track f.name) {
+          <div class="file">
+            <span class="name">{{ f.name }}</span><span class="hash">{{ f.hash }}</span>
+          </div>
+        }
+      </div>
     }
   </div>
 </div>

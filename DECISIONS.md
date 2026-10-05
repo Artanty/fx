@@ -7257,3 +7257,126 @@ the audit needs a restart of npm start after changing a component. web/public/lu
 is generated, so do not hand-edit it. Phase 0 is done; screen.lua / font6x8.lua
 and the norns controls come next, which is what the MVP actually needs before
 this page is usable.
+
+## Plan - 2026-10-05 norns-drums: the screen, the three encoders and a clock that plays
+
+The browser spike could generate a bar but was not a drum machine: it printed a
+10x16 ASCII grid behind one "next bar" button. The user asked for it to look and
+behave like the norns thing - a big screen, three encoders, three keys, and a
+clock that plays by itself - so this is the UI phase.
+
+Plan:
+
+- lib/screen.lua, a pure 128x64 framebuffer with levels 0..15, dirty rects and an
+  ASCII dump for tests. No `screen` global, no norns, so the same file runs under
+  LuaJIT, in fengari and later on the device (which blits it through
+  screen.pixel()/screen.update()).
+- lib/font6x8.lua, hand-authored 5x7 glyphs in 6x8 cells with column-major bits
+  and bit 0 at the top, matching the norns face. Provisional: exact firmware
+  parity needs hardware.
+- lib/ui.lua, the fixed layout: header (style, bar, play marker), the grid with
+  velocity as brightness, the four params with the selected one inverted, what
+  the keys do, what the encoders are bound to. Fixed 128x64, because a layout
+  that reflows is a layout that cannot be checked.
+- bridge.lua grows the host-facing surface: tempo, playing, playhead, which param
+  the encoders turn, a render that hands back run-length pixels, and input() that
+  takes device-shaped events {kind='enc',n,d} / {kind='key',n,z}. Every entry
+  point guarded, so a raise arrives as {ok:false,error=...} rather than a dead
+  page.
+- The page: canvas at 4x by default (2x/3x/4x selectable), three knobs and three
+  buttons that send the same JSON a norns enc()/key() would, a WebAudio voice per
+  kit id, and a timer clock that schedules each event at its own tick on the
+  AudioContext clock rather than on setTimeout, because drift on a hi-hat is
+  audible.
+
+Two decisions worth recording. There are four params and three encoders, so key 3
+is a page that swaps all three encoders to swing; inventing a fourth encoder would
+make the browser easier to use in exactly the way it must not be. FILL is not a
+key at all, because on the device it is an action on the third key and in the
+browser it is its own button - it forces one bar and does not shift the cadence,
+so a fill never moves the next scheduled one.
+
+## Done - 2026-10-05 norns-drums: screen, controls, clock (tests and audit green)
+
+The Lua side is done: screen.lua, font6x8.lua, ui.lua, and a rewritten bridge with
+tempo/playing/playhead/render/input. Two things came out of writing the tests
+rather than out of planning them. gen.new accepted a seed but ignored it, so two
+boots with the same seed produced different bars - gen.rng(seed) is now a
+per-generator LCG, because math.randomseed is global and would have leaked one
+generator's stream into the next. And bridge.input indexed events without checking
+their type, so `[1,2]` became a Lua traceback instead of a message.
+
+The web side is done: canvas painted from the RLE that ui.lua produced, three
+knobs, three keys, a FILL action, per-voice WebAudio (one reused noise buffer, an
+oscillator with a pitch drop for the tuned hits), and a clock that schedules on the
+AudioContext clock with one bar of look-ahead. The status line, the readout and
+the file hashes are still there, so what is on screen is traceable to a Lua file.
+
+Verified: `luajit monome/test/run.lua` 30 suites, 181 tests, 181 ok;
+`luacheck monome/drumgen monome/test` clean; `npm run build` clean (initial total
+403.93 kB, fengari still in its lazy chunk); `npx playwright test
+tests/drumgen-lua.audit.spec.ts` 6 passed against ng serve on :4211 - the eight
+served lua files, a lit canvas at the right aspect, the scale buttons, each key
+doing what the screen says, an encoder moving the param it is labelled with, and
+the clock advancing bars with nothing clicked.
+
+Knowns: headless Chromium refuses to start audio without a gesture, so the page
+shows a line saying so and starts sound on the first control press; exact font
+parity and screen.peek() parity still need the physical norns.
+
+## Fix - 2026-10-05 norns-drums: scale buttons did nothing visible, PLAY did not stop
+
+Two reported bugs, both in the page rather than the Lua, both from the same
+mistake: the host kept state that Lua already owned.
+
+The scale buttons changed canvas.width and canvas.height and nothing appeared to
+happen, because the stylesheet sized the canvas with width:100% / height:auto, so
+every scale was stretched into the same box and the only difference was an
+internal buffer size. The element is now width:auto / height:auto inside a
+scrollable wrapper, so one norns pixel is exactly N CSS pixels and 3x really is
+smaller than 4x. The wrapper scrolls rather than scaling down, because fitting a
+512px canvas into a narrower column would resample it and undo the point.
+
+PLAY toggled `playing` in Lua while the bar clock was an independent setTimeout
+that nothing stopped, so the machine kept playing and the screen disagreed with
+it. There are now two pieces of state and one reconciler: syncClock() puts the
+timer right whenever anything changes the play flag, onBar() refuses to schedule
+unless Lua says playing is true, and begin() explicitly sets playing before the
+first bar. It also turned out the clock never really ran: boot leaves playing
+false, so onBar() saw false and stopped after bar one.
+
+A third bug found on the way: paint() ran from ngOnInit, before the view exists,
+so the first frame never reached the canvas and it sat at the 300x150 default.
+
+Verified: audit is now 7 tests and asserts the displayed size, not just the
+attribute - PLAY stops the counter for 5 seconds and PLAY starts it again - all 7
+pass; build clean at 403.93 kB initial; host tests 30 suites 181 ok; luacheck
+clean.
+
+## Fix - 2026-10-05 norns-drums: playhead froze near the end of the bar
+
+Symptom: the playhead walked 1..16 correctly, then sat on the last step while
+the bar counter kept climbing.
+
+Two bugs, both in how the page scheduled the next bar.
+
+Look-ahead was one whole bar. onBar fired a full bar after the bar in flight had
+started, then asked for the next bar `barMs` into the future, which put that bar
+at T+2 bars when the boundary was at T+1 bar. Every bar was requested one bar
+late: the audio had a bar-length gap at each loop point and the playhead, already
+clamped to the last step by `Math.min(bar.steps, ...)`, waited a whole bar for a
+bar nobody had asked for. Look-ahead is now half a bar (`lookaheadMs`) and the
+timer uses the same interval as the look-ahead, so a bar queued on one tick
+starts exactly on the next tick's boundary.
+
+The playhead had one requestAnimationFrame loop per bar and never cancelled the
+old ones, so several loops were writing the same column at once. There is now a
+single loop for the life of playback; bars are queued one ahead and wait in
+`pendingBar` until their start time actually arrives. Redraws also only happen
+when the column changes instead of every frame - a repaint is a fengari call and
+is much slower than a frame, so asking for 60 of them a second made the column
+lag the sound it was meant to lead.
+
+Verified: 181 host tests ok, build clean at 403.93 kB. The browser audit needs
+the dev server, which was not running; playhead walk and audio gaps are
+re-checked by hand.
